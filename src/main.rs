@@ -1,4 +1,6 @@
 #![feature(once_cell)]
+#![feature(entry_insert)]
+#![feature(try_find)]
 
 use color_eyre::Result;
 
