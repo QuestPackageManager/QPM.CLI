@@ -2,7 +2,7 @@ use color_eyre::{eyre::Context, Result};
 use fs_extra::{dir::copy as copy_directory, file::copy as copy_file};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::PathBuf, io::Write};
+use std::{collections::HashMap, fs, io::Write, path::PathBuf};
 
 use remove_dir_all::remove_dir_all;
 
@@ -41,13 +41,16 @@ impl FileRepository {
         project_folder: PathBuf,
         binary_path: Option<PathBuf>,
         debug_binary_path: Option<PathBuf>,
+        copy: bool,
     ) -> Result<()> {
         if !self.artifacts.contains_key(&package.config.info.id) {
             self.artifacts
                 .insert(package.config.info.id.clone(), HashMap::new());
         }
 
-        Self::add_to_cache(&package, project_folder, binary_path, debug_binary_path)?;
+        if copy {
+            Self::copy_to_cache(&package, project_folder, binary_path, debug_binary_path)?;
+        }
 
         let id_artifacts = self.artifacts.get_mut(&package.config.info.id).unwrap();
 
@@ -55,7 +58,7 @@ impl FileRepository {
         Ok(())
     }
 
-    fn copy_to_cache(a: &PathBuf, b: &PathBuf) -> Result<()> {
+    fn copy_things(a: &PathBuf, b: &PathBuf) -> Result<()> {
         if a.is_dir() {
             fs::create_dir_all(&b)?;
         } else {
@@ -81,7 +84,7 @@ impl FileRepository {
         Ok(())
     }
 
-    fn add_to_cache(
+    fn copy_to_cache(
         package: &SharedPackageConfig,
         project_folder: PathBuf,
         binary_path: Option<PathBuf>,
@@ -122,22 +125,22 @@ impl FileRepository {
             let debug_so_path = lib_path.join(format!("debug_{}", package.config.get_so_name()));
 
             if let Some(binary_path_unwrapped) = &binary_path {
-                Self::copy_to_cache(binary_path_unwrapped, &so_path)?;
+                Self::copy_things(binary_path_unwrapped, &so_path)?;
             }
 
             if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
-                Self::copy_to_cache(debug_binary_path_unwrapped, &debug_so_path)?;
+                Self::copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
             }
         }
 
         let original_shared_path = project_folder.join(&package.config.shared_dir);
         let original_package_file_path = project_folder.join("qpm.json");
 
-        Self::copy_to_cache(
+        Self::copy_things(
             &original_shared_path,
             &src_path.join(&package.config.shared_dir),
         )?;
-        Self::copy_to_cache(&original_package_file_path, &src_path.join("qpm.json"))?;
+        Self::copy_things(&original_package_file_path, &src_path.join("qpm.json"))?;
 
         let package_path = src_path.join("qpm.json");
         let downloaded_package = PackageConfig::read_path(package_path);
@@ -218,7 +221,14 @@ impl Repository for FileRepository {
             return Ok(());
         }
 
-        self.add_artifact(package, project_folder, binary_path, debug_binary_path)?;
+        // don't copy files to cache
+        self.add_artifact(
+            config,
+            project_folder,
+            binary_path,
+            debug_binary_path,
+            false,
+        )?;
         Ok(())
     }
 }

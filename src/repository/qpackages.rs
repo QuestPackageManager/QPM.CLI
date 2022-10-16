@@ -98,7 +98,7 @@ impl Repository for QPMRepository {
         Self::get_versions(id)
     }
 
-    fn get_package(&self, id: &str, version: Version) -> Result<Option<SharedPackageConfig>> {
+    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
         let cache = self.packages_cache.get(id).and_then(|f| f.get(&version));
 
         if let Some(c) = cache {

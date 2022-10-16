@@ -72,7 +72,7 @@ impl Repository for MultiDependencyProvider {
     fn get_package(
         &self,
         id: &str,
-        version: semver::Version,
+        version: &semver::Version,
     ) -> Result<Option<SharedPackageConfig>> {
         let opt = self
             .repositories
