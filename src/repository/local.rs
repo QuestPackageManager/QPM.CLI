@@ -2,7 +2,12 @@ use color_eyre::{eyre::Context, Result};
 use fs_extra::{dir::copy as copy_directory, file::copy as copy_file};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, io::Write, path::PathBuf};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    fs,
+    io::Write,
+    path::PathBuf,
+};
 
 use remove_dir_all::remove_dir_all;
 
@@ -42,6 +47,7 @@ impl FileRepository {
         binary_path: Option<PathBuf>,
         debug_binary_path: Option<PathBuf>,
         copy: bool,
+        overwrite_existing: bool,
     ) -> Result<()> {
         if !self.artifacts.contains_key(&package.config.info.id) {
             self.artifacts
@@ -54,7 +60,19 @@ impl FileRepository {
 
         let id_artifacts = self.artifacts.get_mut(&package.config.info.id).unwrap();
 
-        id_artifacts.insert(package.config.info.version.clone(), package);
+        let entry = id_artifacts.entry(package.config.info.version.clone());
+
+        match entry {
+            Entry::Occupied(e) => {
+                if overwrite_existing {
+                    entry.insert_entry(package);
+                }
+            }
+            Entry::Vacant(_) => {
+                entry.insert_entry(package);
+            }
+        };
+
         Ok(())
     }
 
@@ -222,12 +240,14 @@ impl Repository for FileRepository {
         }
 
         // don't copy files to cache
+        // don't overwrite cache with backend
         self.add_artifact(
             config,
             project_folder,
             binary_path,
             debug_binary_path,
             false,
+            false
         )?;
         Ok(())
     }
