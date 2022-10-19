@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use itertools::Itertools;
 
-use crate::models::dependency::{PackageVersion, SharedPackageConfig};
+use crate::models::{dependency::{SharedPackageConfig}, backend::PackageVersion};
 
 use super::{local::FileRepository, qpackages::QPMRepository, Repository};
 

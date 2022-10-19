@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use semver::Version;
 
-use crate::models::dependency::{PackageVersion, SharedPackageConfig};
+use crate::models::{dependency::{SharedPackageConfig}, backend::PackageVersion};
 
 pub mod local;
 pub mod multi;

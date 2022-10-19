@@ -1,5 +1,9 @@
-use color_eyre::{eyre::{Context, bail}, Result};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
 use fs_extra::{dir::copy as copy_directory, file::copy as copy_file};
+use owo_colors::OwoColorize;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,8 +16,7 @@ use std::{
 use remove_dir_all::remove_dir_all;
 
 use crate::models::{
-    dependency::{PackageVersion, SharedPackageConfig},
-    package::PackageConfig,
+    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
 use super::Repository;
@@ -40,22 +43,14 @@ impl FileRepository {
         }
     }
 
-    pub fn add_artifact(
+    pub fn add_artifact_to_map(
         &mut self,
         package: SharedPackageConfig,
-        project_folder: PathBuf,
-        binary_path: Option<PathBuf>,
-        debug_binary_path: Option<PathBuf>,
-        copy: bool,
         overwrite_existing: bool,
     ) -> Result<()> {
         if !self.artifacts.contains_key(&package.config.info.id) {
             self.artifacts
                 .insert(package.config.info.id.clone(), HashMap::new());
-        }
-
-        if copy {
-            Self::copy_to_cache(&package, project_folder, binary_path, debug_binary_path)?;
         }
 
         let id_artifacts = self.artifacts.get_mut(&package.config.info.id).unwrap();
@@ -72,6 +67,24 @@ impl FileRepository {
                 entry.insert_entry(package);
             }
         };
+
+        Ok(())
+    }
+
+    pub fn add_artifact_and_cache(
+        &mut self,
+        package: SharedPackageConfig,
+        project_folder: PathBuf,
+        binary_path: Option<PathBuf>,
+        debug_binary_path: Option<PathBuf>,
+        copy: bool,
+        overwrite_existing: bool,
+    ) -> Result<()> {
+        self.add_artifact_to_map(package, overwrite_existing)?;
+
+        if copy {
+            Self::copy_to_cache(&package, project_folder, binary_path, debug_binary_path)?;
+        }
 
         Ok(())
     }
@@ -139,7 +152,7 @@ impl FileRepository {
 
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
-            let so_path = lib_path.join(package.config.get_so_name());
+            let so_path = lib_path.join(package.config.additional_data.get_so_name());
             let debug_so_path = lib_path.join(format!("debug_{}", package.config.get_so_name()));
 
             if let Some(binary_path_unwrapped) = &binary_path {
@@ -241,14 +254,7 @@ impl Repository for FileRepository {
 
         // don't copy files to cache
         // don't overwrite cache with backend
-        self.add_artifact(
-            config,
-            project_folder,
-            binary_path,
-            debug_binary_path,
-            false,
-            false
-        )?;
+        self.add_artifact_to_map(config, false)?;
         Ok(())
     }
 }

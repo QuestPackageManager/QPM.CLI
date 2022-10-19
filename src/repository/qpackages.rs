@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 use crate::{
-    models::dependency::{PackageVersion, SharedPackageConfig},
+    models::{dependency::{SharedPackageConfig}, backend::PackageVersion, package::PackageConfig},
     network::agent::get_agent,
 };
 
@@ -110,9 +110,9 @@ impl Repository for QPMRepository {
 
     fn add_to_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
         self.packages_cache
-            .entry(config.id.clone())
+            .entry(config.config.info.id.clone())
             .or_default()
-            .entry(config.version.clone())
+            .entry(config.config.info.version.clone())
             .insert_entry(config);
         Ok(())
     }
