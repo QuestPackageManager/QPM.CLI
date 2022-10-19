@@ -1,4 +1,4 @@
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{eyre::{Context, bail}, Result};
 use reqwest::StatusCode;
 use semver::Version;
 use std::collections::HashMap;
@@ -66,7 +66,7 @@ impl QPMRepository {
             .send()?;
 
         if resp.status() == StatusCode::UNAUTHORIZED {
-            panic!(
+            bail!(
                 "Could not publish to {}: Unauthorized! Did you provide the correct key?",
                 API_URL
             );

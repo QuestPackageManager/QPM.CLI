@@ -1,4 +1,4 @@
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{eyre::{Context, bail}, Result};
 use fs_extra::{dir::copy as copy_directory, file::copy as copy_file};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -165,7 +165,7 @@ impl FileRepository {
 
         // check if downloaded config is the same version as expected, if not, panic
         if downloaded_package.info.version != package.config.info.version {
-            panic!(
+            bail!(
                 "Downloaded package ({}) version ({}) does not match expected version ({})!",
                 package.config.info.id.bright_red(),
                 downloaded_package.info.version.to_string().bright_green(),
