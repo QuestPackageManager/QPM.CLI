@@ -5,10 +5,11 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use crate::{
-    models::{dependency::{SharedPackageConfig}, backend::PackageVersion, package::PackageConfig},
-    network::agent::get_agent,
+use qpm_package::{
+    models::{dependency::{SharedPackageConfig}, backend::PackageVersion},
 };
+
+use crate::network::agent::get_agent;
 
 use super::Repository;
 

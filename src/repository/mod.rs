@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use semver::Version;
 
-use crate::models::{dependency::{SharedPackageConfig}, backend::PackageVersion};
+use qpm_package::models::{dependency::{SharedPackageConfig}, backend::PackageVersion};
 
 pub mod local;
 pub mod multi;

@@ -1362,6 +1362,7 @@ dependencies = [
  "keyring",
  "owo-colors",
  "pubgrub",
+ "qpm_package",
  "remove_dir_all 0.7.0",
  "reqwest",
  "semver",
@@ -1370,6 +1371,17 @@ dependencies = [
  "symlink",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "qpm_package"
+version = "0.1.0"
+source = "git+https://github.com/QuestPackageManager/QPM.Package.git#e6825fae72908acf547b4cb8960a31002161abbe"
+dependencies = [
+ "cursed-semver-parser",
+ "semver",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

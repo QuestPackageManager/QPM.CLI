@@ -15,7 +15,7 @@ use std::{
 
 use remove_dir_all::remove_dir_all;
 
-use crate::models::{
+use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
