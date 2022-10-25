@@ -35,11 +35,14 @@ impl UserConfig {
 
     fn read_global() -> Result<Self> {
         fs::create_dir_all(Self::global_config_path().parent().unwrap())?;
-        let file = File::options()
-            .read(true)
-            .create(true)
-            .write(true)
-            .open(Self::global_config_path())?;
+        
+        if !Self::global_config_path().exists() {
+            let def = Self::default();
+            def.write(false)?;
+            return Ok(def); 
+        }
+        
+        let file = File::open(Self::global_config_path())?;
         Ok(serde_json::from_reader(file)?)
     }
 
