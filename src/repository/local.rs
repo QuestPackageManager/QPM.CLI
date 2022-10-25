@@ -19,7 +19,7 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
-use crate::models::{config::UserConfig, package::PackageConfigExtensions};
+use crate::models::{config::UserConfig, package::PackageConfigExtensions, package_metadata::PackageMetadataExtensions};
 
 use super::Repository;
 
@@ -60,9 +60,9 @@ impl FileRepository {
         let entry = id_artifacts.entry(package.config.info.version.clone());
 
         match entry {
-            Entry::Occupied(e) => {
+            Entry::Occupied(mut e) => {
                 if overwrite_existing {
-                    entry.insert_entry(package);
+                    e.insert(package);
                 }
             }
             Entry::Vacant(_) => {
@@ -82,11 +82,11 @@ impl FileRepository {
         copy: bool,
         overwrite_existing: bool,
     ) -> Result<()> {
-        self.add_artifact_to_map(package, overwrite_existing)?;
-
         if copy {
             Self::copy_to_cache(&package, project_folder, binary_path, debug_binary_path)?;
         }
+        self.add_artifact_to_map(package, overwrite_existing)?;
+
 
         Ok(())
     }
@@ -154,8 +154,8 @@ impl FileRepository {
 
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
-            let so_path = lib_path.join(package.config.additional_data.get_so_name());
-            let debug_so_path = lib_path.join(format!("debug_{}", package.config.get_so_name()));
+            let so_path = lib_path.join(package.config.info.get_so_name());
+            let debug_so_path = lib_path.join(format!("debug_{}", package.config.info.get_so_name()));
 
             if let Some(binary_path_unwrapped) = &binary_path {
                 Self::copy_things(binary_path_unwrapped, &so_path)?;

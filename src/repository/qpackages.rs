@@ -1,13 +1,14 @@
-use color_eyre::{eyre::{Context, bail}, Result};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
 use reqwest::StatusCode;
 use semver::Version;
 use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use qpm_package::{
-    models::{dependency::{SharedPackageConfig}, backend::PackageVersion},
-};
+use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
 
 use crate::network::agent::get_agent;
 
@@ -21,7 +22,6 @@ pub struct QPMRepository {
 }
 
 impl QPMRepository {
-
     fn run_request<T: for<'a> Deserialize<'a>>(path: &str) -> Result<Option<T>> {
         let url = format!("{}/{}", API_URL, path);
 
