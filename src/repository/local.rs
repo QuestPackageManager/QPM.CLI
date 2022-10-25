@@ -19,7 +19,7 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
-use crate::models::config::UserConfig;
+use crate::models::{config::UserConfig, package::PackageConfigExtensions};
 
 use super::Repository;
 
@@ -128,9 +128,10 @@ impl FileRepository {
             package.config.info.id.bright_red(),
             package.config.info.version.bright_green()
         );
-        let config = UserConfig::read_combine();
+        let config = UserConfig::read_combine()?;
         let cache_path = config
             .cache
+            .unwrap()
             .join(&package.config.info.id)
             .join(package.config.info.version.to_string());
 
@@ -174,8 +175,8 @@ impl FileRepository {
         )?;
         Self::copy_things(&original_package_file_path, &src_path.join("qpm.json"))?;
 
-        let package_path = src_path.join("qpm.json");
-        let downloaded_package = PackageConfig::read_path(package_path);
+        let package_path = src_path;
+        let downloaded_package = PackageConfig::read(&package_path)?;
 
         // check if downloaded config is the same version as expected, if not, panic
         if downloaded_package.info.version != package.config.info.version {
