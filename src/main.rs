@@ -7,6 +7,7 @@ use color_eyre::Result;
 pub mod models;
 pub mod network;
 pub mod repository;
+pub mod utils;
 
 fn main() -> Result<()> {
     color_eyre::install()?;

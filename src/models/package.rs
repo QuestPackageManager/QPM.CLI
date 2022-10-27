@@ -15,7 +15,7 @@ impl PackageConfigExtensions for PackageConfig {
     }
 
     fn write(&self, dir: &Path) -> Result<()> {
-        let mut file = File::create(dir.with_file_name("qpm.json"))?;
+        let file = File::create(dir.with_file_name("qpm.json"))?;
 
         serde_json::to_writer_pretty( file, self);
         Ok(())

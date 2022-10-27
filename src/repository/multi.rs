@@ -80,7 +80,7 @@ impl Repository for MultiDependencyProvider {
             .find_map(|r| Some(r.get_package(id, version)));
 
         if let Some(o) = opt {
-            return Ok(o?);
+            return o;
         }
 
         Ok(None)
@@ -97,7 +97,7 @@ impl Repository for MultiDependencyProvider {
             .collect::<Vec<String>>())
     }
 
-    fn add_to_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_cache(&mut self, _config: SharedPackageConfig, _permanent: bool) -> Result<()> {
         todo!()
     }
 }

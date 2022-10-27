@@ -100,16 +100,16 @@ impl Repository for QPMRepository {
     }
 
     fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
-        let cache = self.packages_cache.get(id).and_then(|f| f.get(&version));
+        let cache = self.packages_cache.get(id).and_then(|f| f.get(version));
 
         if let Some(c) = cache {
             return Ok(Some(c.clone()));
         }
 
-        Self::get_shared_package(id, &version)
+        Self::get_shared_package(id, version)
     }
 
-    fn add_to_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_cache(&mut self, config: SharedPackageConfig, _permanent: bool) -> Result<()> {
         self.packages_cache
             .entry(config.config.info.id.clone())
             .or_default()

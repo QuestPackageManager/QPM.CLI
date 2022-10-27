@@ -2,7 +2,6 @@ use color_eyre::{
     eyre::{bail, Context},
     Result,
 };
-use fs_extra::{dir::copy as copy_directory, file::copy as copy_file};
 use owo_colors::OwoColorize;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -19,7 +18,13 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
-use crate::models::{config::UserConfig, package::PackageConfigExtensions, package_metadata::PackageMetadataExtensions};
+use crate::{
+    models::{
+        config::UserConfig, package::PackageConfigExtensions,
+        package_metadata::PackageMetadataExtensions,
+    },
+    utils::fs::copy_things,
+};
 
 use super::Repository;
 
@@ -87,33 +92,6 @@ impl FileRepository {
         }
         self.add_artifact_to_map(package, overwrite_existing)?;
 
-
-        Ok(())
-    }
-
-    fn copy_things(a: &PathBuf, b: &PathBuf) -> Result<()> {
-        if a.is_dir() {
-            fs::create_dir_all(&b)?;
-        } else {
-            let parent = b.parent().unwrap();
-            fs::create_dir_all(parent)?;
-        }
-
-        let result = if a.is_dir() {
-            let mut options = fs_extra::dir::CopyOptions::new();
-            options.overwrite = true;
-            options.copy_inside = true;
-            options.content_only = true;
-            // copy it over
-            copy_directory(a, b, &options)
-        } else {
-            // if it's a file, copy that over instead
-            let mut options = fs_extra::file::CopyOptions::new();
-            options.overwrite = true;
-            copy_file(a, b, &options)
-        };
-
-        result?;
         Ok(())
     }
 
@@ -135,45 +113,43 @@ impl FileRepository {
             .join(&package.config.info.id)
             .join(package.config.info.version.to_string());
 
-        let src_path = cache_path.join("src");
-
         let tmp_path = cache_path.join("tmp");
-
-        // Downloads the repo / zip file into src folder w/ subfolder taken into account
+        let src_path = cache_path.join("src");
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
         if tmp_path.exists() {
-            remove_dir_all(&tmp_path).expect("Failed to remove existing tmp folder");
+            remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
         }
 
         if src_path.exists() {
-            remove_dir_all(&src_path).expect("Failed to remove existing src folder");
+            remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
         }
 
-        fs::create_dir_all(&src_path).expect("Failed to create lib path");
+        fs::create_dir_all(&src_path).context("Failed to create lib path")?;
 
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
             let so_path = lib_path.join(package.config.info.get_so_name());
-            let debug_so_path = lib_path.join(format!("debug_{}", package.config.info.get_so_name()));
+            let debug_so_path =
+                lib_path.join(format!("debug_{}", package.config.info.get_so_name()));
 
             if let Some(binary_path_unwrapped) = &binary_path {
-                Self::copy_things(binary_path_unwrapped, &so_path)?;
+                copy_things(binary_path_unwrapped, &so_path)?;
             }
 
             if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
-                Self::copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
+                copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
             }
         }
 
         let original_shared_path = project_folder.join(&package.config.shared_dir);
         let original_package_file_path = project_folder.join("qpm.json");
 
-        Self::copy_things(
+        copy_things(
             &original_shared_path,
             &src_path.join(&package.config.shared_dir),
         )?;
-        Self::copy_things(&original_package_file_path, &src_path.join("qpm.json"))?;
+        copy_things(&original_package_file_path, &src_path.join("qpm.json"))?;
 
         let package_path = src_path;
         let downloaded_package = PackageConfig::read(&package_path)?;
@@ -197,13 +173,11 @@ impl FileRepository {
         std::fs::create_dir_all(Self::global_repository_dir())
             .context("Failed to make config folder")?;
 
-        if let Ok(mut file) = std::fs::File::open(path) {
+        if let Ok(file) = std::fs::File::open(path) {
             Ok(serde_json::from_reader(&file)?)
         } else {
             // didn't exist
-            Ok(Self {
-                ..Default::default()
-            })
+            Ok(Self::default())
         }
     }
 
@@ -242,7 +216,7 @@ impl Repository for FileRepository {
     }
 
     fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
-        Ok(self.get_artifact(id, &version).cloned())
+        Ok(self.get_artifact(id, version).cloned())
     }
 
     fn get_package_names(&self) -> Result<Vec<String>> {

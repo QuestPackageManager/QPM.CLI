@@ -73,7 +73,7 @@ impl UserConfig {
         let global = Self::read_global()?;
         let local = Self::read_workspace()?;
 
-        return Ok(if let Some(local) = local {
+        Ok(if let Some(local) = local {
             Self {
                 cache: local.cache.or(global.cache),
                 timeout: local.timeout.or(global.timeout),
@@ -82,7 +82,7 @@ impl UserConfig {
             }
         } else {
             global
-        });
+        })
     }
 }
 
