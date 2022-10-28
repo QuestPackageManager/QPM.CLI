@@ -1,14 +1,14 @@
 use color_eyre::Result;
 use itertools::Itertools;
 
-use qpm_package::models::{dependency::{SharedPackageConfig}, backend::PackageVersion};
+use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
 
 use super::{local::FileRepository, qpackages::QPMRepository, Repository};
 
 pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
     // TODO: Make file repository cached
     let file_repository = Box::new(FileRepository::read()?);
-    let qpm_repository = Box::new(QPMRepository::default());
+    let qpm_repository = Box::<QPMRepository>::default();
     Ok(vec![file_repository, qpm_repository])
 }
 
@@ -77,7 +77,8 @@ impl Repository for MultiDependencyProvider {
         let opt = self
             .repositories
             .iter()
-            .find_map(|r| Some(r.get_package(id, version)));
+            .map(|r| r.get_package(id, version))
+            .next();
 
         if let Some(o) = opt {
             return o;
@@ -98,6 +99,7 @@ impl Repository for MultiDependencyProvider {
     }
 
     fn add_to_cache(&mut self, _config: SharedPackageConfig, _permanent: bool) -> Result<()> {
-        todo!()
+        println!("Not adding to cache since it's not specific");
+        Ok(())
     }
 }
