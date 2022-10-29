@@ -116,11 +116,6 @@ impl FileRepository {
         let tmp_path = cache_path.join("tmp");
         let src_path = cache_path.join("src");
 
-        // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
-        if tmp_path.exists() {
-            remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
-        }
-
         if src_path.exists() {
             remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
         }
@@ -150,6 +145,11 @@ impl FileRepository {
             &src_path.join(&package.config.shared_dir),
         )?;
         copy_things(&original_package_file_path, &src_path.join("qpm.json"))?;
+
+        // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
+        if tmp_path.exists() {
+            remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
+        }
 
         let package_path = src_path;
         let downloaded_package = PackageConfig::read(&package_path)?;
