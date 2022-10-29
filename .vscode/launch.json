@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'qpm_cli'",
+      "cargo": {
+        "args": ["build", "--bin=qpm_cli", "--package=qpm_cli"],
+        "filter": {
+          "name": "qpm_cli",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'qpm_cli'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=qpm_cli", "--package=qpm_cli"],
+        "filter": {
+          "name": "qpm_cli",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
