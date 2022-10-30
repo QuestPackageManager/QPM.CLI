@@ -12,18 +12,18 @@ pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
     Ok(vec![file_repository, qpm_repository])
 }
 
-pub struct MultiDependencyProvider {
+pub struct MultiDependencyRepository {
     repositories: Vec<Box<dyn Repository>>,
 }
 
-impl MultiDependencyProvider {
+impl MultiDependencyRepository {
     // Repositories sorted in order
     pub fn new(repositories: Vec<Box<dyn Repository>>) -> Self {
         Self { repositories }
     }
 
     pub fn useful_default_new() -> Result<Self> {
-        Ok(MultiDependencyProvider::new(default_repositories()?))
+        Ok(MultiDependencyRepository::new(default_repositories()?))
     }
 }
 
@@ -31,7 +31,7 @@ impl MultiDependencyProvider {
 /// Merge multiple repositories into one
 /// Allow fetching from multiple backends
 ///
-impl Repository for MultiDependencyProvider {
+impl Repository for MultiDependencyRepository {
     // get versions of all repositories
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
         // double flat map???? rust weird
