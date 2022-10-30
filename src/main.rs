@@ -8,6 +8,8 @@ pub mod models;
 pub mod network;
 pub mod repository;
 pub mod utils;
+pub mod terminal;
+
 
 fn main() -> Result<()> {
     color_eyre::install()?;
