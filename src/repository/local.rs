@@ -15,7 +15,7 @@ use std::{
 use remove_dir_all::remove_dir_all;
 
 use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
+    backend::PackageVersion, dependency::SharedPackageConfig,
 };
 
 use crate::{
@@ -50,6 +50,7 @@ impl FileRepository {
         }
     }
 
+    /// for adding to cache from local or network
     pub fn add_artifact_to_map(
         &mut self,
         package: SharedPackageConfig,
@@ -78,6 +79,7 @@ impl FileRepository {
         Ok(())
     }
 
+    /// for local qpm-rust installs
     pub fn add_artifact_and_cache(
         &mut self,
         package: SharedPackageConfig,
@@ -88,7 +90,7 @@ impl FileRepository {
         overwrite_existing: bool,
     ) -> Result<()> {
         if copy {
-            Self::copy_to_cache(&package, project_folder, binary_path, debug_binary_path)?;
+            Self::copy_to_cache(&package, project_folder, binary_path, debug_binary_path, false)?;
         }
         self.add_artifact_to_map(package, overwrite_existing)?;
 
@@ -100,6 +102,7 @@ impl FileRepository {
         project_folder: PathBuf,
         binary_path: Option<PathBuf>,
         debug_binary_path: Option<PathBuf>,
+        validate: bool,
     ) -> Result<()> {
         println!(
             "Adding cache for local dependency {} {}",
@@ -151,17 +154,19 @@ impl FileRepository {
             remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
         }
 
-        let package_path = src_path;
-        let downloaded_package = PackageConfig::read(&package_path)?;
+        if validate {
+            let package_path = src_path;
+            let downloaded_package = SharedPackageConfig::read(&package_path)?;
 
-        // check if downloaded config is the same version as expected, if not, panic
-        if downloaded_package.info.version != package.config.info.version {
-            bail!(
-                "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                package.config.info.id.bright_red(),
-                downloaded_package.info.version.to_string().bright_green(),
-                package.config.info.version.to_string().bright_green(),
-            )
+            // check if downloaded config is the same version as expected, if not, panic
+            if downloaded_package.config.info.version != package.config.info.version {
+                bail!(
+                    "Downloaded package ({}) version ({}) does not match expected version ({})!",
+                    package.config.info.id.bright_red(),
+                    downloaded_package.config.info.version.to_string().bright_green(),
+                    package.config.info.version.to_string().bright_green(),
+                )
+            }
         }
 
         Ok(())
