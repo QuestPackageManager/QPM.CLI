@@ -9,14 +9,12 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     fs,
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use remove_dir_all::remove_dir_all;
 
-use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig,
-};
+use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
 
 use crate::{
     models::{
@@ -90,7 +88,13 @@ impl FileRepository {
         overwrite_existing: bool,
     ) -> Result<()> {
         if copy {
-            Self::copy_to_cache(&package, project_folder, binary_path, debug_binary_path, false)?;
+            Self::copy_to_cache(
+                &package,
+                project_folder,
+                binary_path,
+                debug_binary_path,
+                false,
+            )?;
         }
         self.add_artifact_to_map(package, overwrite_existing)?;
 
@@ -163,7 +167,12 @@ impl FileRepository {
                 bail!(
                     "Downloaded package ({}) version ({}) does not match expected version ({})!",
                     package.config.info.id.bright_red(),
-                    downloaded_package.config.info.version.to_string().bright_green(),
+                    downloaded_package
+                        .config
+                        .info
+                        .version
+                        .to_string()
+                        .bright_green(),
                     package.config.info.version.to_string().bright_green(),
                 )
             }
@@ -228,7 +237,7 @@ impl Repository for FileRepository {
         Ok(self.artifacts.keys().cloned().collect())
     }
 
-    fn add_to_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
         if !permanent {
             return Ok(());
         }
@@ -237,5 +246,22 @@ impl Repository for FileRepository {
         // don't overwrite cache with backend
         self.add_artifact_to_map(config, false)?;
         Ok(())
+    }
+
+    fn pull_from_cache(&mut self, config: &SharedPackageConfig, target: &Path) -> Result<()> {
+        if self
+            .get_artifact(&config.config.info.id, &config.config.info.version)
+            .is_none()
+        {
+            bail!(
+                "Local cache does not have {}:{}",
+                config.config.info.id,
+                config.config.info.version
+            );
+        }
+
+        // copies to target
+
+        todo!()
     }
 }

@@ -4,7 +4,7 @@ use color_eyre::{
 };
 use reqwest::StatusCode;
 use semver::Version;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use serde::Deserialize;
 
@@ -76,6 +76,16 @@ impl QPMRepository {
         resp.error_for_status()?;
         Ok(())
     }
+
+    fn add_to_memcache(&mut self, config: SharedPackageConfig, _permanent: bool) -> Result<()> {
+        self.packages_cache
+            .entry(config.config.info.id.clone())
+            .or_default()
+            .entry(config.config.info.version.clone())
+            .insert_entry(config);
+
+        Ok(())
+    }
 }
 
 impl Repository for QPMRepository {
@@ -110,12 +120,18 @@ impl Repository for QPMRepository {
         Self::get_shared_package(id, version)
     }
 
-    fn add_to_cache(&mut self, config: SharedPackageConfig, _permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: SharedPackageConfig, _permanent: bool) -> Result<()> {
         self.packages_cache
             .entry(config.config.info.id.clone())
             .or_default()
             .entry(config.config.info.version.clone())
             .insert_entry(config);
         Ok(())
+    }
+
+    fn pull_from_cache(&mut self, config: &SharedPackageConfig, target: &Path) -> Result<()> {
+        // TODO: download here if required
+
+        todo!()
     }
 }

@@ -1,4 +1,4 @@
-use color_eyre::Result;
+use color_eyre::{Result, eyre::bail};
 use itertools::Itertools;
 
 use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
@@ -98,13 +98,35 @@ impl Repository for MultiDependencyRepository {
             .collect::<Vec<String>>())
     }
 
-    fn add_to_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn pull_from_cache(
+        &mut self,
+        config: &SharedPackageConfig,
+        target: &std::path::Path,
+    ) -> Result<()> {
+        let first_repo_opt = self.repositories.iter_mut().try_find(|r| -> Result<bool> {
+            Ok(
+                r.get_package(&config.config.info.id, &config.config.info.version)?
+                    .is_some(),
+            )
+        })?;
+
+        match first_repo_opt {
+            Some(first_repo) => first_repo.pull_from_cache(config, target),
+            None => bail!(
+                "No repository found that has package {}:{}",
+                config.config.info.id,
+                config.config.info.version
+            ),
+        }
+    }
+
+    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
         if permanent {
             println!("Warning, adding to cache permanently to multiple repos!",);
         }
         self.repositories
             .iter_mut()
-            .try_for_each(|r| r.add_to_cache(config.clone(), permanent))?;
+            .try_for_each(|r| r.add_to_db_cache(config.clone(), permanent))?;
         Ok(())
     }
 }
