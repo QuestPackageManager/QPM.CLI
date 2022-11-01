@@ -22,7 +22,10 @@ pub struct QPMRepository {
 }
 
 impl QPMRepository {
-    fn run_request<T: for<'a> Deserialize<'a>>(path: &str) -> Result<Option<T>> {
+    fn run_request<T>(path: &str) -> Result<Option<T>>
+    where
+        T: for<'a> Deserialize<'a>,
+    {
         let url = format!("{}/{}", API_URL, path);
 
         let response = get_agent()
@@ -34,7 +37,7 @@ impl QPMRepository {
             return Ok(None);
         }
 
-        let result: T = response.json().expect("Into json failed");
+        let result: T = response.json().context("Into json failed")?;
 
         Ok(Some(result))
     }
@@ -53,12 +56,10 @@ impl QPMRepository {
     }
 
     pub fn publish_package(package: &SharedPackageConfig, auth: &str) -> Result<()> {
-        // TODO:
-        // let url = format!(
-        //     "{}/{}/{}",
-        //     API_URL, &package.config.info.id, &package.config.info.version
-        // );
-        let url = format!("{}/", API_URL);
+        let url = format!(
+            "{}/{}/{}",
+            API_URL, &package.config.info.id, &package.config.info.version
+        );
 
         let resp = get_agent()
             .post(&url)

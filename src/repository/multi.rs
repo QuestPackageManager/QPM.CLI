@@ -98,8 +98,13 @@ impl Repository for MultiDependencyRepository {
             .collect::<Vec<String>>())
     }
 
-    fn add_to_cache(&mut self, _config: SharedPackageConfig, _permanent: bool) -> Result<()> {
-        println!("Not adding to cache since it's not specific");
+    fn add_to_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+        if permanent {
+            println!("Warning, adding to cache permanently to multiple repos!",);
+        }
+        self.repositories
+            .iter_mut()
+            .try_for_each(|r| r.add_to_cache(config.clone(), permanent))?;
         Ok(())
     }
 }
