@@ -247,7 +247,6 @@ impl FileRepository {
             let dep_cache_path = base_path
                 .join(&referenced_dep.id)
                 .join(shared_dep.config.info.version.to_string());
-            let _src_path = dep_cache_path.join("src");
             let libs_path = dep_cache_path.join("lib");
 
             // skip header only deps
@@ -295,6 +294,7 @@ impl FileRepository {
                 project_deps_headers_target.join(&restored_dep.config.shared_dir),
             );
 
+            // TODO: Should extra files be retrieved from PackageConfig.dependencies or restored SharedPackageConfig?
             if let Some(extras) = &restored_dep.config.additional_data.extra_files {
                 for extra in extras {
                     paths.insert(
