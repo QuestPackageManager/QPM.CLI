@@ -15,9 +15,7 @@ use std::{
 use remove_dir_all::remove_dir_all;
 
 use qpm_package::models::{
-    backend::PackageVersion,
-    dependency::{SharedPackageConfig},
-    package::PackageConfig,
+    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
 use crate::{
@@ -267,10 +265,11 @@ impl FileRepository {
             {
                 // get so name or release so name
                 let name = match shared_dep
-                                                    .config
-                                                    .additional_data
-                                                    .use_release
-                                                    .unwrap_or(false) {
+                    .config
+                    .additional_data
+                    .use_release
+                    .unwrap_or(false)
+                {
                     true => shared_dep.config.info.get_so_name(),
                     false => format!("debug_{}", shared_dep.config.info.get_so_name()),
                 };
@@ -281,19 +280,8 @@ impl FileRepository {
             }
         }
 
-        for (restored_id, restored_dep) in
-            restored_dependencies_map.iter().filter(|(id, shared_dep)| {
-                package
-                    .dependencies
-                    .iter()
-                    .any(|ref_p| &ref_p.id == **id)
-                    && !shared_dep
-                        .config
-                        .additional_data
-                        .headers_only
-                        .unwrap_or(false)
-            })
-        {
+        // Get headers of all dependencies restored
+        for (restored_id, restored_dep) in restored_dependencies_map {
             let dep_cache_path = base_path
                 .join(restored_id)
                 .join(restored_dep.config.info.version.to_string());
