@@ -234,15 +234,15 @@ impl FileRepository {
         let user_config = get_combine_config();
         let base_path = user_config.cache.as_ref().unwrap();
 
-        let project_deps_path = Path::new(".")
+        let extern_dir = Path::new(".")
             .join(&package.dependencies_dir)
             .canonicalize()?;
-        let project_deps_binaries = project_deps_path.join("libs");
-        let project_deps_headers = project_deps_path.join("includes");
+        let extern_binaries = extern_dir.join("libs");
+        let extern_headers = extern_dir.join("includes");
 
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
         // direct deps (binaries)
-        for referenced_dep in package.dependencies.iter() {
+        for referenced_dep in &package.dependencies {
             let shared_dep = restored_dependencies_map.get(&referenced_dep.id).unwrap();
             let dep_cache_path = base_path
                 .join(&referenced_dep.id)
@@ -274,32 +274,45 @@ impl FileRepository {
                 };
                 paths.insert(
                     libs_path.with_file_name(name.clone()),
-                    project_deps_binaries.with_file_name(name),
+                    extern_binaries.with_file_name(name),
                 );
             }
         }
 
         // Get headers of all dependencies restored
-        for (restored_id, restored_dep) in restored_dependencies_map {
+        for (restored_id, restored_dep) in &restored_dependencies_map {
             let dep_cache_path = base_path
                 .join(restored_id)
                 .join(restored_dep.config.info.version.to_string());
             let src_path = dep_cache_path.join("src");
 
             let exposed_headers = src_path.join(&restored_dep.config.shared_dir);
-            let project_deps_headers_target = project_deps_headers.join(restored_id);
+            let project_deps_headers_target = extern_headers.join(restored_id);
 
             paths.insert(
                 exposed_headers,
                 project_deps_headers_target.join(&restored_dep.config.shared_dir),
             );
+        }
 
-            // TODO: Should extra files be retrieved from PackageConfig.dependencies or restored SharedPackageConfig?
-            if let Some(extras) = &restored_dep.config.additional_data.extra_files {
+        // extra files
+        // while this is looped twice, generally I'd assume the compiler to properly
+        // optimize this and it's better readability
+        for referenced_dependency in &package.dependencies {
+            let shared_dep = restored_dependencies_map.get(&referenced_dependency.id).unwrap();
+
+            let dep_cache_path = base_path
+                .join(&referenced_dependency.id)
+                .join(shared_dep.config.info.version.to_string());
+            let src_path = dep_cache_path.join("src");
+
+            let extern_headers_dep = extern_headers.join(&referenced_dependency.id);
+
+            if let Some(extras) = &referenced_dependency.additional_data.extra_files {
                 for extra in extras {
                     paths.insert(
-                        project_deps_headers.join(extra),
-                        project_deps_headers_target.join(extra),
+                        src_path.join(extra),
+                        extern_headers_dep.join(extra),
                     );
                 }
             }
