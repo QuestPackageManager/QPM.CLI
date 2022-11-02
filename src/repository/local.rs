@@ -14,11 +14,16 @@ use std::{
 
 use remove_dir_all::remove_dir_all;
 
-use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
+use qpm_package::models::{
+    backend::PackageVersion,
+    dependency::{SharedPackageConfig},
+    package::PackageConfig,
+};
 
 use crate::{
     models::{
-        config::UserConfig, package::PackageConfigExtensions,
+        config::{get_combine_config, UserConfig},
+        package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
     utils::fs::copy_things,
@@ -31,6 +36,7 @@ use super::Repository;
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct FileRepository {
     pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
+    config: UserConfig,
 }
 
 impl FileRepository {
@@ -113,9 +119,10 @@ impl FileRepository {
             package.config.info.id.bright_red(),
             package.config.info.version.bright_green()
         );
-        let config = UserConfig::read_combine()?;
+        let config = get_combine_config();
         let cache_path = config
             .cache
+            .as_ref()
             .unwrap()
             .join(&package.config.info.id)
             .join(package.config.info.version.to_string());
@@ -184,7 +191,7 @@ impl FileRepository {
     /// always gets the global config
     pub fn read() -> Result<Self> {
         let path = Self::global_file_repository_path();
-        std::fs::create_dir_all(Self::global_repository_dir())
+        fs::create_dir_all(Self::global_repository_dir())
             .context("Failed to make config folder")?;
 
         if let Ok(file) = std::fs::File::open(path) {
@@ -214,6 +221,108 @@ impl FileRepository {
     pub fn global_repository_dir() -> PathBuf {
         dirs::config_dir().unwrap().join("QPM-Rust")
     }
+
+    fn collect_deps(
+        &self,
+        package: &PackageConfig,
+        restored_deps: &[SharedPackageConfig],
+    ) -> Result<HashMap<PathBuf, PathBuf>> {
+        // let package = shared_package.config;
+        let restored_dependencies_map: HashMap<&String, &SharedPackageConfig> = restored_deps
+            .iter()
+            .map(|p| (&p.config.info.id, p))
+            .collect();
+
+        let user_config = get_combine_config();
+        let base_path = user_config.cache.as_ref().unwrap();
+
+        let project_deps_path = Path::new(".")
+            .join(&package.dependencies_dir)
+            .canonicalize()?;
+        let project_deps_binaries = project_deps_path.join("libs");
+        let project_deps_headers = project_deps_path.join("includes");
+
+        let mut paths = HashMap::<PathBuf, PathBuf>::new();
+        // direct deps (binaries)
+        for referenced_dep in package.dependencies.iter() {
+            let shared_dep = restored_dependencies_map.get(&referenced_dep.id).unwrap();
+            let dep_cache_path = base_path
+                .join(&referenced_dep.id)
+                .join(shared_dep.config.info.version.to_string());
+            let _src_path = dep_cache_path.join("src");
+            let libs_path = dep_cache_path.join("lib");
+
+            // skip header only deps
+            if shared_dep
+                .config
+                .additional_data
+                .headers_only
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            if shared_dep.config.additional_data.so_link.is_some()
+                || shared_dep.config.additional_data.debug_so_link.is_some()
+            {
+                // get so name or release so name
+                let name = match shared_dep
+                                                    .config
+                                                    .additional_data
+                                                    .use_release
+                                                    .unwrap_or(false) {
+                    true => shared_dep.config.info.get_so_name(),
+                    false => format!("debug_{}", shared_dep.config.info.get_so_name()),
+                };
+                paths.insert(
+                    libs_path.with_file_name(name.clone()),
+                    project_deps_binaries.with_file_name(name),
+                );
+            }
+        }
+
+        for (restored_id, restored_dep) in
+            restored_dependencies_map.iter().filter(|(id, shared_dep)| {
+                package
+                    .dependencies
+                    .iter()
+                    .any(|ref_p| &ref_p.id == **id)
+                    && !shared_dep
+                        .config
+                        .additional_data
+                        .headers_only
+                        .unwrap_or(false)
+            })
+        {
+            let dep_cache_path = base_path
+                .join(restored_id)
+                .join(restored_dep.config.info.version.to_string());
+            let src_path = dep_cache_path.join("src");
+
+            let exposed_headers = src_path.join(&restored_dep.config.shared_dir);
+            let project_deps_headers_target = project_deps_headers.join(restored_id);
+
+            paths.insert(
+                exposed_headers,
+                project_deps_headers_target.join(&restored_dep.config.shared_dir),
+            );
+
+            if let Some(extras) = &restored_dep.config.additional_data.extra_files {
+                for extra in extras {
+                    paths.insert(
+                        project_deps_headers.join(extra),
+                        project_deps_headers_target.join(extra),
+                    );
+                }
+            }
+        }
+
+        paths.retain(|src, _| src.exists());
+
+        Ok(paths)
+    }
+
+    pub fn pull_from_cache(&self, _shared_package: &SharedPackageConfig) {}
 }
 
 impl Repository for FileRepository {
@@ -248,7 +357,7 @@ impl Repository for FileRepository {
         Ok(())
     }
 
-    fn pull_from_cache(&mut self, config: &SharedPackageConfig, target: &Path) -> Result<()> {
+    fn download_to_cache(&mut self, config: &SharedPackageConfig) -> Result<()> {
         if self
             .get_artifact(&config.config.info.id, &config.config.info.version)
             .is_none()
@@ -260,8 +369,6 @@ impl Repository for FileRepository {
             );
         }
 
-        // copies to target
-
-        todo!()
+        Ok(())
     }
 }

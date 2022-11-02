@@ -1,6 +1,5 @@
-
-
 use qpm_package::models::{
+    dependency::{SharedDependency},
     package::PackageMetadata,
 };
 
@@ -18,6 +17,30 @@ impl PackageMetadataExtensions for PackageMetadata {
                 self.id,
                 self.version.to_string().replace('.', "_"),
                 if self.additional_data.static_linking.unwrap_or(false) {
+                    "a"
+                } else {
+                    "so"
+                },
+            ))
+    }
+}
+
+impl PackageMetadataExtensions for SharedDependency {
+    fn get_so_name(&self) -> String {
+        self.dependency
+            .additional_data
+            .override_so_name
+            .clone()
+            .unwrap_or(format!(
+                "lib{}_{}.{}",
+                self.dependency.id,
+                self.version.to_string().replace('.', "_"),
+                if self
+                    .dependency
+                    .additional_data
+                    .static_linking
+                    .unwrap_or(false)
+                {
                     "a"
                 } else {
                     "so"

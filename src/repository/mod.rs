@@ -1,4 +1,4 @@
-use std::path::Path;
+
 
 use color_eyre::Result;
 use semver::Version;
@@ -28,5 +28,5 @@ pub trait Repository {
     fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()>;
 
     // downloads if not in cache
-    fn pull_from_cache(&mut self, config: &SharedPackageConfig, target: &Path) -> Result<()>;
+    fn download_to_cache(&mut self, config: &SharedPackageConfig) -> Result<()>;
 }

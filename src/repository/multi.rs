@@ -1,4 +1,4 @@
-use color_eyre::{Result, eyre::bail};
+use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 
 use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
@@ -98,10 +98,9 @@ impl Repository for MultiDependencyRepository {
             .collect::<Vec<String>>())
     }
 
-    fn pull_from_cache(
+    fn download_to_cache(
         &mut self,
-        config: &SharedPackageConfig,
-        target: &std::path::Path,
+        config: &SharedPackageConfig
     ) -> Result<()> {
         let first_repo_opt = self.repositories.iter_mut().try_find(|r| -> Result<bool> {
             Ok(
@@ -111,7 +110,7 @@ impl Repository for MultiDependencyRepository {
         })?;
 
         match first_repo_opt {
-            Some(first_repo) => first_repo.pull_from_cache(config, target),
+            Some(first_repo) => first_repo.download_to_cache(config),
             None => bail!(
                 "No repository found that has package {}:{}",
                 config.config.info.id,

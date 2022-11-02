@@ -1,10 +1,19 @@
 use std::{
     fs::{self, File},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, sync,
 };
 
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
+
+static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
+
+
+pub fn get_combine_config() -> &'static UserConfig {
+    COMBINED_CONFIG.get_or_init(|| {
+        UserConfig::read_combine().unwrap()
+    })
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 #[allow(non_snake_case)]
@@ -96,3 +105,4 @@ impl Default for UserConfig {
         }
     }
 }
+
