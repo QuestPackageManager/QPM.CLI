@@ -82,15 +82,16 @@ impl UserConfig {
         let global = Self::read_global()?;
         let local = Self::read_workspace()?;
 
-        Ok(if let Some(local) = local {
-            Self {
-                cache: local.cache.or(global.cache),
-                timeout: local.timeout.or(global.timeout),
-                symlink: local.symlink.or(global.symlink),
-                ndk_path: local.ndk_path.or(global.ndk_path),
+        Ok(match local {
+            Some(local) => {
+                Self {
+                    cache: local.cache.or(global.cache),
+                    timeout: local.timeout.or(global.timeout),
+                    symlink: local.symlink.or(global.symlink),
+                    ndk_path: local.ndk_path.or(global.ndk_path),
+                }
             }
-        } else {
-            global
+            None => global,
         })
     }
 }
