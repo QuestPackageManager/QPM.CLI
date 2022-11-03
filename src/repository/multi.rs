@@ -1,7 +1,7 @@
 use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 
-use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
+use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig};
 
 use super::{local::FileRepository, qpackages::QPMRepository, Repository};
 
@@ -100,11 +100,11 @@ impl Repository for MultiDependencyRepository {
 
     fn download_to_cache(
         &mut self,
-        config: &SharedPackageConfig
+        config: &PackageConfig
     ) -> Result<()> {
         let first_repo_opt = self.repositories.iter_mut().try_find(|r| -> Result<bool> {
             Ok(
-                r.get_package(&config.config.info.id, &config.config.info.version)?
+                r.get_package(&config.info.id, &config.info.version)?
                     .is_some(),
             )
         })?;
@@ -113,8 +113,8 @@ impl Repository for MultiDependencyRepository {
             Some(first_repo) => first_repo.download_to_cache(config),
             None => bail!(
                 "No repository found that has package {}:{}",
-                config.config.info.id,
-                config.config.info.version
+                config.info.id,
+                config.info.version
             ),
         }
     }

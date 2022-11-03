@@ -3,7 +3,7 @@
 use color_eyre::Result;
 use semver::Version;
 
-use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
+use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig};
 
 pub mod local;
 pub mod multi;
@@ -25,8 +25,12 @@ pub trait Repository {
         Ok(result)
     }
 
+    // add to the db cache
+    // this just stores the shared config itself, not the package
     fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()>;
 
     // downloads if not in cache
-    fn download_to_cache(&mut self, config: &SharedPackageConfig) -> Result<()>;
+    // What if we wanted to have a qpackages mirror or a new backend? ;)
+    // Does not download dependencies
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()>;
 }

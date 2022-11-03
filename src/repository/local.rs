@@ -223,8 +223,9 @@ impl FileRepository {
     pub fn copy_from_cache(
         package: &PackageConfig,
         restored_deps: &[SharedPackageConfig],
+        workspace_dir: &Path,
     ) -> Result<()> {
-        let files = Self::collect_deps(package, restored_deps)?;
+        let files = Self::collect_deps(package, restored_deps, workspace_dir)?;
 
         let config = get_combine_config();
         let symlink = config.symlink.unwrap_or(true);
@@ -279,6 +280,7 @@ impl FileRepository {
     pub fn collect_deps(
         package: &PackageConfig,
         restored_deps: &[SharedPackageConfig],
+        workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
         // let package = shared_package.config;
         let restored_dependencies_map: HashMap<&String, &SharedPackageConfig> = restored_deps
@@ -301,9 +303,12 @@ impl FileRepository {
             .map(|(_, r)| format!("{}:{}", r.config.info.id, r.config.info.version))
             .collect();
 
-        let extern_dir = Path::new(".")
+        let extern_dir = workspace_dir
             .join(&package.dependencies_dir)
             .canonicalize()?;
+
+        // delete if needed
+        remove_dir_all(&extern_dir)?;
 
         let extern_binaries = extern_dir.join("libs");
         let extern_headers = extern_dir.join("includes");
@@ -452,15 +457,15 @@ impl Repository for FileRepository {
         Ok(())
     }
 
-    fn download_to_cache(&mut self, config: &SharedPackageConfig) -> Result<()> {
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()> {
         if self
-            .get_artifact(&config.config.info.id, &config.config.info.version)
+            .get_artifact(&config.info.id, &config.info.version)
             .is_none()
         {
             bail!(
                 "Local cache does not have {}:{}",
-                config.config.info.id,
-                config.config.info.version
+                config.info.id,
+                config.info.version
             );
         }
 

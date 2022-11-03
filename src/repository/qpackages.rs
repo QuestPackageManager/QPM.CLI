@@ -17,12 +17,12 @@ use zip::ZipArchive;
 use serde::Deserialize;
 
 use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig,
+    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
 use crate::{
     models::{
-        config::{get_combine_config}, package::PackageConfigExtensions,
+        config::get_combine_config, package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
     network::agent::get_agent,
@@ -94,7 +94,7 @@ impl QPMRepository {
         Ok(())
     }
 
-    fn download_package(&self, shared_package: &SharedPackageConfig) -> Result<()> {
+    fn download_package(&self, config: &PackageConfig) -> Result<()> {
         // Check if already cached
         // if true, don't download repo / header files
         // else cache to tmp folder in package id folder @ cache path
@@ -105,7 +105,6 @@ impl QPMRepository {
         // Check if .so files are downloaded, if not:
         // Download release .so and possibly debug .so to libs folder, if from github use token if available
         // Now it should be cached!
-        let config = &shared_package.config;
 
         println!(
             "Checking cache for dependency {} {}",
@@ -136,17 +135,12 @@ impl QPMRepository {
 
             // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
             fs::create_dir_all(src_path.parent().unwrap()).expect("Failed to create lib path");
-            let url = shared_package.config.info.url.as_ref().unwrap();
+            let url = config.info.url.as_ref().unwrap();
             if url.contains("github.com") {
                 // github url!
                 git::clone(
                     url.clone(),
-                    shared_package
-                        .config
-                        .info
-                        .additional_data
-                        .branch_name
-                        .as_ref(),
+                    config.info.additional_data.branch_name.as_ref(),
                     &tmp_path,
                 )?;
             } else {
@@ -160,14 +154,13 @@ impl QPMRepository {
             // the only way the above if else would break is if someone put a link to a zip file on github in the url slot
             // if you are reading this and think of doing that so I have to fix this, fuck you
 
-            let from_path =
-                if let Some(sub_folder) = &shared_package.config.info.additional_data.sub_folder {
-                    // the package exists in a subfolder of the downloaded thing, just move the subfolder to src
-                    tmp_path.join(sub_folder)
-                } else {
-                    // the downloaded thing IS the package, just rename the folder to src
-                    tmp_path.clone()
-                };
+            let from_path = if let Some(sub_folder) = &config.info.additional_data.sub_folder {
+                // the package exists in a subfolder of the downloaded thing, just move the subfolder to src
+                tmp_path.join(sub_folder)
+            } else {
+                // the downloaded thing IS the package, just rename the folder to src
+                tmp_path.clone()
+            };
 
             if from_path.exists() {
                 // only log this on debug builds
@@ -192,7 +185,7 @@ impl QPMRepository {
                 // HACK: renaming seems to work, idk if it works for actual subfolders?
                 fs::rename(&from_path, &src_path).expect("Failed to move folder");
             } else {
-                panic!("Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo");
+                bail!("Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo");
             }
 
             // clear up tmp folder if it still exists
@@ -204,7 +197,7 @@ impl QPMRepository {
 
             // check if downloaded config is the same version as expected, if not, panic
             if downloaded_package.config.info.version != config.info.version {
-                panic!(
+                bail!(
                     "Downloaded package ({}) version ({}) does not match expected version ({})!",
                     config.info.id.bright_red(),
                     downloaded_package
@@ -246,18 +239,10 @@ impl QPMRepository {
                 Ok(())
             };
 
-            download_binary(
-                &so_path,
-                shared_package.config.info.additional_data.so_link.as_ref(),
-            )?;
+            download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
             download_binary(
                 &debug_so_path,
-                shared_package
-                    .config
-                    .info
-                    .additional_data
-                    .debug_so_link
-                    .as_ref(),
+                config.info.additional_data.debug_so_link.as_ref(),
             )?;
         }
         Ok(())
@@ -305,7 +290,7 @@ impl Repository for QPMRepository {
         Ok(())
     }
 
-    fn download_to_cache(&mut self, config: &SharedPackageConfig) -> Result<()> {
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()> {
         self.download_package(config)?;
 
         Ok(())

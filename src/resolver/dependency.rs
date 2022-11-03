@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, error::Error};
+use std::{borrow::Borrow, error::Error, path::Path};
 
 use color_eyre::{
     eyre::{bail, Context},
@@ -9,7 +9,10 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
-use crate::repository::Repository;
+use crate::{
+    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    repository::{local::FileRepository, multi::MultiDependencyRepository, Repository},
+};
 
 use pubgrub::{
     error::PubGrubError,
@@ -100,9 +103,9 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
     }
 }
 
-pub fn resolve<'a, R: Repository>(
+pub fn resolve<'a>(
     root: &'a PackageConfig,
-    repository: &'a R,
+    repository: &'a impl Repository,
 ) -> Result<impl Iterator<Item = SharedPackageConfig> + 'a> {
     let resolver = PackageDependencyResolver {
         root,
@@ -127,17 +130,35 @@ pub fn resolve<'a, R: Repository>(
     }
 }
 
+pub fn resolve_and_restore(workspace: &Path, repository: impl Repository) -> Result<()> {
+    let package = PackageConfig::read(workspace)?;
+
+    let mut repositories = MultiDependencyRepository::useful_default_new()?;
+    let (shared_package, restored_deps) =
+        SharedPackageConfig::resolve_from_package(package, &repository)?;
+
+    for dep in &restored_deps {
+        repositories.download_to_cache(&dep.config)?;
+    }
+
+    FileRepository::copy_from_cache(&shared_package.config, &restored_deps, workspace)?;
+
+    Ok(())
+}
+
 pub fn locked_resolve<'a, R: Repository>(
     root: &'a SharedPackageConfig,
     repository: &'a R,
 ) -> Result<impl Iterator<Item = SharedPackageConfig> + 'a> {
-    // TODO: ensure restored dependencies take precedence over 
+    // TODO: ensure restored dependencies take precedence over
     Ok(root
         .restored_dependencies
         .iter()
         .map(|d| {
             repository
-                .get_package(&d.dependency.id, &d.version).unwrap().unwrap()
+                .get_package(&d.dependency.id, &d.version)
+                .unwrap()
+                .unwrap()
         })
         .dedup_by(|x, y| x.config.info.id == y.config.info.id))
 }
