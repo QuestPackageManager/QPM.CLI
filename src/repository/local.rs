@@ -229,13 +229,17 @@ impl FileRepository {
         let config = get_combine_config();
         let symlink = config.symlink.unwrap_or(true);
 
-        let mut copy_dir_options = fs_extra::dir::CopyOptions::new();
-        copy_dir_options.overwrite = true;
-        copy_dir_options.copy_inside = true;
-        copy_dir_options.content_only = true;
+        let copy_dir_options = fs_extra::dir::CopyOptions {
+            overwrite: true,
+            copy_inside: true,
+            content_only: true,
+            ..Default::default()
+        };
 
-        let mut copy_file_options = fs_extra::file::CopyOptions::new();
-        copy_file_options.overwrite = true;
+        let copy_file_options = fs_extra::file::CopyOptions {
+            overwrite: true,
+            ..Default::default()
+        };
 
         for (src, dest) in files {
             fs::create_dir_all(dest.parent().unwrap())?;
@@ -285,13 +289,30 @@ impl FileRepository {
         let user_config = get_combine_config();
         let base_path = user_config.cache.as_ref().unwrap();
 
+        // validate exists dependencies
+        let missing_dependencies: Vec<_> = restored_dependencies_map
+            .iter()
+            .filter(|(_, r)| {
+                base_path
+                    .join(&r.config.info.id)
+                    .join(r.config.info.version.to_string())
+                    .exists()
+            })
+            .map(|(_, r)| format!("{}:{}", r.config.info.id, r.config.info.version))
+            .collect();
+
         let extern_dir = Path::new(".")
             .join(&package.dependencies_dir)
             .canonicalize()?;
+
         let extern_binaries = extern_dir.join("libs");
         let extern_headers = extern_dir.join("includes");
-
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
+
+        if !missing_dependencies.is_empty() {
+            bail!("Missing dependencies in cache: {:?}", missing_dependencies);
+        }
+
         // direct deps (binaries)
         for referenced_dep in &package.dependencies {
             let shared_dep = restored_dependencies_map.get(&referenced_dep.id).unwrap();
@@ -323,10 +344,17 @@ impl FileRepository {
                     true => shared_dep.config.info.get_so_name(),
                     false => format!("debug_{}", shared_dep.config.info.get_so_name()),
                 };
-                paths.insert(
-                    libs_path.with_file_name(name.clone()),
-                    extern_binaries.with_file_name(name),
-                );
+
+                let src_binary = libs_path.with_file_name(name.clone());
+                if !src_binary.exists() {
+                    bail!(
+                        "Missing binary {name} for {}:{}",
+                        referenced_dep.id,
+                        shared_dep.config.info.version
+                    );
+                }
+
+                paths.insert(src_binary, extern_binaries.with_file_name(name));
             }
         }
 
@@ -336,6 +364,14 @@ impl FileRepository {
                 .join(restored_id)
                 .join(restored_dep.config.info.version.to_string());
             let src_path = dep_cache_path.join("src");
+
+            if !src_path.exists() {
+                bail!(
+                    "Missing src for dependency {}:{}",
+                    restored_id,
+                    restored_dep.config.info.version.to_string()
+                );
+            }
 
             let exposed_headers = src_path.join(&restored_dep.config.shared_dir);
             let project_deps_headers_target = extern_headers.join(restored_id);
@@ -363,7 +399,17 @@ impl FileRepository {
 
             if let Some(extras) = &referenced_dependency.additional_data.extra_files {
                 for extra in extras {
-                    paths.insert(src_path.join(extra), extern_headers_dep.join(extra));
+                    let extra_src = src_path.join(extra);
+
+                    if !extra_src.exists() {
+                        bail!(
+                            "Missing extra {extra} for dependency {}:{}",
+                            referenced_dependency.id,
+                            shared_dep.config.info.version.to_string()
+                        );
+                    }
+
+                    paths.insert(extra_src, extern_headers_dep.join(extra));
                 }
             }
         }
