@@ -220,8 +220,59 @@ impl FileRepository {
         dirs::config_dir().unwrap().join("QPM-Rust")
     }
 
-    fn collect_deps(
-        &self,
+    pub fn copy_from_cache(
+        package: &PackageConfig,
+        restored_deps: &[SharedPackageConfig],
+    ) -> Result<()> {
+        let files = Self::collect_deps(package, restored_deps)?;
+
+        let config = get_combine_config();
+        let symlink = config.symlink.unwrap_or(true);
+
+        let mut copy_dir_options = fs_extra::dir::CopyOptions::new();
+        copy_dir_options.overwrite = true;
+        copy_dir_options.copy_inside = true;
+        copy_dir_options.content_only = true;
+
+        let mut copy_file_options = fs_extra::file::CopyOptions::new();
+        copy_file_options.overwrite = true;
+
+        for (src, dest) in files {
+            fs::create_dir_all(dest.parent().unwrap())?;
+            let symlink_result = if symlink {
+                symlink::symlink_auto(&src, &dest)
+            } else {
+                Ok(())
+            };
+
+            if let Err(e) = &symlink_result {
+                #[cfg(windows)]
+                eprintln!("Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}", e.bright_red(), "qpm config symlink disable".bright_yellow());
+                #[cfg(not(windows))]
+                eprintln!("Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}", e.bright_red(), "qpm config symlink disable".bright_yellow());
+            }
+
+            if !symlink || symlink_result.is_err() {
+                // if dir, make sure it exists
+                if !src.exists() {
+                    bail!("The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...", src.display().bright_yellow(), "qpm cache clear".bright_yellow());
+                } else if src.is_dir() {
+                    std::fs::create_dir_all(&dest)
+                        .context("Failed to create destination folder")?;
+
+                    // copy it over
+                    fs_extra::dir::copy(&src, &dest, &copy_dir_options)?;
+                } else if src.is_file() {
+                    // if it's a file, copy that over instead
+
+                    fs_extra::file::copy(&src, &dest, &copy_file_options)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn collect_deps(
         package: &PackageConfig,
         restored_deps: &[SharedPackageConfig],
     ) -> Result<HashMap<PathBuf, PathBuf>> {
@@ -299,7 +350,9 @@ impl FileRepository {
         // while this is looped twice, generally I'd assume the compiler to properly
         // optimize this and it's better readability
         for referenced_dependency in &package.dependencies {
-            let shared_dep = restored_dependencies_map.get(&referenced_dependency.id).unwrap();
+            let shared_dep = restored_dependencies_map
+                .get(&referenced_dependency.id)
+                .unwrap();
 
             let dep_cache_path = base_path
                 .join(&referenced_dependency.id)
@@ -310,10 +363,7 @@ impl FileRepository {
 
             if let Some(extras) = &referenced_dependency.additional_data.extra_files {
                 for extra in extras {
-                    paths.insert(
-                        src_path.join(extra),
-                        extern_headers_dep.join(extra),
-                    );
+                    paths.insert(src_path.join(extra), extern_headers_dep.join(extra));
                 }
             }
         }
@@ -322,8 +372,6 @@ impl FileRepository {
 
         Ok(paths)
     }
-
-    pub fn pull_from_cache(&self, _shared_package: &SharedPackageConfig) {}
 }
 
 impl Repository for FileRepository {
