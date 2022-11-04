@@ -1,11 +1,18 @@
-use std::{fs::File, process::{Command, Stdio}, path::Path};
+use std::{
+    fs::File,
+    path::Path,
+    process::{Command, Stdio},
+};
 
-use color_eyre::{eyre::{bail, Context}, Result};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
 use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
 
-use crate::{network::agent::get_agent, models::config::get_keyring};
+use crate::{models::config::get_keyring, network::agent::get_agent};
 
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
@@ -51,8 +58,7 @@ pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<boo
     let mut file = File::create(out).context("create so file failed")?;
     get_agent()
         .get(url)
-        .send()
-        ?
+        .send()?
         .copy_to(&mut file)
         .context("Failed to write to file")?;
 
@@ -98,8 +104,7 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
 
             get_agent()
                 .get(&download)
-                .send()
-                ?
+                .send()?
                 .copy_to(&mut file)
                 .context("Failed to write out downloaded bytes")?;
             break;
@@ -139,8 +144,6 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
     } else {
         println!("No branch name found, cloning default branch");
     }
-
-    
 
     match git.output() {
         Ok(_o) => {
