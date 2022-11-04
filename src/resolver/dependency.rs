@@ -11,7 +11,7 @@ use qpm_package::models::{
 
 use crate::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-    repository::{local::FileRepository, multi::MultiDependencyRepository, Repository},
+    repository::{local::FileRepository, Repository},
 };
 
 use pubgrub::{
@@ -130,15 +130,14 @@ pub fn resolve<'a>(
     }
 }
 
-pub fn resolve_and_restore(workspace: &Path, repository: &impl Repository) -> Result<()> {
+pub fn resolve_and_restore(workspace: &Path, repository: &mut impl Repository) -> Result<()> {
     let package = PackageConfig::read(workspace)?;
 
-    let mut repositories = MultiDependencyRepository::useful_default_new()?;
     let (shared_package, resolved_deps) =
         SharedPackageConfig::resolve_from_package(package, repository)?;
 
     for dep in &resolved_deps {
-        repositories.download_to_cache(&dep.config)?;
+        repository.download_to_cache(&dep.config)?;
     }
 
     FileRepository::copy_from_cache(&shared_package.config, &resolved_deps, workspace)?;
