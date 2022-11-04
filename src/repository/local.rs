@@ -20,8 +20,7 @@ use qpm_package::models::{
 
 use crate::{
     models::{
-        config::{get_combine_config, UserConfig},
-        package::PackageConfigExtensions,
+        config::get_combine_config, package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
     utils::fs::copy_things,
@@ -34,7 +33,6 @@ use super::Repository;
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct FileRepository {
     pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
-    config: UserConfig,
 }
 
 impl FileRepository {
