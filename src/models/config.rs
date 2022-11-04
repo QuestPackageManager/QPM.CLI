@@ -107,3 +107,8 @@ impl Default for UserConfig {
     }
 }
 
+
+#[inline]
+pub fn get_keyring() -> keyring::Entry {
+    keyring::Entry::new("qpm", "github")
+}

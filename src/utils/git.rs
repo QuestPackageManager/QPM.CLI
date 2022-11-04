@@ -1,11 +1,11 @@
-use std::{fs::File, process::Command, path::Path};
+use std::{fs::File, process::{Command, Stdio}, path::Path};
 
 use color_eyre::{eyre::{bail, Context}, Result};
 use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
 
-use crate::network::agent::get_agent;
+use crate::{network::agent::get_agent, models::config::get_keyring};
 
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
@@ -52,7 +52,7 @@ pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<boo
     get_agent()
         .get(url)
         .send()
-        .unwrap()
+        ?
         .copy_to(&mut file)
         .context("Failed to write to file")?;
 
@@ -99,7 +99,7 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
             get_agent()
                 .get(&download)
                 .send()
-                .unwrap()
+                ?
                 .copy_to(&mut file)
                 .context("Failed to write out downloaded bytes")?;
             break;
@@ -111,11 +111,11 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
 
 pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
     check_git()?;
-    // if let Ok(token_unwrapped) = get_keyring().get_password() {
-    //     if let Some(gitidx) = url.find("github.com") {
-    //         url.insert_str(gitidx, &format!("{}@", token_unwrapped));
-    //     }
-    // }
+    if let Ok(token_unwrapped) = get_keyring().get_password() {
+        if let Some(gitidx) = url.find("github.com") {
+            url.insert_str(gitidx, &format!("{}@", token_unwrapped));
+        }
+    }
 
     if url.ends_with('/') {
         url = url[..url.len() - 1].to_string();
@@ -130,7 +130,9 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         .arg("--recurse-submodules")
         .arg("--shallow-submodules")
         .arg("--quiet")
-        .arg("--single-branch");
+        .arg("--single-branch")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
     if let Some(branch_unwrapped) = branch {
         git.arg("-b").arg(branch_unwrapped);
@@ -138,16 +140,18 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         println!("No branch name found, cloning default branch");
     }
 
+    
+
     match git.output() {
         Ok(_o) => {
             if _o.status.code().unwrap_or(-1) != 0 {
-                let error_string = std::str::from_utf8(_o.stderr.as_slice())
+                let mut error_string = std::str::from_utf8(_o.stderr.as_slice())
                     .unwrap()
                     .to_string();
 
-                // if let Ok(token_unwrapped) = get_keyring().get_password() {
-                //     error_string = error_string.replace(&token_unwrapped, "***");
-                // }
+                if let Ok(token_unwrapped) = get_keyring().get_password() {
+                    error_string = error_string.replace(&token_unwrapped, "***");
+                }
 
                 bail!("Exit code {}: {}", _o.status, error_string);
             }
