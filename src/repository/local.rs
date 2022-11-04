@@ -245,7 +245,11 @@ impl FileRepository {
         for (src, dest) in files {
             fs::create_dir_all(dest.parent().unwrap())?;
             let symlink_result = if symlink {
-                symlink::symlink_auto(&src, &dest)
+                if src.is_file() {
+                    symlink::symlink_file(&src, &dest)
+                } else {
+                    symlink::symlink_dir(&src, &dest)
+                }
             } else {
                 Ok(())
             };
