@@ -9,7 +9,7 @@ use semver::Version;
 use std::{
     collections::HashMap,
     fs::{self, File},
-    io::Cursor,
+    io::{Cursor, Read, Write},
     path::Path,
 };
 use zip::ZipArchive;
@@ -182,7 +182,8 @@ impl QPMRepository {
                     );
                     std::io::stdin().read_line(&mut line)?;
                     if line.starts_with('y') || line.starts_with('Y') {
-                        remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
+                        remove_dir_all(&src_path)
+                            .context("Failed to remove existing src folder")?;
                     }
                 }
                 // HACK: renaming seems to work, idk if it works for actual subfolders?
@@ -230,11 +231,26 @@ impl QPMRepository {
                                 .send()
                                 .context("Unable to download so file")?;
 
+                            let mut bytes =
+                                vec![0u8; response.content_length().unwrap_or(0) as usize];
+
+                            loop {
+                                let read = response.read(&mut bytes)?;
+                                println!(
+                                    "Progress: {}% for file {:?}",
+                                    bytes.len() / bytes.capacity(),
+                                    path
+                                );
+
+                                if read == 0 {
+                                    break;
+                                }
+                            }
+
                             // other dl link, assume it's a raw lib file download
                             let mut file = File::create(path).context("create so file failed")?;
 
-                            response
-                                .copy_to(&mut file)
+                            file.write_all(&bytes)
                                 .context("Failed to write out downloaded bytes")?;
                         }
                     }
