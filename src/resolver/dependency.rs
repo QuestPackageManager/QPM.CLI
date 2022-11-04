@@ -130,18 +130,18 @@ pub fn resolve<'a>(
     }
 }
 
-pub fn resolve_and_restore(workspace: &Path, repository: impl Repository) -> Result<()> {
+pub fn resolve_and_restore(workspace: &Path, repository: &impl Repository) -> Result<()> {
     let package = PackageConfig::read(workspace)?;
 
     let mut repositories = MultiDependencyRepository::useful_default_new()?;
-    let (shared_package, restored_deps) =
-        SharedPackageConfig::resolve_from_package(package, &repository)?;
+    let (shared_package, resolved_deps) =
+        SharedPackageConfig::resolve_from_package(package, repository)?;
 
-    for dep in &restored_deps {
+    for dep in &resolved_deps {
         repositories.download_to_cache(&dep.config)?;
     }
 
-    FileRepository::copy_from_cache(&shared_package.config, &restored_deps, workspace)?;
+    FileRepository::copy_from_cache(&shared_package.config, &resolved_deps, workspace)?;
 
     Ok(())
 }

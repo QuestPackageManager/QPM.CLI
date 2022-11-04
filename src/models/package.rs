@@ -6,6 +6,7 @@ use qpm_package::models::{
     dependency::{Dependency, SharedDependency, SharedPackageConfig},
     package::PackageConfig,
 };
+use semver::VersionReq;
 
 use crate::{repository::Repository, resolver::dependency::resolve};
 
@@ -63,9 +64,13 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                     .iter()
                     .map(|d| SharedDependency {
                         dependency: Dependency {
-                            id: todo!(),
-                            version_range: todo!(),
-                            additional_data: todo!(),
+                            id: d.config.info.id.clone(),
+                            version_range: VersionReq::parse(&format!(
+                                "={}",
+                                d.config.info.version
+                            ))
+                            .expect("Unable to parse version"),
+                            additional_data: d.config.additional_data.clone(),
                         },
                         version: d.config.info.version.clone(),
                     })
