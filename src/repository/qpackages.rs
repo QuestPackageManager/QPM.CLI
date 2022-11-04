@@ -130,11 +130,11 @@ impl QPMRepository {
         if !src_path.exists() {
             // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
             if tmp_path.exists() {
-                remove_dir_all(&tmp_path).expect("Failed to remove existing tmp folder");
+                remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
             }
 
             // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
-            fs::create_dir_all(src_path.parent().unwrap()).expect("Failed to create lib path");
+            fs::create_dir_all(src_path.parent().unwrap()).context("Failed to create lib path")?;
             let url = config.info.url.as_ref().unwrap();
             if url.contains("github.com") {
                 // github url!
@@ -145,7 +145,7 @@ impl QPMRepository {
                 )?;
             } else {
                 // not a github url, assume it's a zip
-                let response = get_agent().get(url).send().unwrap();
+                let response = get_agent().get(url).send()?;
 
                 let buffer = Cursor::new(response.bytes()?);
                 // Extract to tmp folder
@@ -154,12 +154,15 @@ impl QPMRepository {
             // the only way the above if else would break is if someone put a link to a zip file on github in the url slot
             // if you are reading this and think of doing that so I have to fix this, fuck you
 
-            let from_path = if let Some(sub_folder) = &config.info.additional_data.sub_folder {
-                // the package exists in a subfolder of the downloaded thing, just move the subfolder to src
-                tmp_path.join(sub_folder)
-            } else {
-                // the downloaded thing IS the package, just rename the folder to src
-                tmp_path.clone()
+            let from_path = match &config.info.additional_data.sub_folder {
+                Some(sub_folder) => {
+                    // the package exists in a subfolder of the downloaded thing, just move the subfolder to src
+                    tmp_path.join(sub_folder)
+                }
+                _ => {
+                    // the downloaded thing IS the package, just rename the folder to src
+                    tmp_path.clone()
+                }
             };
 
             if from_path.exists() {
@@ -177,20 +180,20 @@ impl QPMRepository {
                         "Confirm deletion of folder {}: (y/N)",
                         src_path.display().bright_yellow()
                     );
-                    let _ = std::io::stdin().read_line(&mut line).unwrap();
+                    std::io::stdin().read_line(&mut line)?;
                     if line.starts_with('y') || line.starts_with('Y') {
-                        remove_dir_all(&src_path).expect("Failed to remove existing src folder");
+                        remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
                     }
                 }
                 // HACK: renaming seems to work, idk if it works for actual subfolders?
-                fs::rename(&from_path, &src_path).expect("Failed to move folder");
+                fs::rename(&from_path, &src_path).context("Failed to move folder")?;
             } else {
                 bail!("Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo");
             }
 
             // clear up tmp folder if it still exists
             if tmp_path.exists() {
-                std::fs::remove_dir_all(tmp_path).expect("Failed to remove tmp folder");
+                std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
             }
             let package_path = src_path.join("qpm.json");
             let downloaded_package = SharedPackageConfig::read(&package_path)?;
