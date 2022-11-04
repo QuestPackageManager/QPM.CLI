@@ -350,7 +350,7 @@ impl FileRepository {
                     false => format!("debug_{}", shared_dep.config.info.get_so_name()),
                 };
 
-                let src_binary = libs_path.with_file_name(name.clone());
+                let src_binary = libs_path.with_file_name(&name);
                 if !src_binary.exists() {
                     bail!(
                         "Missing binary {name} for {}:{}",
