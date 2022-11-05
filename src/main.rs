@@ -3,7 +3,9 @@
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
 #![feature(let_chains)]
+use clap::Parser;
 use color_eyre::Result;
+use commands::Command;
 
 pub mod models;
 pub mod network;
@@ -22,7 +24,8 @@ mod tests;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-    println!("Hello, world!");
+    commands::MainCommand::parse().execute()?;
+
 
     Ok(())
 }
