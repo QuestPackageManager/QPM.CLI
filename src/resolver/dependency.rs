@@ -8,6 +8,7 @@ use itertools::Itertools;
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
+use stopwatch::Stopwatch;
 
 use crate::{
     repository::{local::FileRepository, Repository},
@@ -111,7 +112,12 @@ pub fn resolve<'a>(
         root,
         repo: repository,
     };
-    match pubgrub::solver::resolve(&resolver, root.info.id.clone(), root.info.version.clone()) {
+    let sw = Stopwatch::start_new();
+    let result = match pubgrub::solver::resolve(
+        &resolver,
+        root.info.id.clone(),
+        root.info.version.clone(),
+    ) {
         Ok(deps) => Ok(deps.into_iter().filter_map(move |(id, version)| {
             if id == root.info.id && version == root.info.version {
                 return None;
@@ -127,7 +133,9 @@ pub fn resolve<'a>(
         Err(err) => {
             bail!("{}", err)
         }
-    }
+    };
+    println!("Took {}ms to dependency resolve", sw.elapsed_ms());
+    result
 }
 
 pub fn restore<P: AsRef<Path>>(

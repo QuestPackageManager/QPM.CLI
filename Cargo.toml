@@ -42,6 +42,7 @@ walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.10"
+stopwatch = "0.0.7"
 
 [profile.release]
 opt-level = 3
