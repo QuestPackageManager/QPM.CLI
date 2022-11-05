@@ -11,6 +11,12 @@ pub mod utils;
 pub mod terminal;
 pub mod resolver;
 
+#[cfg(benchmark)]
+mod benchmark;
+
+#[cfg(test)]
+mod tests;
+
 
 fn main() -> Result<()> {
     color_eyre::install()?;
