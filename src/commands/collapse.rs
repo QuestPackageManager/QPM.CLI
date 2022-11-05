@@ -13,9 +13,10 @@ use super::Command;
 pub struct CollapseCommand {}
 
 impl Command for CollapseCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let resolved = resolve(&package, &MultiDependencyRepository::useful_default_new()?)?;
+        let binding = MultiDependencyRepository::useful_default_new()?;
+        let resolved = resolve(&package, &binding)?;
         for shared_package in resolved {
             println!(
                 "{} --> {} ({} restored dependencies)",

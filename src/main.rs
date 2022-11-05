@@ -2,6 +2,7 @@
 #![feature(entry_insert)]
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
+#![feature(let_chains)]
 use color_eyre::Result;
 
 pub mod models;

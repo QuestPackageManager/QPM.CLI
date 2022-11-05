@@ -1,18 +1,26 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
+use color_eyre::Result;
+use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
+
+use crate::{
+    models::{
+        mod_json::{ModJsonExtensions, PreProcessingData},
+        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    },
+    repository::multi::MultiDependencyRepository,
+};
+
+use super::Command;
 
 mod edit;
 
-use crate::data::{
-    mod_json::{ModJson, PreProcessingData},
-    package::{PackageConfig, SharedPackageConfig},
-};
-
 #[derive(Args, Debug, Clone)]
 
-pub struct Qmod {
+pub struct QmodCommand {
     #[clap(subcommand)]
     pub op: QmodOperation,
 }
@@ -78,20 +86,22 @@ pub enum QmodOperation {
     /// Edit your mod.template.json from the command line, mostly intended for edits on github actions
     ///
     /// Some properties are not editable through the qmod edit command, these properties are either editable through the package, or not at all
-    Edit(edit::EditQmodJsonOperationArgs),
+    Edit(edit::EditQmodJsonCommand),
 }
 
-pub fn execute_qmod_operation(operation: Qmod) {
-    match operation.op {
-        QmodOperation::Create(q) => execute_qmod_create_operation(q),
-        QmodOperation::Build(b) => execute_qmod_build_operation(b),
-        QmodOperation::Edit(e) => edit::execute_qmod_edit_operation(e),
+impl Command for QmodCommand {
+    fn execute(self) -> Result<()> {
+        match self.op {
+            QmodOperation::Create(q) => execute_qmod_create_operation(q),
+            QmodOperation::Build(b) => execute_qmod_build_operation(b),
+            QmodOperation::Edit(e) => e.execute(),
+        }
     }
 }
 
-fn execute_qmod_create_operation(create_parameters: CreateQmodJsonOperationArgs) {
-    let schema_version = match create_parameters.schema_version {
-        Option::Some(s) => s,
+fn execute_qmod_create_operation(create_parameters: CreateQmodJsonOperationArgs) -> Result<()> {
+    let schema_version = match &create_parameters.schema_version {
+        Option::Some(s) => s.clone(),
         Option::None => Version::new(1, 0, 0),
     };
 
@@ -120,28 +130,32 @@ fn execute_qmod_create_operation(create_parameters: CreateQmodJsonOperationArgs)
         copy_extensions: Default::default(),
     };
 
-    json.write(PathBuf::from(ModJson::get_template_name()));
+    json.write(&PathBuf::from(ModJson::get_template_name()))?;
+    Ok(())
 }
 
 // This will parse the `qmod.template.json` and process it, then finally export a `qmod.json` for packaging and deploying.
-fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) {
+fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Result<()> {
     assert!(std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 
     println!("Generating mod.json file from template...");
-    let package = PackageConfig::read();
-    let shared_package = SharedPackageConfig::from_package(&package);
+    let package = PackageConfig::read(".")?;
+    let (shared_package, _) = SharedPackageConfig::resolve_from_package(
+        package,
+        &MultiDependencyRepository::useful_default_new()?,
+    )?;
 
-    let mut mod_json: ModJson = shared_package.into();
+    let mut mod_json: ModJson = shared_package.clone().into();
 
     // Parse template mod.template.json
     let preprocess_data = PreProcessingData {
-        version: package.info.version.to_string(),
-        mod_id: package.info.id,
-        mod_name: package.info.name,
+        version: shared_package.config.info.version.to_string(),
+        mod_id: shared_package.config.info.id,
+        mod_name: shared_package.config.info.name,
     };
 
-    let mut existing_json = ModJson::read_and_preprocess(&preprocess_data);
+    let mut existing_json = ModJson::read_and_preprocess(&preprocess_data)?;
     if let Some(is_library) = build_parameters.is_library {
         existing_json.is_library = Some(is_library);
     }
@@ -193,5 +207,6 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) {
     // existing_json.version = mod_json.version;
 
     // Write mod.json
-    existing_json.write(PathBuf::from(ModJson::get_result_name()));
+    existing_json.write(&PathBuf::from(ModJson::get_result_name()))?;
+    Ok(())
 }

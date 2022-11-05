@@ -3,7 +3,6 @@ use std::path::Path;
 use clap::Args;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
-    dependency::Dependency,
     extra::AdditionalPackageMetadata,
     package::{PackageConfig, PackageMetadata},
 };
@@ -42,7 +41,7 @@ pub struct PackageOperationCreateArgs {
 }
 
 impl Command for PackageOperationCreateArgs {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         if PackageConfig::check(".") {
             println!(
                 "{}",
@@ -80,8 +79,7 @@ impl Command for PackageOperationCreateArgs {
             info: package_info,
             shared_dir: Path::new("shared").to_owned(),
             dependencies_dir: Path::new("extern").to_owned(),
-            dependencies: Vec::<Dependency>::default(),
-            additional_data: AdditionalPackageMetadata::default(),
+            dependencies: Default::default(),
         };
 
         package.write(".")?;

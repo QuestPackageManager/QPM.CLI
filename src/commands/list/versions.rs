@@ -14,7 +14,7 @@ pub struct PackageCommand {
 }
 
 impl Command for PackageCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         let versions =
             MultiDependencyRepository::useful_default_new()?.get_package_versions(&self.package)?;
         if self.latest {

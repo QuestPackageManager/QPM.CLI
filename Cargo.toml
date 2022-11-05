@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 #qpm
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
+qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 
 # No need for tracing support
 color-eyre = { version = "0.6", default-features = false }

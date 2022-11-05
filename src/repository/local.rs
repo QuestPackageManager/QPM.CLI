@@ -331,6 +331,7 @@ impl FileRepository {
             // skip header only deps
             if shared_dep
                 .config
+                .info
                 .additional_data
                 .headers_only
                 .unwrap_or(false)
@@ -338,12 +339,13 @@ impl FileRepository {
                 continue;
             }
 
-            if shared_dep.config.additional_data.so_link.is_some()
-                || shared_dep.config.additional_data.debug_so_link.is_some()
+            if shared_dep.config.info.additional_data.so_link.is_some()
+                || shared_dep.config.info.additional_data.debug_so_link.is_some()
             {
                 // get so name or release so name
                 let name = match shared_dep
                     .config
+                    .info
                     .additional_data
                     .use_release
                     .unwrap_or(false)

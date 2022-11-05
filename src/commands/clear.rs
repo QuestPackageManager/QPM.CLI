@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
 use clap::Args;
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{Result};
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 use remove_dir_all::remove_dir_all;
@@ -15,8 +15,8 @@ use super::Command;
 pub struct ClearCommand {}
 
 impl Command for ClearCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
-        remove_dependencies_dir();
+    fn execute(self) -> color_eyre::Result<()> {
+        remove_dependencies_dir()?;
         remove("qpm.shared.json")?;
         remove("extern.cmake")?;
         remove("qpm_defines.cmake")?;

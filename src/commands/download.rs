@@ -53,7 +53,7 @@ pub enum DownloadOperation {
 }
 
 impl Command for Download {
-    fn execute(&self) -> Result<()> {
+    fn execute(self) -> Result<()> {
         let download = self.op;
 
         let url = match download {

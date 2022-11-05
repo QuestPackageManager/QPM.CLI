@@ -78,7 +78,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                                 d.config.info.version
                             ))
                             .expect("Unable to parse version"),
-                            additional_data: d.config.additional_data.clone(),
+                            additional_data: d.config.info.additional_data.clone(),
                         },
                         version: d.config.info.version.clone(),
                     })

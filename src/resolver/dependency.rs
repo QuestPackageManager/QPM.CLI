@@ -149,10 +149,10 @@ pub fn restore<P: AsRef<Path>>(
         repository.download_to_cache(&dep.config)?;
     }
 
-    FileRepository::copy_from_cache(&shared_package.config, &resolved_deps, workspace.as_ref())?;
+    FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
 
-    write_extern_cmake(shared_package, repository);
-    write_define_cmake(shared_package);
+    write_extern_cmake(shared_package, repository)?;
+    write_define_cmake(shared_package)?;
     Ok(())
 }
 

@@ -3,7 +3,7 @@ use std::{path::PathBuf, fs};
 use clap::{Args, Subcommand};
 use owo_colors::OwoColorize;
 
-use crate::{commands::Command, models::config::{get_combine_config, UserConfig}};
+use crate::{models::config::{UserConfig}};
 
 #[derive(Args, Debug, Clone)]
 pub struct CacheCommand {
@@ -23,7 +23,7 @@ pub struct CacheSetPathOperation {
 }
 
 impl CacheCommand {
-    pub fn execute(&self, config: &mut UserConfig) -> color_eyre::Result<()> {
+    pub fn execute(self, config: &mut UserConfig) -> color_eyre::Result<()> {
         match self.op {
             CacheOperation::Path(p) => {
                 if let Some(path) = p.path {

@@ -25,7 +25,7 @@ pub struct EditArgs {
 }
 
 impl Command for EditArgs {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         let mut package = PackageConfig::read(".")?;
         let mut any_changed = false;
         if let Some(id) = self.id {
@@ -46,17 +46,17 @@ impl Command for EditArgs {
         }
 
         if any_changed {
-            package.write(".");
+            package.write(".")?;
             let mut shared_package = SharedPackageConfig::read(".")?;
             shared_package.config = package;
-            shared_package.write(".");
+            shared_package.write(".")?;
 
             // HACK: Not sure if this is a proper way of doing this but it seems logical
-            write_define_cmake(&shared_package);
+            write_define_cmake(&shared_package)?;
             write_extern_cmake(
                 &shared_package,
                 &MultiDependencyRepository::useful_default_new()?,
-            );
+            )?;
         }
         Ok(())
     }

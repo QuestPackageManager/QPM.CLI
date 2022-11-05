@@ -44,7 +44,7 @@ pub enum ConfigOperation {
 }
 
 impl Command for ConfigCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         let mut config = if self.local {
             UserConfig::read_workspace()?.unwrap()
         } else {

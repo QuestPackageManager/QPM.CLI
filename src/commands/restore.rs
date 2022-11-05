@@ -1,6 +1,6 @@
 use std::{fs, io::Write};
 
-use clap::{Parser, Args};
+use clap::{Args};
 use color_eyre::eyre::Context;
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
@@ -23,18 +23,18 @@ pub struct RestoreCommand {
 }
 
 impl Command for RestoreCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
-        let mut package = PackageConfig::read(".")?;
-
+    fn execute(self) -> color_eyre::Result<()> {
+        let package = PackageConfig::read(".")?;
+        let mut shared_package = SharedPackageConfig::read(".")?;
         let mut repo = MultiDependencyRepository::useful_default_new()?;
 
-        let (shared_package, resolved_deps) = match self.locked {
-            true => {
-                let package = SharedPackageConfig::read(".")?;
-
-                (package, dependency::locked_resolve(&package, &repo)?.collect_vec())
+        let resolved_deps = match self.locked {
+            true => dependency::locked_resolve(&shared_package, &repo)?.collect_vec(),
+            false => {
+                let (s, d) = SharedPackageConfig::resolve_from_package(package, &repo)?;
+                shared_package = s;
+                d
             }
-            false => SharedPackageConfig::resolve_from_package(package, &repo)?,
         };
 
         // create used dirs
@@ -44,7 +44,7 @@ impl Command for RestoreCommand {
 
         // write the ndk path to a file if available
         let config = get_combine_config();
-        if let Some(ndk_path) = config.ndk_path {
+        if let Some(ndk_path) = &config.ndk_path {
             let mut file =
                 std::fs::File::create("ndkpath.txt").context("Failed to create ndkpath.txt")?;
             file.write_all(ndk_path.as_bytes())

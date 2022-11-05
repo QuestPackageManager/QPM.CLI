@@ -35,9 +35,9 @@ fn look_path(path: &str) -> Result<bool, std::env::VarError> {
 }
 
 #[derive(Args)]
-struct Doctor {}
-impl Command for Doctor {
-    fn execute(&self) -> Result<()> {
+pub struct DoctorCommand {}
+impl Command for DoctorCommand {
+    fn execute(self) -> Result<()> {
         let cmake = look_path("cmake")?;
         let ninja = look_path("ninja")?;
         let adb = look_path("adb")?;
@@ -73,11 +73,11 @@ impl Command for Doctor {
 
             if ndk_path.is_ok() {
                 println!("NDK {} found in path!", ndk_path.unwrap());
-            } else if File::open("./ndkpath.txt").is_err() {
+            } else if let Err(err) = ndk_path && File::open("./ndkpath.txt").is_err() {
                 return Err(anyhow!(
                     "No ndkpath.txt or ANDROID_NDK_HOME environment variable found!"
                 )
-                .error(ndk_path.unwrap_err()));
+                .error(err));
             }
         };
 

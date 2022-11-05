@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::{Context, bail}, Result};
 use owo_colors::OwoColorize;
-use qpm_package::models::{extra::AdditionalPackageMetadata, package::PackageConfig, dependency::Dependency};
+use qpm_package::models::{extra::{PackageDependencyModifier}, package::{PackageConfig, PackageDependency}};
 use semver::VersionReq;
 
 use crate::{
@@ -46,7 +46,7 @@ pub struct DependencyOperationRemoveArgs {
 }
 
 impl Command for DependencyCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         match self.op {
             DependencyOperation::Add(a) => add_dependency(a),
             DependencyOperation::Remove(r) => remove_dependency(r),
@@ -65,7 +65,7 @@ fn add_dependency(dependency_args: DependencyOperationAddArgs) -> Result<()> {
         .get_package_versions(&dependency_args.id)
         .context("No version found for dependency")?;
 
-    if versions.is_none() || versions.unwrap().is_empty() {
+    if versions.is_none() || versions.clone().unwrap().is_empty() {
         bail!(
             "Package {} does not seem to exist qpackages, please make sure you spelled it right, and that it's an actual package!",
             dependency_args.id.bright_green()
@@ -91,7 +91,7 @@ fn add_dependency(dependency_args: DependencyOperationAddArgs) -> Result<()> {
 fn put_dependency(
     id: &str,
     version: VersionReq,
-    additional_data: &AdditionalPackageMetadata,
+    additional_data: &PackageDependencyModifier,
 ) -> Result<()> {
     println!(
         "Adding dependency with id {} and version {}",
@@ -100,7 +100,7 @@ fn put_dependency(
     );
 
     let mut package = PackageConfig::read(".")?;
-    let dep = Dependency {
+    let dep = PackageDependency {
         id: id.to_string(),
         version_range: version,
         additional_data: additional_data.clone(),

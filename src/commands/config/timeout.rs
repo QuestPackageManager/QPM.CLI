@@ -14,7 +14,7 @@ impl Timeout {
         match self.timeout {
             Some(timeout) => {
                 println!("Set timeout to {}!", timeout.bright_yellow());
-                config.timeout.insert(timeout);
+                config.timeout = Some(timeout);
             }
             None => match config.timeout {
                 Some(timeout) => println!(

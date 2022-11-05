@@ -1,4 +1,4 @@
-use std::f32::consts::E;
+
 
 use clap::{Args, Subcommand};
 use color_eyre::Result;
@@ -22,7 +22,7 @@ pub struct Symlink {
 }
 
 impl Symlink {
-    pub fn execute(&self, config: &mut UserConfig) -> Result<()> {
+    pub fn execute(self, config: &mut UserConfig) -> Result<()> {
         // value is given
         match self.op {
             Some(symlink) => match symlink {

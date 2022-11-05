@@ -9,7 +9,6 @@ use crate::{
         package::{PackageConfigExtensions, SharedPackageConfigExtensions},
     },
     repository::{multi::MultiDependencyRepository, qpackages::QPMRepository, Repository},
-    resolver::dependency,
 };
 
 use super::Command;
@@ -22,7 +21,7 @@ pub struct PublishCommand {
 }
 
 impl Command for PublishCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         if package.info.url.is_none() {
             bail!("Package without url can not be published!");
@@ -50,7 +49,7 @@ impl Command for PublishCommand {
         }
 
         // check if all required dependencies are in the restored dependencies, and if they satisfy the version ranges
-        for dependency in package.dependencies.iter() {
+        for dependency in &shared_package.config.dependencies {
             // if we can not find any dependency that matches ID and version satisfies given range, then we are missing a dep
             if let Some(el) = shared_package
                 .restored_dependencies
@@ -70,17 +69,17 @@ impl Command for PublishCommand {
         }
 
         // check if url is set to download headers
-        if package.info.url.is_none() {
+        if shared_package.config.info.url.is_none() {
             bail!("info.url is null, please make sure to init this with the base link to your repo, e.g. '{}'", "https://github.com/RedBrumbler/QuestPackageManager-Rust".bright_yellow());
         }
         // check if this is header only, if it's not header only check if the so_link is set, if not, panic
-        if !package
-            
+        if !shared_package
+            .config
             .info
             .additional_data
             .headers_only
             .unwrap_or(false)
-            && package.info.additional_data.so_link.is_none()
+            && shared_package.config.info.additional_data.so_link.is_none()
         {
             bail!("soLink is not set in the package config, but this package is not header only, please make sure to either add the soLink or to make the package header only.");
         }
@@ -88,7 +87,7 @@ impl Command for PublishCommand {
         // TODO: Implement a check that gets the repo and checks if the shared folder and subfolder exists, if not it throws an error and won't let you publish
 
         if let Some(key) = &self.publish_auth {
-            QPMRepository::publish_package(&shared_package, &key)?;
+            QPMRepository::publish_package(&shared_package, key)?;
         } else {
             // Empty strings are None, you shouldn't be able to publish with a None
             let publish_key = get_publish_keyring();
@@ -97,12 +96,12 @@ impl Command for PublishCommand {
                 &publish_key
                     .get_password()
                     .context("Unable to get stored publish key!")?,
-            );
+            )?;
         }
 
         println!(
             "Package {} v{} published!",
-            package.info.id, package.info.version
+            shared_package.config.info.id, shared_package.config.info.version
         );
 
         Ok(())

@@ -12,7 +12,7 @@ pub struct TokenCommand {
 }
 
 impl Command for TokenCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         if self.delete && get_keyring().get_password().is_ok() {
             get_keyring()
                 .delete_password()

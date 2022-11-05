@@ -11,7 +11,7 @@ use crate::{
 pub struct PackageListCommand {}
 
 impl Command for PackageListCommand {
-    fn execute(&self) -> Result<()> {
+    fn execute(self) -> Result<()> {
         let ids = MultiDependencyRepository::useful_default_new()?.get_package_names()?;
         if !ids.is_empty() {
             println!(
@@ -19,7 +19,7 @@ impl Command for PackageListCommand {
                 ids.len().bright_yellow()
             );
 
-            ids.chunks(5).for_each(|id| println!("{:?}\n", ids));
+            ids.chunks(5).for_each(|_id| println!("{:?}\n", ids));
         } else {
             println!("qpackages.com returned 0 packages, is something wrong?");
         }

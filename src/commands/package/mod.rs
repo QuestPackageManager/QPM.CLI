@@ -25,7 +25,7 @@ pub enum PackageOperation {
 }
 
 impl Command for PackageCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         match self.op {
             PackageOperation::Create(c) => c.execute(),
             PackageOperation::Edit(e) => e.execute(),

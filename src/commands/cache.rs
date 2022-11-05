@@ -1,4 +1,7 @@
-use std::{io::{Read, Write}, fs::File};
+use std::{
+    fs::File,
+    io::{Read, Write},
+};
 
 use clap::Subcommand;
 use color_eyre::Result;
@@ -32,7 +35,7 @@ pub enum CacheOperation {
 }
 
 impl Command for CacheCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         match self.op {
             CacheOperation::Clear => clear()?,
             CacheOperation::List => list(),
@@ -43,10 +46,9 @@ impl Command for CacheCommand {
     }
 }
 
-
 fn clear() -> Result<()> {
     let config = get_combine_config();
-    let path = config.cache.unwrap();
+    let path = config.cache.as_ref().unwrap();
     remove_dir_contents(path)?;
     Ok(())
 }
@@ -55,15 +57,15 @@ fn path() {
     let config = get_combine_config();
     println!(
         "Config path is: {}",
-        config.cache.unwrap().display().bright_yellow()
+        config.cache.as_ref().unwrap().display().bright_yellow()
     );
 }
 
 fn list() {
     let config = get_combine_config();
-    let path = config.cache.unwrap();
+    let path = config.cache.as_ref().unwrap();
 
-    for dir in WalkDir::new(&path).max_depth(2).min_depth(1) {
+    for dir in WalkDir::new(path).max_depth(2).min_depth(1) {
         let unwrapped = dir.unwrap();
         if unwrapped.depth() == 1 {
             println!(
@@ -79,8 +81,8 @@ fn list() {
     }
 }
 
-fn legacy_fix() -> Result<()>{
-    for entry in WalkDir::new(get_combine_config().cache.unwrap())
+fn legacy_fix() -> Result<()> {
+    for entry in WalkDir::new(get_combine_config().cache.as_ref().unwrap())
         .min_depth(2)
         .max_depth(2)
     {

@@ -26,7 +26,7 @@ pub struct ListCommand {
 }
 
 impl Command for ListCommand {
-    fn execute(&self) -> color_eyre::Result<()> {
+    fn execute(self) -> color_eyre::Result<()> {
         match self.op {
             ListOption::Packages(p) => p.execute(),
             ListOption::Versions(p) => p.execute(),
