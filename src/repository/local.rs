@@ -12,7 +12,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use remove_dir_all::remove_dir_all;
 
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
@@ -127,7 +126,7 @@ impl FileRepository {
         let src_path = cache_path.join("src");
 
         if src_path.exists() {
-            remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
+            fs::remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
         }
 
         fs::create_dir_all(&src_path).context("Failed to create lib path")?;
@@ -158,7 +157,7 @@ impl FileRepository {
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
         if tmp_path.exists() {
-            remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
+            fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
         }
 
         if validate {
@@ -297,7 +296,7 @@ impl FileRepository {
         let missing_dependencies: Vec<_> = restored_dependencies_map
             .iter()
             .filter(|(_, r)| {
-                base_path
+                !base_path
                     .join(&r.config.info.id)
                     .join(r.config.info.version.to_string())
                     .exists()
@@ -305,20 +304,21 @@ impl FileRepository {
             .map(|(_, r)| format!("{}:{}", r.config.info.id, r.config.info.version))
             .collect();
 
-        let extern_dir = workspace_dir
-            .join(&package.dependencies_dir)
-            .canonicalize()?;
+        if !missing_dependencies.is_empty() {
+            bail!("Missing dependencies in cache: {:?}", missing_dependencies);
+        }
+
+        let extern_dir = workspace_dir.join(&package.dependencies_dir);
 
         // delete if needed
-        remove_dir_all(&extern_dir)?;
+        if extern_dir.exists() {
+            fs::remove_dir_all(&extern_dir)
+                .with_context(|| format!("Unable to delete {:?}", extern_dir))?;
+        }
 
         let extern_binaries = extern_dir.join("libs");
         let extern_headers = extern_dir.join("includes");
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
-
-        if !missing_dependencies.is_empty() {
-            bail!("Missing dependencies in cache: {:?}", missing_dependencies);
-        }
 
         // direct deps (binaries)
         for referenced_dep in &package.dependencies {
@@ -331,6 +331,7 @@ impl FileRepository {
             // skip header only deps
             if shared_dep
                 .config
+                .info
                 .additional_data
                 .headers_only
                 .unwrap_or(false)
@@ -338,21 +339,23 @@ impl FileRepository {
                 continue;
             }
 
-            if shared_dep.config.additional_data.so_link.is_some()
-                || shared_dep.config.additional_data.debug_so_link.is_some()
-            {
-                // get so name or release so name
-                let name = match shared_dep
+            if shared_dep.config.info.additional_data.so_link.is_some()
+                || shared_dep
                     .config
+                    .info
                     .additional_data
-                    .use_release
-                    .unwrap_or(false)
-                {
+                    .debug_so_link
+                    .is_some()
+            {
+                let data = &shared_dep.config.info.additional_data;
+                // get so name or release so name
+                let name = match data.use_release.unwrap_or(false) || data.debug_so_link.is_none() {
                     true => shared_dep.config.info.get_so_name(),
                     false => format!("debug_{}", shared_dep.config.info.get_so_name()),
                 };
 
-                let src_binary = libs_path.with_file_name(&name);
+                let src_binary = libs_path.join(&name);
+
                 if !src_binary.exists() {
                     bail!(
                         "Missing binary {name} for {}:{}",
@@ -361,7 +364,7 @@ impl FileRepository {
                     );
                 }
 
-                paths.insert(src_binary, extern_binaries.with_file_name(name));
+                paths.insert(src_binary, extern_binaries.join(shared_dep.config.info.get_so_name()));
             }
         }
 
@@ -472,5 +475,9 @@ impl Repository for FileRepository {
         }
 
         Ok(())
+    }
+
+    fn write_repo(&self) -> Result<()> {
+        self.write()
     }
 }

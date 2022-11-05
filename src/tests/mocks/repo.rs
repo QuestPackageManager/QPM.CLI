@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 
-
 use qpm_package::models::{
     dependency::{Dependency, SharedDependency, SharedPackageConfig},
     extra::AdditionalPackageMetadata,
-    package::{PackageConfig, PackageMetadata},
+    package::{PackageConfig, PackageDependency, PackageMetadata},
 };
 use semver::{Version, VersionReq};
 
-use crate::{repository::local::FileRepository};
+use crate::repository::local::FileRepository;
 
 pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
     SharedPackageConfig {
@@ -20,10 +19,9 @@ pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
                 id: name.to_string(),
                 url: None,
                 version: ver,
-                additional_data: AdditionalPackageMetadata::default(),
+                additional_data: Default::default(),
             },
             dependencies: vec![],
-            additional_data: AdditionalPackageMetadata::default(),
         },
         restored_dependencies: vec![],
     }
@@ -36,8 +34,13 @@ pub fn build_artifact_and_depend(
 ) -> SharedPackageConfig {
     let dep = Dependency {
         id: shared_dep.config.info.id.clone(),
-        version_range: range,
+        version_range: range.clone(),
         additional_data: shared_dep.config.info.additional_data.clone(),
+    };
+    let p_dep = PackageDependency {
+        id: shared_dep.config.info.id.clone(),
+        version_range: range,
+        additional_data: Default::default(),
     };
     SharedPackageConfig {
         config: PackageConfig {
@@ -48,10 +51,9 @@ pub fn build_artifact_and_depend(
                 id: name.to_string(),
                 url: None,
                 version: ver,
-                additional_data: AdditionalPackageMetadata::default(),
+                additional_data: Default::default(),
             },
-            dependencies: vec![dep.clone()],
-            additional_data: AdditionalPackageMetadata::default(),
+            dependencies: vec![p_dep],
         },
         restored_dependencies: vec![SharedDependency {
             dependency: dep,
@@ -77,13 +79,12 @@ pub fn build_artifact_and_depends(
             },
             dependencies: deps
                 .iter()
-                .map(|(shared_config, range)| Dependency {
+                .map(|(shared_config, range)| PackageDependency {
                     id: shared_config.config.info.id.clone(),
                     version_range: range.clone(),
-                    additional_data: shared_config.config.info.additional_data.clone(),
+                    additional_data: Default::default(),
                 })
                 .collect(),
-            additional_data: AdditionalPackageMetadata::default(),
         },
         restored_dependencies: deps
             .iter()

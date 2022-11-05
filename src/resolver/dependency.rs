@@ -8,11 +8,12 @@ use itertools::Itertools;
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
-
+use stopwatch::Stopwatch;
 
 use crate::{
-    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
     repository::{local::FileRepository, Repository},
+    terminal::colors::QPMColor,
+    utils::cmake::{write_define_cmake, write_extern_cmake},
 };
 
 use pubgrub::{
@@ -111,7 +112,12 @@ pub fn resolve<'a>(
         root,
         repo: repository,
     };
-    match pubgrub::solver::resolve(&resolver, root.info.id.clone(), root.info.version.clone()) {
+    let sw = Stopwatch::start_new();
+    let result = match pubgrub::solver::resolve(
+        &resolver,
+        root.info.id.clone(),
+        root.info.version.clone(),
+    ) {
         Ok(deps) => Ok(deps.into_iter().filter_map(move |(id, version)| {
             if id == root.info.id && version == root.info.version {
                 return None;
@@ -127,21 +133,38 @@ pub fn resolve<'a>(
         Err(err) => {
             bail!("{}", err)
         }
-    }
+    };
+    println!("Took {}ms to dependency resolve", sw.elapsed_ms());
+    result
 }
 
-pub fn resolve_and_restore(workspace: &Path, repository: &mut impl Repository) -> Result<()> {
-    let package = PackageConfig::read(workspace)?;
-
-    let (shared_package, resolved_deps) =
-        SharedPackageConfig::resolve_from_package(package, repository)?;
-
-    for dep in &resolved_deps {
+pub fn restore<P: AsRef<Path>>(
+    workspace: P,
+    shared_package: &SharedPackageConfig,
+    resolved_deps: &[SharedPackageConfig],
+    repository: &mut impl Repository,
+) -> Result<()> {
+    for dep in resolved_deps {
+        println!(
+            "Pulling {}:{}",
+            &dep.config.info.id.dependency_id_color(),
+            &dep.config
+                .info
+                .version
+                .to_string()
+                .dependency_version_color()
+        );
         repository.download_to_cache(&dep.config)?;
+        repository.add_to_db_cache(dep.clone(), true)?;
     }
 
-    FileRepository::copy_from_cache(&shared_package.config, &resolved_deps, workspace)?;
+    repository.write_repo()?;
 
+    println!("Copying now");
+    FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
+
+    write_extern_cmake(shared_package, repository)?;
+    write_define_cmake(shared_package)?;
     Ok(())
 }
 

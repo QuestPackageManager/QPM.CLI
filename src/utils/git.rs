@@ -147,8 +147,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
     match git.output() {
         Ok(_o) => {
             if _o.status.code().unwrap_or(-1) != 0 {
-                let mut error_string = std::str::from_utf8(_o.stderr.as_slice())
-                    .unwrap()
+                let mut error_string = std::str::from_utf8(_o.stderr.as_slice())?
                     .to_string();
 
                 if let Ok(token_unwrapped) = get_keyring().get_password() {

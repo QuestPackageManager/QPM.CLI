@@ -1,7 +1,9 @@
 use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 
-use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{
+    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
+};
 
 use super::{local::FileRepository, qpackages::QPMRepository, Repository};
 
@@ -39,9 +41,7 @@ impl Repository for MultiDependencyRepository {
         let result: Vec<PackageVersion> = self
             .repositories
             .iter()
-            .map(|r| r.get_package_versions(id))
-            .flatten_ok()
-            .flatten()
+            .filter_map(|r| r.get_package_versions(id).unwrap())
             .flatten()
             .unique()
             .collect();
@@ -78,7 +78,7 @@ impl Repository for MultiDependencyRepository {
             .repositories
             .iter()
             .map(|r| r.get_package(id, version))
-            .next();
+            .find(|r| r.as_ref().is_ok_and(|o| o.is_some()));
 
         if let Some(o) = opt {
             return o;
@@ -98,15 +98,10 @@ impl Repository for MultiDependencyRepository {
             .collect::<Vec<String>>())
     }
 
-    fn download_to_cache(
-        &mut self,
-        config: &PackageConfig
-    ) -> Result<()> {
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()> {
         let first_repo_opt = self.repositories.iter_mut().try_find(|r| -> Result<bool> {
-            Ok(
-                r.get_package(&config.info.id, &config.info.version)?
-                    .is_some(),
-            )
+            Ok(r.get_package(&config.info.id, &config.info.version)?
+                .is_some())
         })?;
 
         match first_repo_opt {
@@ -121,11 +116,17 @@ impl Repository for MultiDependencyRepository {
 
     fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
         if permanent {
+            #[cfg(debug_assertions)]
             println!("Warning, adding to cache permanently to multiple repos!",);
         }
         self.repositories
             .iter_mut()
             .try_for_each(|r| r.add_to_db_cache(config.clone(), permanent))?;
+        Ok(())
+    }
+
+    fn write_repo(&self) -> Result<()> {
+        self.repositories.iter().try_for_each(|r| r.write_repo())?;
         Ok(())
     }
 }

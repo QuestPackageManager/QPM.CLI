@@ -1,6 +1,6 @@
 use std::{fs::File, path::Path};
 
-use color_eyre::Result;
+use color_eyre::{Result, eyre::Context};
 use itertools::Itertools;
 use qpm_package::models::{
     dependency::{Dependency, SharedDependency, SharedPackageConfig},
@@ -11,10 +11,11 @@ use semver::VersionReq;
 use crate::{repository::Repository, resolver::dependency::resolve};
 
 pub trait PackageConfigExtensions {
-    fn read(dir: &Path) -> Result<Self>
+    fn check<P: AsRef<Path>>(dir: P) -> bool;
+    fn read<P: AsRef<Path>>(dir: P) -> Result<Self>
     where
         Self: std::marker::Sized;
-    fn write(&self, dir: &Path) -> Result<()>;
+    fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()>;
 }
 pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
@@ -24,29 +25,36 @@ pub trait SharedPackageConfigExtensions: Sized {
 }
 
 impl PackageConfigExtensions for PackageConfig {
-    fn read(dir: &Path) -> Result<Self> {
-        let file = File::open(dir.with_file_name("qpm.json"))?;
+    fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
+        let file = File::open(dir.as_ref().with_file_name("qpm.json"))?;
         Ok(serde_json::from_reader(file)?)
     }
 
-    fn write(&self, dir: &Path) -> Result<()> {
-        let file = File::create(dir.with_file_name("qpm.json"))?;
+    fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
+        let file = File::create(dir.as_ref().with_file_name("qpm.json"))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
+    }
+
+    fn check<P: AsRef<Path>>(dir: P) -> bool {
+        dir.as_ref().with_file_name("qpm.json").exists()
     }
 }
 impl PackageConfigExtensions for SharedPackageConfig {
-    fn read(dir: &Path) -> Result<Self> {
-        let file = File::open(dir.with_file_name("qpm.shared.json"))?;
+    fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
+        let file = File::open(dir.as_ref().with_file_name("qpm.shared.json")).context("Missing qpm.shared.json")?;
         Ok(serde_json::from_reader(file)?)
     }
 
-    fn write(&self, dir: &Path) -> Result<()> {
-        let file = File::create(dir.with_file_name("qpm.shared.json"))?;
+    fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
+        let file = File::create(dir.as_ref().with_file_name("qpm.shared.json"))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
+    }
+    fn check<P: AsRef<Path>>(dir: P) -> bool {
+        dir.as_ref().with_file_name("qpm.shared.json").exists()
     }
 }
 
@@ -70,7 +78,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                                 d.config.info.version
                             ))
                             .expect("Unable to parse version"),
-                            additional_data: d.config.additional_data.clone(),
+                            additional_data: d.config.info.additional_data.clone(),
                         },
                         version: d.config.info.version.clone(),
                     })
