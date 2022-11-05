@@ -12,6 +12,7 @@ qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
 # No need for tracing support
 color-eyre = { version = "0.6", default-features = false }
 
+bytes = "*"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }

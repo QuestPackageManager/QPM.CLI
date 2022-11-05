@@ -42,7 +42,7 @@ impl UserConfig {
         dirs::config_dir().unwrap().join("QPM-Rust")
     }
 
-    fn read_global() -> Result<Self> {
+    pub fn read_global() -> Result<Self> {
         fs::create_dir_all(Self::global_config_path().parent().unwrap())?;
         
         if !Self::global_config_path().exists() {
@@ -55,7 +55,7 @@ impl UserConfig {
         Ok(serde_json::from_reader(file)?)
     }
 
-    fn read_workspace() -> Result<Option<Self>> {
+    pub fn read_workspace() -> Result<Option<Self>> {
         let path = Path::new(".").join(Self::config_file_name());
         if !path.exists() {
             return Ok(None);
@@ -65,7 +65,7 @@ impl UserConfig {
         Ok(Some(serde_json::from_reader(file)?))
     }
 
-    fn write(&self, workspace: bool) -> Result<()> {
+    pub fn write(&self, workspace: bool) -> Result<()> {
         let path = if workspace {
             Path::new(".").join(Self::config_file_name())
         } else {
@@ -111,4 +111,8 @@ impl Default for UserConfig {
 #[inline]
 pub fn get_keyring() -> keyring::Entry {
     keyring::Entry::new("qpm", "github")
+}
+#[inline]
+pub fn get_publish_keyring() -> keyring::Entry {
+    keyring::Entry::new("qpm", "publish")
 }

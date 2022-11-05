@@ -10,6 +10,7 @@ pub mod repository;
 pub mod utils;
 pub mod terminal;
 pub mod resolver;
+pub mod commands;
 
 #[cfg(benchmark)]
 mod benchmark;

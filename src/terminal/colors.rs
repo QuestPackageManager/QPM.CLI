@@ -8,6 +8,21 @@ pub trait QPMColor: OwoColorize {
         self.cyan()
     }
 
+    #[inline(always)]
+    fn file_path_color(&self) -> FgColorDisplay<owo_colors::colors::Yellow, Self> {
+        self.yellow()
+    }
+
+    #[inline(always)]
+    fn dependency_id_color(&self) -> FgColorDisplay<owo_colors::colors::Blue, Self> {
+        self.blue()
+    }
+
+    #[inline(always)]
+    fn dependency_version_color(&self) -> FgColorDisplay<owo_colors::colors::Magenta, Self> {
+        self.purple()
+    }
+
 
 }
 
