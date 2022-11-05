@@ -46,12 +46,11 @@ pub fn check_git() -> Result<()> {
 
 pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
     check_git()?;
-    get_release_without_token(url, out)
-    // if let Ok(token_unwrapped) = get_keyring().get_password() {
-    //     get_release_with_token(url, out, &token_unwrapped)
-    // } else {
-    //     get_release_without_token(url, out)
-    // }
+    if let Ok(token_unwrapped) = get_keyring().get_password() {
+        get_release_with_token(url, out, &token_unwrapped)
+    } else {
+        get_release_without_token(url, out)
+    }
 }
 
 pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<bool> {
@@ -160,11 +159,11 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
             }
         }
         Err(e) => {
-            let error_string = e.to_string();
+            let mut error_string = e.to_string();
 
-            // if let Ok(token_unwrapped) = get_keyring().get_password() {
-            //     error_string = error_string.replace(&token_unwrapped, "***");
-            // }
+            if let Ok(token_unwrapped) = get_keyring().get_password() {
+                error_string = error_string.replace(&token_unwrapped, "***");
+            }
 
             bail!("{}", error_string);
         }
