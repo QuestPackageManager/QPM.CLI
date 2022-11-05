@@ -15,6 +15,9 @@ pub mod publish;
 pub mod qmod;
 pub mod restore;
 
+#[cfg(feature = "templatr")]
+pub mod templatr;
+
 pub trait Command {
     fn execute(self) -> Result<()>;
 }
@@ -46,6 +49,8 @@ pub enum MainCommand {
     /// Checks if your quest modding workspace is ready
     Doctor(doctor::DoctorCommand),
     Download(download::Download),
+    #[cfg(feature = "templatr")]
+    Templatr(templatr::TemplatrCommand)
 }
 
 impl Command for MainCommand {
@@ -64,6 +69,8 @@ impl Command for MainCommand {
             MainCommand::Install(c) => c.execute(),
             MainCommand::Doctor(c) => c.execute(),
             MainCommand::Download(c) => c.execute(),
+            #[cfg(feature="templatr")]
+            MainCommand::Templatr(c) => c.execute(),
         }
     }
 }

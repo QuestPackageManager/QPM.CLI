@@ -5,10 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["templatr"]
+templatr = ["dep:templatr"]
+
 [dependencies]
 #qpm
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
+templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true  }
 
 # No need for tracing support
 color-eyre = { version = "0.6", default-features = false }
