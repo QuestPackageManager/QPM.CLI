@@ -9,6 +9,7 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
+
 use crate::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
     repository::{local::FileRepository, Repository},
@@ -37,16 +38,12 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
         &self,
         potential_packages: impl Iterator<Item = (T, U)>,
     ) -> Result<(T, Option<VersionWrapper>), Box<dyn Error>> {
-        Ok(pubgrub::solver::choose_package_with_fewest_versions(
+        let package = pubgrub::solver::choose_package_with_fewest_versions(
             |id| {
                 if id == &self.root.info.id {
-                    panic!("Resolving {id} which is also root package id!");
+                    let v: VersionWrapper = self.root.info.version.clone().into();
+                    return vec![v].into_iter();
                 }
-                // if id == &self.root.info.id {
-                //     // TODO: Make this not happe
-                //     let v: VersionWrapper = self.root.info.version.into();
-                //     return vec![v].into_iter();
-                // }
 
                 self.repo
                     .get_package_versions(id)
@@ -54,9 +51,12 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
                     .unwrap_or_else(|| panic!("Unable to find versions for package {id}"))
                     .into_iter()
                     .map(|pv: PackageVersion| pv.version.into())
+                    .sorted()
             },
             potential_packages,
-        ))
+        );
+
+        Ok(package)
     }
 
     fn get_dependencies(
