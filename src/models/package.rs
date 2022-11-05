@@ -1,6 +1,6 @@
 use std::{fs::File, path::Path};
 
-use color_eyre::Result;
+use color_eyre::{Result, eyre::Context};
 use itertools::Itertools;
 use qpm_package::models::{
     dependency::{Dependency, SharedDependency, SharedPackageConfig},
@@ -43,7 +43,7 @@ impl PackageConfigExtensions for PackageConfig {
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().with_file_name("qpm.shared.json"))?;
+        let file = File::open(dir.as_ref().with_file_name("qpm.shared.json")).context("Missing qpm.shared.json")?;
         Ok(serde_json::from_reader(file)?)
     }
 

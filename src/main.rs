@@ -3,6 +3,7 @@
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
 #![feature(let_chains)]
+#![feature(is_some_and)]
 use clap::Parser;
 use color_eyre::Result;
 use commands::Command;

@@ -7,6 +7,7 @@ use remove_dir_all::remove_dir_all;
 use reqwest::StatusCode;
 use semver::Version;
 use std::{
+    cell::{UnsafeCell},
     collections::HashMap,
     fs::{self, File},
     io::{Cursor, Read, Write},
@@ -35,7 +36,9 @@ const API_URL: &str = "https://qpackages.com";
 
 #[derive(Default)]
 pub struct QPMRepository {
-    packages_cache: HashMap<String, HashMap<Version, SharedPackageConfig>>,
+    // interior mutability
+    packages_cache: UnsafeCell<HashMap<String, HashMap<Version, SharedPackageConfig>>>,
+    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>
 }
 
 impl QPMRepository {
@@ -274,38 +277,50 @@ impl Repository for QPMRepository {
     }
 
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
-        let cache = self.packages_cache.get(id).map(|f| {
-            f.keys()
-                .map(|v| PackageVersion {
-                    id: id.to_string(),
-                    version: v.clone(),
-                })
-                .collect::<Vec<_>>()
-        });
-
-        if let Some(c) = cache {
-            return Ok(Some(c));
-        }
-
-        Self::get_versions(id)
-    }
-
-    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
-        let cache = self.packages_cache.get(id).and_then(|f| f.get(version));
+        let cache = self.versions_cache.get_safe().get(id);
 
         if let Some(c) = cache {
             return Ok(Some(c.clone()));
         }
 
-        Self::get_shared_package(id, version)
+        let versions = Self::get_versions(id)?;
+
+        if let Some(versions) = &versions {
+            self.versions_cache
+                .get_mut_safe()
+                .entry(id.to_string())
+                .insert_entry(versions.clone());
+        }
+
+        Ok(versions)
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, _permanent: bool) -> Result<()> {
-        self.packages_cache
-            .entry(config.config.info.id.clone())
-            .or_default()
-            .entry(config.config.info.version.clone())
-            .insert_entry(config);
+    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
+        let cache = self
+            .packages_cache
+            .get_safe()
+            .get(id)
+            .and_then(|f| f.get(version));
+
+        if let Some(c) = cache {
+            return Ok(Some(c.clone()));
+        }
+
+        let config = Self::get_shared_package(id, version)?;
+
+        if let Some(config) = &config {
+            self.packages_cache
+                .get_mut_safe()
+                .entry(config.config.info.id.clone())
+                .or_default()
+                .entry(config.config.info.version.clone())
+                .insert_entry(config.clone());
+        }
+
+        Ok(config)
+    }
+
+    fn add_to_db_cache(&mut self, _config: SharedPackageConfig, _permanent: bool) -> Result<()> {
         Ok(())
     }
 
@@ -313,5 +328,25 @@ impl Repository for QPMRepository {
         self.download_package(config)?;
 
         Ok(())
+    }
+
+    fn write_repo(&self) -> Result<()> {
+        Ok(())
+    }
+}
+trait UnsafeCellExt<T>: Sized {
+    fn get_safe(&self) -> &T;
+
+    #[allow(clippy::mut_from_ref)]
+    fn get_mut_safe(&self) -> &mut T;
+}
+
+impl<T> UnsafeCellExt<T> for UnsafeCell<T> {
+    fn get_safe(&self) -> &T {
+        unsafe { &*self.get() }
+    }
+
+    fn get_mut_safe(&self) -> &mut T {
+        unsafe { &mut *self.get() }
     }
 }

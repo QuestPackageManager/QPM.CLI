@@ -81,7 +81,7 @@ fn add_dependency(dependency_args: DependencyOperationAddArgs) -> Result<()> {
     };
 
     let additional_data = match &dependency_args.additional_data {
-        Option::Some(d) => serde_json::from_str(d).expect("Deserializing additional data failed"),
+        Option::Some(d) => serde_json::from_str(d)?,
         Option::None => Default::default(),
     };
 
