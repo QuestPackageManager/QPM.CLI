@@ -1,5 +1,5 @@
 use std::{
-    fs::File,
+    fs::{File, self},
     io::{Read, Write},
 };
 
@@ -7,7 +7,6 @@ use clap::Subcommand;
 use color_eyre::Result;
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
-use remove_dir_all::remove_dir_contents;
 use walkdir::WalkDir;
 
 use crate::models::{config::get_combine_config, package::PackageConfigExtensions};
@@ -49,7 +48,7 @@ impl Command for CacheCommand {
 fn clear() -> Result<()> {
     let config = get_combine_config();
     let path = config.cache.as_ref().unwrap();
-    remove_dir_contents(path)?;
+    fs::remove_dir_all(path)?;
     Ok(())
 }
 

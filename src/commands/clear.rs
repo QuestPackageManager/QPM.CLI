@@ -4,7 +4,6 @@ use clap::Args;
 use color_eyre::{Result};
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
-use remove_dir_all::remove_dir_all;
 use walkdir::WalkDir;
 
 use crate::models::package::PackageConfigExtensions;
