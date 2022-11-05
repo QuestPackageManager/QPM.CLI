@@ -3,7 +3,6 @@ use color_eyre::{
     Result,
 };
 use owo_colors::OwoColorize;
-use remove_dir_all::remove_dir_all;
 use reqwest::StatusCode;
 use semver::Version;
 use std::{
@@ -133,7 +132,7 @@ impl QPMRepository {
         if !src_path.exists() {
             // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
             if tmp_path.exists() {
-                remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
+                fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
             }
 
             // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
@@ -185,7 +184,7 @@ impl QPMRepository {
                     );
                     std::io::stdin().read_line(&mut line)?;
                     if line.starts_with('y') || line.starts_with('Y') {
-                        remove_dir_all(&src_path)
+                        fs::remove_dir_all(&src_path)
                             .context("Failed to remove existing src folder")?;
                     }
                 }

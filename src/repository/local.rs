@@ -12,7 +12,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use remove_dir_all::remove_dir_all;
 
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
@@ -127,7 +126,7 @@ impl FileRepository {
         let src_path = cache_path.join("src");
 
         if src_path.exists() {
-            remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
+            fs::remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
         }
 
         fs::create_dir_all(&src_path).context("Failed to create lib path")?;
@@ -158,7 +157,7 @@ impl FileRepository {
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
         if tmp_path.exists() {
-            remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
+            fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
         }
 
         if validate {
@@ -313,7 +312,7 @@ impl FileRepository {
 
         // delete if needed
         if extern_dir.exists() {
-            remove_dir_all::remove_dir_all(&extern_dir)
+            fs::remove_dir_all(&extern_dir)
                 .with_context(|| format!("Unable to delete {:?}", extern_dir))?;
         }
 

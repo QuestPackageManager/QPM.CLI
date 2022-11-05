@@ -102,6 +102,6 @@ fn remove_dependencies_dir() -> Result<()> {
         }
     }
 
-    remove_dir_all(&package.dependencies_dir)?;
+    fs::remove_dir_all(&package.dependencies_dir)?;
     Ok(())
 }

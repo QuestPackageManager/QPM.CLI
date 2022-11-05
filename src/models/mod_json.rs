@@ -35,8 +35,6 @@ impl ModJsonExtensions for ModJson {
     fn get_template_path() -> std::path::PathBuf {
         PathBuf::new()
             .join(Self::get_template_name())
-            .canonicalize()
-            .unwrap()
     }
 
     fn read_and_preprocess(preprocess_data: &PreProcessingData) -> Result<Self> {
