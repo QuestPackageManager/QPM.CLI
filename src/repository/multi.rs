@@ -116,6 +116,7 @@ impl Repository for MultiDependencyRepository {
 
     fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
         if permanent {
+            #[cfg(debug_assertions)]
             println!("Warning, adding to cache permanently to multiple repos!",);
         }
         self.repositories

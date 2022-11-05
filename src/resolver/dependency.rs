@@ -147,6 +147,7 @@ pub fn restore<P: AsRef<Path>>(
                 .dependency_version_color()
         );
         repository.download_to_cache(&dep.config)?;
+        repository.add_to_db_cache(dep.clone(), true)?;
     }
 
     repository.write_repo()?;
