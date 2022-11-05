@@ -1,7 +1,7 @@
-use color_eyre::Result;
+use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 
-use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig};
+use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig};
 
 use super::{local::FileRepository, qpackages::QPMRepository, Repository};
 
@@ -12,18 +12,18 @@ pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
     Ok(vec![file_repository, qpm_repository])
 }
 
-pub struct MultiDependencyProvider {
+pub struct MultiDependencyRepository {
     repositories: Vec<Box<dyn Repository>>,
 }
 
-impl MultiDependencyProvider {
+impl MultiDependencyRepository {
     // Repositories sorted in order
     pub fn new(repositories: Vec<Box<dyn Repository>>) -> Self {
         Self { repositories }
     }
 
     pub fn useful_default_new() -> Result<Self> {
-        Ok(MultiDependencyProvider::new(default_repositories()?))
+        Ok(MultiDependencyRepository::new(default_repositories()?))
     }
 }
 
@@ -31,7 +31,7 @@ impl MultiDependencyProvider {
 /// Merge multiple repositories into one
 /// Allow fetching from multiple backends
 ///
-impl Repository for MultiDependencyProvider {
+impl Repository for MultiDependencyRepository {
     // get versions of all repositories
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
         // double flat map???? rust weird
@@ -98,8 +98,34 @@ impl Repository for MultiDependencyProvider {
             .collect::<Vec<String>>())
     }
 
-    fn add_to_cache(&mut self, _config: SharedPackageConfig, _permanent: bool) -> Result<()> {
-        println!("Not adding to cache since it's not specific");
+    fn download_to_cache(
+        &mut self,
+        config: &PackageConfig
+    ) -> Result<()> {
+        let first_repo_opt = self.repositories.iter_mut().try_find(|r| -> Result<bool> {
+            Ok(
+                r.get_package(&config.info.id, &config.info.version)?
+                    .is_some(),
+            )
+        })?;
+
+        match first_repo_opt {
+            Some(first_repo) => first_repo.download_to_cache(config),
+            None => bail!(
+                "No repository found that has package {}:{}",
+                config.info.id,
+                config.info.version
+            ),
+        }
+    }
+
+    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+        if permanent {
+            println!("Warning, adding to cache permanently to multiple repos!",);
+        }
+        self.repositories
+            .iter_mut()
+            .try_for_each(|r| r.add_to_db_cache(config.clone(), permanent))?;
         Ok(())
     }
 }

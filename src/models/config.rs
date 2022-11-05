@@ -1,10 +1,19 @@
 use std::{
     fs::{self, File},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, sync,
 };
 
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
+
+static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
+
+
+pub fn get_combine_config() -> &'static UserConfig {
+    COMBINED_CONFIG.get_or_init(|| {
+        UserConfig::read_combine().unwrap()
+    })
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 #[allow(non_snake_case)]
@@ -73,15 +82,16 @@ impl UserConfig {
         let global = Self::read_global()?;
         let local = Self::read_workspace()?;
 
-        Ok(if let Some(local) = local {
-            Self {
-                cache: local.cache.or(global.cache),
-                timeout: local.timeout.or(global.timeout),
-                symlink: local.symlink.or(global.symlink),
-                ndk_path: local.ndk_path.or(global.ndk_path),
+        Ok(match local {
+            Some(local) => {
+                Self {
+                    cache: local.cache.or(global.cache),
+                    timeout: local.timeout.or(global.timeout),
+                    symlink: local.symlink.or(global.symlink),
+                    ndk_path: local.ndk_path.or(global.ndk_path),
+                }
             }
-        } else {
-            global
+            None => global,
         })
     }
 }
@@ -95,4 +105,10 @@ impl Default for UserConfig {
             ndk_path: None,
         }
     }
+}
+
+
+#[inline]
+pub fn get_keyring() -> keyring::Entry {
+    keyring::Entry::new("qpm", "github")
 }
