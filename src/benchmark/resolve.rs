@@ -54,8 +54,8 @@ fn real_resolve(b: &mut test::Bencher) {
         .unwrap()
         .unwrap();
 
-        // let config = p.config;
-        let config = PackageConfig::read("E:\\SSDUse\\ProgrammingProjects\\CLionProjects\\ChromaQuest").unwrap();
+        let config = p.config;
+        // let config = PackageConfig::read("E:\\SSDUse\\ProgrammingProjects\\CLionProjects\\ChromaQuest").unwrap();
 
     b.iter(|| {
         dependency::resolve(&config, &repo).unwrap().collect_vec()
