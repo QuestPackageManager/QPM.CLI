@@ -26,7 +26,7 @@ fn resolve(c: &mut Criterion) {
     assert!(p.is_some());
     let unwrapped_p = p.unwrap();
 
-    c.bench_function("resolve chroma", |b| {
+    c.bench_function("resolve", |b| {
         b.iter(|| {
             dependency::resolve(black_box(&unwrapped_p.config), black_box(&repo))
                 .unwrap()
