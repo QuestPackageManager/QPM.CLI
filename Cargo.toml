@@ -16,8 +16,11 @@ templatr = ["dep:templatr"]
 
 [dev-dependencies]
 #benchmark
-criterion = "0.3"
-criterion-macro = "0.3"
+criterion = "0.4"
+
+[[bench]]
+name = "resolve"
+harness = false
 
 [dependencies]
 #qpm

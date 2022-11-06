@@ -2,7 +2,7 @@ use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 use semver::Version;
 
-use crate::{
+use qpm_cli::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
     repository::{
         local::FileRepository,
@@ -14,10 +14,8 @@ use crate::{
     tests::mocks::repo::get_mock_repository,
 };
 
-use criterion::{Criterion, black_box};
-use criterion_macro::criterion;
+use criterion::{Criterion, criterion_group, criterion_main, black_box};
 
-#[criterion]
 fn resolve(c: &mut Criterion) {
     let repo = get_mock_repository();
 
@@ -39,7 +37,6 @@ fn resolve(c: &mut Criterion) {
 
 // realistic resolve
 // chroma
-#[criterion]
 fn real_resolve(c: &mut Criterion) {
     let repo = QPMRepository::default();
 
@@ -79,3 +76,6 @@ fn real_resolve(c: &mut Criterion) {
             .collect_vec()
     );
 }
+
+criterion_group!(benches, resolve, real_resolve);
+criterion_main!(benches);
