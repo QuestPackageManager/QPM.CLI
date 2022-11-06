@@ -41,7 +41,7 @@ impl Repository for MultiDependencyRepository {
         let result: Vec<PackageVersion> = self
             .repositories
             .iter()
-            .filter_map(|r| r.get_package_versions(id).unwrap())
+            .filter_map(|r| r.get_package_versions(id).expect("Failed to get versions"))
             .flatten()
             .unique()
             .collect();
@@ -77,23 +77,20 @@ impl Repository for MultiDependencyRepository {
         let opt = self
             .repositories
             .iter()
-            .map(|r| r.get_package(id, version))
-            .find(|r| r.as_ref().is_ok_and(|o| o.is_some()));
+            .map(|r| r.get_package(id, version).expect("Unable to get package"))
+            .find(|r| r.is_some());
 
-        if let Some(o) = opt {
-            return o;
+        match opt {
+            Some(o) => Ok(o),
+            _ => Ok(None),
         }
-
-        Ok(None)
     }
 
     fn get_package_names(&self) -> Result<Vec<String>> {
         Ok(self
             .repositories
             .iter()
-            .map(|r| r.get_package_names())
-            .flatten_ok()
-            .flatten()
+            .flat_map(|r| r.get_package_names().expect("Unable to get package names"))
             .unique()
             .collect::<Vec<String>>())
     }
