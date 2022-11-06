@@ -1,0 +1,1 @@
+qpm-rust is the rust version of qpm, a package manager for quest modding libraries
