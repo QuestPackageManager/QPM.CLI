@@ -43,12 +43,12 @@ impl PackageConfigExtensions for PackageConfig {
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().with_file_name("qpm.shared.json")).context("Missing qpm.shared.json")?;
+        let file = File::open(dir.as_ref().join("qpm.shared.json")).with_context(|| format!("Missing qpm.shared.json {:?}", dir.as_ref()))?;
         Ok(serde_json::from_reader(file)?)
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().with_file_name("qpm.shared.json"))?;
+        let file = File::create(dir.as_ref().join("qpm.shared.json"))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())

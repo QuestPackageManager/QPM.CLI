@@ -135,8 +135,8 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         .arg("--shallow-submodules")
         .arg("--quiet")
         .arg("--single-branch")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
     if let Some(branch_unwrapped) = branch {
         git.arg("-b").arg(branch_unwrapped);

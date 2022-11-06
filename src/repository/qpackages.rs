@@ -2,11 +2,12 @@ use color_eyre::{
     eyre::{bail, Context},
     Result,
 };
+use itertools::Itertools;
 use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
 use std::{
-    cell::{UnsafeCell},
+    cell::UnsafeCell,
     collections::HashMap,
     fs::{self, File},
     io::{Cursor, Read, Write},
@@ -37,7 +38,7 @@ const API_URL: &str = "https://qpackages.com";
 pub struct QPMRepository {
     // interior mutability
     packages_cache: UnsafeCell<HashMap<String, HashMap<Version, SharedPackageConfig>>>,
-    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>
+    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>,
 }
 
 impl QPMRepository {
@@ -198,8 +199,7 @@ impl QPMRepository {
             if tmp_path.exists() {
                 std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
             }
-            let package_path = src_path.join("qpm.json");
-            let downloaded_package = SharedPackageConfig::read(&package_path)?;
+            let downloaded_package = SharedPackageConfig::read(&src_path)?;
 
             // check if downloaded config is the same version as expected, if not, panic
             if downloaded_package.config.info.version != config.info.version {
@@ -282,7 +282,12 @@ impl Repository for QPMRepository {
             return Ok(Some(c.clone()));
         }
 
-        let versions = Self::get_versions(id)?;
+        let versions = Self::get_versions(id)?.map(|v| {
+            v.into_iter()
+                .sorted_by(|a, b| a.version.cmp(&b.version))
+                .rev() //highest first
+                .collect_vec()
+        });
 
         if let Some(versions) = &versions {
             self.versions_cache

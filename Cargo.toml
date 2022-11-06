@@ -11,8 +11,9 @@ name = "qpm-rust"
 path = "src/main.rs"
 
 [features]
-default = ["templatr"]
+default = ["templatr", "pubgrub_resolve"]
 templatr = ["dep:templatr"]
+pubgrub_resolve = []
 
 [dependencies]
 #qpm
