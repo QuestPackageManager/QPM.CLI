@@ -1,10 +1,11 @@
+#![feature(custom_test_frameworks)]
 #![feature(once_cell)]
 #![feature(entry_insert)]
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
 #![feature(let_chains)]
 #![feature(is_some_and)]
-#![feature(test)]
+
 use clap::Parser;
 use color_eyre::Result;
 use commands::Command;
@@ -18,11 +19,10 @@ pub mod resolver;
 pub mod commands;
 
 #[cfg(test)]
-mod benchmark;
+pub mod tests;
 
 #[cfg(test)]
-mod tests;
-
+pub mod benches;
 
 fn main() -> Result<()> {
     color_eyre::install()?;

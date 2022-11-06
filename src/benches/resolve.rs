@@ -3,7 +3,7 @@ use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfi
 use semver::Version;
 
 use crate::{
-    models::package::{SharedPackageConfigExtensions, PackageConfigExtensions},
+    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
     repository::{
         local::FileRepository,
         multi::MultiDependencyRepository,
@@ -14,10 +14,11 @@ use crate::{
     tests::mocks::repo::get_mock_repository,
 };
 
-extern crate test;
+use criterion::{Criterion, black_box};
+use criterion_macro::criterion;
 
-#[bench]
-fn resolve(b: &mut test::Bencher) {
+#[criterion]
+fn resolve(c: &mut Criterion) {
     let repo = get_mock_repository();
 
     let p = repo
@@ -27,17 +28,19 @@ fn resolve(b: &mut test::Bencher) {
     assert!(p.is_some());
     let unwrapped_p = p.unwrap();
 
-    b.iter(|| {
-        let _resolved = dependency::resolve(&unwrapped_p.config, &repo)
-            .unwrap()
-            .collect_vec();
-    })
+    c.bench_function("resolve chroma", |b| {
+        b.iter(|| {
+            dependency::resolve(black_box(&unwrapped_p.config), black_box(&repo))
+                .unwrap()
+                .collect_vec()
+        })
+    });
 }
 
 // realistic resolve
 // chroma
-#[bench]
-fn real_resolve(b: &mut test::Bencher) {
+#[criterion]
+fn real_resolve(c: &mut Criterion) {
     let repo = QPMRepository::default();
 
     let latest_version = repo
@@ -54,19 +57,25 @@ fn real_resolve(b: &mut test::Bencher) {
         .unwrap()
         .unwrap();
 
-        let config = p.config;
-        // let config = PackageConfig::read("E:\\SSDUse\\ProgrammingProjects\\CLionProjects\\ChromaQuest").unwrap();
+    let config = p.config;
+    // let config = PackageConfig::read("E:\\SSDUse\\ProgrammingProjects\\CLionProjects\\ChromaQuest").unwrap();
 
-    b.iter(|| {
-        dependency::resolve(&config, &repo).unwrap().collect_vec()
-        // println!("Resolved {:?}", resolved.iter().map(|i| format!("{}:{}", i.config.info.id, i.config.info.version)).collect_vec());
+    c.bench_function("resolve chroma", |b| {
+        b.iter(|| {
+            dependency::resolve(black_box(&config), black_box(&repo))
+                .unwrap()
+                .collect_vec()
+        })
     });
 
-    
     dependency::resolve(&config, &repo).unwrap().collect_vec();
-    let (new_config, new_shared_deps) = SharedPackageConfig::resolve_from_package(config, &repo).unwrap();
+    let (new_config, new_shared_deps) =
+        SharedPackageConfig::resolve_from_package(config, &repo).unwrap();
     println!(
         "Resolving for dependencies {:?}",
-        new_shared_deps.iter().map(|i| &i.config.info.id).collect_vec()
+        new_shared_deps
+            .iter()
+            .map(|i| &i.config.info.id)
+            .collect_vec()
     );
 }

@@ -8,7 +8,7 @@ use itertools::Itertools;
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
-use stopwatch::Stopwatch;
+
 
 use crate::{
     repository::{local::FileRepository, Repository},
@@ -104,7 +104,7 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
     }
 }
 
-#[inline(always)]
+
 pub fn resolve<'a>(
     root: &'a PackageConfig,
     repository: &'a impl Repository,
@@ -120,7 +120,7 @@ pub fn resolve<'a>(
         root.info.version.clone(),
     ) {
         Ok(deps) => Ok(deps.into_iter().filter_map(move |(id, version)| {
-            if id == root.info.id && version == root.info.version {
+            if id == root.info.id {
                 return None;
             }
 
