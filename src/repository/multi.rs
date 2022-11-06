@@ -8,7 +8,6 @@ use qpm_package::models::{
 use super::{local::FileRepository, qpackages::QPMRepository, Repository};
 
 pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
-    // TODO: Make file repository cached
     let file_repository = Box::new(FileRepository::read()?);
     let qpm_repository = Box::<QPMRepository>::default();
     Ok(vec![file_repository, qpm_repository])
@@ -37,7 +36,6 @@ impl Repository for MultiDependencyRepository {
     // get versions of all repositories
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
         // double flat map???? rust weird
-        // TODO: Propagate error
         let result: Vec<PackageVersion> = self
             .repositories
             .iter()
@@ -51,21 +49,6 @@ impl Repository for MultiDependencyRepository {
         }
 
         Ok(Some(result))
-
-        // let mut result: Vec<PackageVersion> = vec![];
-        // for repo_result in self.repositories.iter().map(|r| r.get_package_versions(id)) {
-        //     if let Some(r) = repo_result? {
-        //         result.extend_from_slice(&r)
-        //     }
-        // }
-
-        // let compute_result = result.into_iter().unique().collect_vec();
-
-        // if compute_result.is_empty() {
-        //     return Ok(None);
-        // }
-
-        // Ok(Some(compute_result))
     }
 
     // get package from the first repository that has it

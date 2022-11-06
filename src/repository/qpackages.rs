@@ -198,8 +198,7 @@ impl QPMRepository {
             if tmp_path.exists() {
                 std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
             }
-            let package_path = src_path.join("qpm.json");
-            let downloaded_package = SharedPackageConfig::read(&package_path)?;
+            let downloaded_package = SharedPackageConfig::read(&src_path)?;
 
             // check if downloaded config is the same version as expected, if not, panic
             if downloaded_package.config.info.version != config.info.version {

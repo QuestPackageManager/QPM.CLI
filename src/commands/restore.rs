@@ -55,6 +55,8 @@ impl Command for RestoreCommand {
             shared_package.write(".")?;
         }
 
+
+
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
         Ok(())
     }

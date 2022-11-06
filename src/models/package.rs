@@ -7,6 +7,7 @@ use qpm_package::models::{
     package::PackageConfig,
 };
 use semver::VersionReq;
+use stopwatch::Stopwatch;
 
 use crate::{repository::Repository, resolver::dependency::resolve};
 
@@ -26,12 +27,12 @@ pub trait SharedPackageConfigExtensions: Sized {
 
 impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().with_file_name("qpm.json"))?;
+        let file = File::open(dir.as_ref().join("qpm.json"))?;
         Ok(serde_json::from_reader(file)?)
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().with_file_name("qpm.json"))?;
+        let file = File::create(dir.as_ref().join("qpm.json"))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
@@ -43,12 +44,12 @@ impl PackageConfigExtensions for PackageConfig {
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().with_file_name("qpm.shared.json")).context("Missing qpm.shared.json")?;
+        let file = File::open(dir.as_ref().join("qpm.shared.json")).context("Missing qpm.shared.json")?;
         Ok(serde_json::from_reader(file)?)
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().with_file_name("qpm.shared.json"))?;
+        let file = File::create(dir.as_ref().join("qpm.shared.json"))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
@@ -63,7 +64,10 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         config: PackageConfig,
         repository: &impl Repository,
     ) -> Result<(Self, Vec<SharedPackageConfig>)> {
+                let sw = Stopwatch::start_new();
+    
         let resolved_deps = resolve(&config, repository)?.collect_vec();
+        println!("Took {}ms to dependency resolve", sw.elapsed_ms());
 
         Ok((
             SharedPackageConfig {

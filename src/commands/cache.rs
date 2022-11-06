@@ -91,7 +91,7 @@ fn legacy_fix() -> Result<()> {
         if !qpm_path.exists() {
             continue;
         }
-        let shared_path = path.join(PackageConfig::read(&qpm_path)?.shared_dir);
+        let shared_path = path.join(PackageConfig::read(&path)?.shared_dir);
 
         for entry in WalkDir::new(shared_path) {
             let entry_path = entry.unwrap().into_path();

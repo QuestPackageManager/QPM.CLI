@@ -47,3 +47,10 @@ stopwatch = "0.0.7"
 [profile.release]
 opt-level = 3
 lto = true
+debug = 1
+
+[rust]
+debuginfo-level = 1
+
+[profile.bench]
+debug = 1

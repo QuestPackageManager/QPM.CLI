@@ -104,6 +104,7 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
     }
 }
 
+#[inline(always)]
 pub fn resolve<'a>(
     root: &'a PackageConfig,
     repository: &'a impl Repository,
@@ -112,7 +113,7 @@ pub fn resolve<'a>(
         root,
         repo: repository,
     };
-    let sw = Stopwatch::start_new();
+
     let result = match pubgrub::solver::resolve(
         &resolver,
         root.info.id.clone(),
@@ -134,7 +135,7 @@ pub fn resolve<'a>(
             bail!("{}", err)
         }
     };
-    println!("Took {}ms to dependency resolve", sw.elapsed_ms());
+
     result
 }
 

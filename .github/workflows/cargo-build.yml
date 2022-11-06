@@ -52,6 +52,16 @@ jobs:
         run: |
           sudo apt-get install -y libdbus-1-dev
 
+      - name: Cargo tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Cargo benchmarks
+        uses: actions-rs/cargo@v1
+        with:
+          command: bench
+
       - name: Cargo build
         uses: actions-rs/cargo@v1
         with:
