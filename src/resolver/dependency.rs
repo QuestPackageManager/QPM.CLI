@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, error::Error, path::Path};
+use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
 
 use color_eyre::{
     eyre::{bail, Context},
@@ -9,7 +9,6 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 use stopwatch::Stopwatch;
-
 use crate::{
     repository::{local::FileRepository, Repository},
     terminal::colors::QPMColor,
@@ -40,7 +39,7 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
         potential_packages: impl Iterator<Item = (T, U)>,
     ) -> Result<(T, Option<VersionWrapper>), Box<dyn Error>> {
         let package = pubgrub::solver::choose_package_with_fewest_versions(
-            |id| {
+            |id| -> IntoIter<VersionWrapper> {
                 if id == &self.root.info.id {
                     let v: VersionWrapper = self.root.info.version.clone().into();
                     return vec![v].into_iter();
@@ -52,7 +51,9 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
                     .unwrap_or_else(|| panic!("Unable to find versions for package {id}"))
                     .into_iter()
                     .map(|pv: PackageVersion| pv.version.into())
-                    .sorted()
+                    .collect_vec()
+                    .into_iter()
+                    
             },
             potential_packages,
         );

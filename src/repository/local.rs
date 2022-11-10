@@ -2,6 +2,7 @@ use color_eyre::{
     eyre::{bail, Context},
     Result,
 };
+use itertools::Itertools;
 use owo_colors::OwoColorize;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -439,6 +440,8 @@ impl Repository for FileRepository {
                     id: id.to_string(),
                     version: version.clone(),
                 })
+                .sorted_by(|a, b| a.version.cmp(&b.version))
+                .rev() // highest first
                 .collect()
         }))
     }
