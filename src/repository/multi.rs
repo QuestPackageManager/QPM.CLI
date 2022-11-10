@@ -42,6 +42,8 @@ impl Repository for MultiDependencyRepository {
             .filter_map(|r| r.get_package_versions(id).expect("Failed to get versions"))
             .flatten()
             .unique()
+            .sorted_by(|a, b| a.version.cmp(&b.version))
+            .rev() // highest first
             .collect();
 
         if result.is_empty() {

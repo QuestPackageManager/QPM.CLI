@@ -2,11 +2,12 @@ use color_eyre::{
     eyre::{bail, Context},
     Result,
 };
+use itertools::Itertools;
 use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
 use std::{
-    cell::{UnsafeCell},
+    cell::UnsafeCell,
     collections::HashMap,
     fs::{self, File},
     io::{Cursor, Read, Write},
@@ -37,7 +38,7 @@ const API_URL: &str = "https://qpackages.com";
 pub struct QPMRepository {
     // interior mutability
     packages_cache: UnsafeCell<HashMap<String, HashMap<Version, SharedPackageConfig>>>,
-    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>
+    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>,
 }
 
 impl QPMRepository {
@@ -281,7 +282,13 @@ impl Repository for QPMRepository {
             return Ok(Some(c.clone()));
         }
 
-        let versions = Self::get_versions(id)?;
+        let versions = Self::get_versions(id)?.map(|versions| {
+            versions
+                .into_iter()
+                .sorted_by(|a, b| a.version.cmp(&b.version))
+                .rev()
+                .collect_vec()
+        });
 
         if let Some(versions) = &versions {
             self.versions_cache
