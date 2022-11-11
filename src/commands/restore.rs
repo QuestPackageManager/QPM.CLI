@@ -4,7 +4,6 @@ use clap::{Args};
 use color_eyre::eyre::Context;
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
-use serde_json::de::Read;
 
 use crate::{
     models::{
@@ -26,13 +25,13 @@ pub struct RestoreCommand {
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let mut shared_package = Default::default();
+        let mut shared_package: SharedPackageConfig = SharedPackageConfig { config: package.clone(), restored_dependencies: Vec::new() };
         let mut repo = MultiDependencyRepository::useful_default_new()?;
 
         let resolved_deps = match self.locked {
             true => {
-                shared_package = Read;
-                dependency::locked_resolve(&shared_package, &repo)?.collect_vec();
+                shared_package = SharedPackageConfig::read(".")?;
+                dependency::locked_resolve(&shared_package, &repo)?.collect_vec()
             },
             false => {
                 let (s, d) = SharedPackageConfig::resolve_from_package(package, &repo)?;
@@ -63,4 +62,3 @@ impl Command for RestoreCommand {
         Ok(())
     }
 }
-S
