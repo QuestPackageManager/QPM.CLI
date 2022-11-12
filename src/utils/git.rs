@@ -27,17 +27,17 @@ pub fn check_git() -> Result<()> {
         Err(_e) => {
             #[cfg(windows)]
             bail!(
-                "Please make sure git ({}) is installed an on path, then try again!",
+                "Please make sure git ({}) is installed and on path, then try again!",
                 "https://git-scm.com/download/windows".bright_yellow()
             );
             #[cfg(target_os = "linux")]
             bail!(
-                "Please make sure git ({}) is installed an on path, then try again!",
+                "Please make sure git ({}) is installed and on path, then try again!",
                 "https://git-scm.com/download/linux".bright_yellow()
             );
             #[cfg(target_os = "macos")]
             bail!(
-                "Please make sure git ({}) is installed an on path, then try again!",
+                "Please make sure git ({}) is installed and on path, then try again!",
                 "https://git-scm.com/download/mac".bright_yellow()
             );
         }
