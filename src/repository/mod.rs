@@ -20,7 +20,8 @@ pub trait Repository {
     // downloads if not in cache
     // What if we wanted to have a qpackages mirror or a new backend? ;)
     // Does not download dependencies
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()>;
+    // false if not downloaded, true if download complete or already downloaded
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool>;
 
     fn write_repo(&self) -> Result<()>;
 }

@@ -13,7 +13,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
@@ -148,13 +147,16 @@ impl FileRepository {
         }
 
         let original_shared_path = project_folder.join(&package.config.shared_dir);
-        let original_package_file_path = project_folder.join("qpm.json");
 
         copy_things(
             &original_shared_path,
             &src_path.join(&package.config.shared_dir),
         )?;
-        copy_things(&original_package_file_path, &src_path.join("qpm.json"))?;
+        copy_things(&project_folder.join("qpm.json"), &src_path.join("qpm.json"))?;
+        copy_things(
+            &project_folder.join("qpm.shared.json"),
+            &src_path.join("qpm.shared.json"),
+        )?;
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
         if tmp_path.exists() {
@@ -216,6 +218,10 @@ impl FileRepository {
 
     pub fn global_repository_dir() -> PathBuf {
         dirs::config_dir().unwrap().join("QPM-Rust")
+    }
+
+    pub fn clear() -> Result<(), std::io::Error> {
+        fs::remove_file(Self::global_file_repository_path())
     }
 
     pub fn copy_from_cache(
@@ -365,7 +371,10 @@ impl FileRepository {
                     );
                 }
 
-                paths.insert(src_binary, extern_binaries.join(shared_dep.config.info.get_so_name()));
+                paths.insert(
+                    src_binary,
+                    extern_binaries.join(shared_dep.config.info.get_so_name()),
+                );
             }
         }
 
@@ -465,19 +474,18 @@ impl Repository for FileRepository {
         Ok(())
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()> {
-        if self
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
+        let exist_in_db = self
             .get_artifact(&config.info.id, &config.info.version)
-            .is_none()
-        {
-            bail!(
-                "Local cache does not have {}:{}",
-                config.info.id,
-                config.info.version
-            );
-        }
-
-        Ok(())
+            .is_some();
+        let exists_in_cache = get_combine_config()
+            .cache
+            .as_ref()
+            .unwrap()
+            .join(&config.info.id)
+            .join(config.info.version.to_string())
+            .exists();
+        Ok(exist_in_db && exists_in_cache)
     }
 
     fn write_repo(&self) -> Result<()> {

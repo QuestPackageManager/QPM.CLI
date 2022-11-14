@@ -1,4 +1,7 @@
-use color_eyre::{eyre::bail, Result};
+use color_eyre::{
+    eyre::bail,
+    Result,
+};
 use itertools::Itertools;
 
 use qpm_package::models::{
@@ -97,14 +100,21 @@ impl Repository for MultiDependencyRepository {
             .collect::<Vec<String>>())
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()> {
-        let first_repo_opt = self.repositories.iter_mut().try_find(|r| -> Result<bool> {
-            Ok(r.get_package(&config.info.id, &config.info.version)?
-                .is_some())
-        })?;
-
-        match first_repo_opt {
-            Some(first_repo) => first_repo.download_to_cache(config),
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
+        match self
+            .repositories
+            .iter_mut()
+            .filter(|r| {
+                r.get_package(&config.info.id, &config.info.version)
+                    .expect("Unable to get package")
+                    .is_some()
+            })
+            .find_map(|r| {
+                r.download_to_cache(config)
+                    .expect("Unable to download to cache")
+                    .then_some(true)
+            }) {
+            Some(v) => Ok(v),
             None => bail!(
                 "No repository found that has package {}:{}",
                 config.info.id,

@@ -126,6 +126,12 @@ impl QPMRepository {
         let lib_path = base_path.join("lib");
         let tmp_path = base_path.join("tmp");
 
+        if src_path.join("qpm.shared.json").exists() {
+            // ensure is valid
+            SharedPackageConfig::read(src_path).with_context(|| format!("Failed to get config {}:{} in cache", config.info.id, config.info.version))?;
+            return Ok(());
+        }
+
         let so_path = lib_path.join(config.info.get_so_name());
         let debug_so_path = lib_path.join(format!("debug_{}", config.info.get_so_name()));
 
@@ -157,7 +163,7 @@ impl QPMRepository {
             // the only way the above if else would break is if someone put a link to a zip file on github in the url slot
             // if you are reading this and think of doing that so I have to fix this, fuck you
 
-            let from_path = match &config.info.additional_data.sub_folder {
+            let sub_package_path = match &config.info.additional_data.sub_folder {
                 Some(sub_folder) => {
                     // the package exists in a subfolder of the downloaded thing, just move the subfolder to src
                     tmp_path.join(sub_folder)
@@ -168,12 +174,12 @@ impl QPMRepository {
                 }
             };
 
-            if from_path.exists() {
+            if sub_package_path.exists() {
                 // only log this on debug builds
                 #[cfg(debug_assertions)]
                 println!(
                     "from: {}\nto: {}",
-                    from_path.display().bright_yellow(),
+                    sub_package_path.display().bright_yellow(),
                     src_path.display().bright_yellow()
                 );
 
@@ -190,7 +196,7 @@ impl QPMRepository {
                     }
                 }
                 // HACK: renaming seems to work, idk if it works for actual subfolders?
-                fs::rename(&from_path, &src_path).context("Failed to move folder")?;
+                fs::rename(&sub_package_path, &src_path).context("Failed to move folder")?;
             } else {
                 bail!("Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo");
             }
@@ -330,10 +336,10 @@ impl Repository for QPMRepository {
         Ok(())
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<()> {
+    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
         self.download_package(config)?;
 
-        Ok(())
+        Ok(true)
     }
 
     fn write_repo(&self) -> Result<()> {
