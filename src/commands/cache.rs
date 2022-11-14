@@ -9,7 +9,7 @@ use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 use walkdir::WalkDir;
 
-use crate::models::{config::get_combine_config, package::PackageConfigExtensions};
+use crate::{models::{config::get_combine_config, package::PackageConfigExtensions}, repository::local::FileRepository};
 
 use super::Command;
 
@@ -49,6 +49,7 @@ fn clear() -> Result<()> {
     let config = get_combine_config();
     let path = config.cache.as_ref().unwrap();
     fs::remove_dir_all(path)?;
+    FileRepository::clear()?;
     Ok(())
 }
 
