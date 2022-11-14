@@ -25,7 +25,7 @@ pub struct RestoreCommand {
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let mut shared_package: SharedPackageConfig = SharedPackageConfig { config: package.clone(), restored_dependencies: Vec::new() };
+        let shared_package: SharedPackageConfig;
         let mut repo = MultiDependencyRepository::useful_default_new()?;
 
         let resolved_deps = match self.locked {
