@@ -10,7 +10,7 @@ use std::{
     cell::UnsafeCell,
     collections::HashMap,
     fs::{self, File},
-    io::{Cursor, Read, Write},
+    io::Cursor,
     path::Path,
 };
 use zip::ZipArchive;
@@ -26,8 +26,8 @@ use crate::{
         config::get_combine_config, package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
-    network::agent::get_agent,
-    utils::git,
+    network::agent::{get_agent, download_file},
+    utils::git, terminal::colors::QPMColor,
 };
 
 use super::Repository;
@@ -128,7 +128,12 @@ impl QPMRepository {
 
         if src_path.join("qpm.shared.json").exists() {
             // ensure is valid
-            SharedPackageConfig::read(src_path).with_context(|| format!("Failed to get config {}:{} in cache", config.info.id, config.info.version))?;
+            SharedPackageConfig::read(src_path).with_context(|| {
+                format!(
+                    "Failed to get config {}:{} in cache",
+                    config.info.id, config.info.version
+                )
+            })?;
             return Ok(());
         }
 
@@ -206,21 +211,31 @@ impl QPMRepository {
                 std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
             }
             let package_path = src_path;
-            let downloaded_package = SharedPackageConfig::read(&package_path)?;
+            let downloaded_package = SharedPackageConfig::read(&package_path);
 
-            // check if downloaded config is the same version as expected, if not, panic
-            if downloaded_package.config.info.version != config.info.version {
-                bail!(
-                    "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                    config.info.id.bright_red(),
-                    downloaded_package
-                        .config
-                        .info
-                        .version
-                        .to_string()
-                        .bright_green(),
-                    config.info.version.to_string().bright_green(),
-                )
+            match downloaded_package {
+                Ok(downloaded_package) =>
+                // check if downloaded config is the same version as expected, if not, panic
+                {
+                    if downloaded_package.config.info.version != config.info.version {
+                        bail!(
+                            "Downloaded package ({}) version ({}) does not match expected version ({})!",
+                            config.info.id.bright_red(),
+                            downloaded_package
+                                .config
+                                .info
+                                .version
+                                .to_string()
+                                .bright_green(),
+                            config.info.version.to_string().bright_green(),
+                        )
+                    }
+                }
+
+                Err(e) => println!(
+                    "Unable to validate shared package of {}:{} due to: \"{}\", continuing",
+                    config.info.name.dependency_id_color(), config.info.version.dependency_version_color(), e.red()
+                ),
             }
         }
 
@@ -235,32 +250,7 @@ impl QPMRepository {
                             // github url!
                             git::get_release(url, path)?;
                         } else {
-                            let mut response = get_agent()
-                                .get(url)
-                                .send()
-                                .context("Unable to download so file")?;
-
-                            let mut bytes =
-                                vec![0u8; response.content_length().unwrap_or(0) as usize];
-
-                            loop {
-                                let read = response.read(&mut bytes)?;
-                                println!(
-                                    "Progress: {}% for file {:?}",
-                                    bytes.len() / bytes.capacity(),
-                                    path
-                                );
-
-                                if read == 0 {
-                                    break;
-                                }
-                            }
-
-                            // other dl link, assume it's a raw lib file download
-                            let mut file = File::create(path).context("create so file failed")?;
-
-                            file.write_all(&bytes)
-                                .context("Failed to write out downloaded bytes")?;
+                            download_file(url, path)?;
                         }
                     }
                 }
