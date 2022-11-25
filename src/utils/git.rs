@@ -103,7 +103,7 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
             let mut file = File::create(out).context("create so file failed")?;
 
             get_agent()
-                .get(&download)
+                .get(download)
                 .send()?
                 .copy_to(&mut file)
                 .context("Failed to write out downloaded bytes")?;

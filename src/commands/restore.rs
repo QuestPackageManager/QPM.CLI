@@ -47,12 +47,6 @@ impl Command for RestoreCommand {
 
         // write the ndk path to a file if available
         let config = get_combine_config();
-        if let Some(ndk_path) = &config.ndk_path {
-            let mut file =
-                std::fs::File::create("ndkpath.txt").context("Failed to create ndkpath.txt")?;
-            file.write_all(ndk_path.as_bytes())
-                .context("Failed to write out ndkpath.txt")?;
-        }
 
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
 

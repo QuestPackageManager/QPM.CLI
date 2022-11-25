@@ -29,11 +29,15 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
     })
 }
 
-pub fn download_file(url: &str, path: &Path) -> Result<Vec<u8>> {
+pub fn download_file<F>(url: &str, callback: F) -> Result<Vec<u8>>
+where
+    F: Fn(usize, usize),
+{
     let mut response = get_agent()
         .get(url)
         .send()
-        .with_context(|| format!("Unable to download file {url} to {path:?}"))?;
+        .with_context(|| format!("Unable to download file {url}"))?
+        .error_for_status()?;
 
     let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
 
@@ -42,19 +46,18 @@ pub fn download_file(url: &str, path: &Path) -> Result<Vec<u8>> {
         let read = response.read(&mut read_bytes)?;
         bytes.append(&mut read_bytes);
 
-        println!(
-            "Progress: {}% for file {path:?}",
-            bytes.len() / bytes.capacity()
-        );
-
+        callback(bytes.len(), bytes.capacity());
         if read == 0 {
             break;
         }
     }
 
-    let mut file = File::create(path)?;
-
-    file.write_all(&bytes)
-        .context("Failed to write out downloaded bytes")?;
     Ok(bytes)
+}
+
+pub fn download_file_report<F>(url: &str, callback: F) -> Result<Vec<u8>>
+where
+    F: Fn(usize, usize),
+{
+    download_file(url, |current, expected| callback(current, expected))
 }
