@@ -125,6 +125,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         url = url[..url.len() - 1].to_string();
     }
 
+    // TODO: Fix on Windows
     let mut git = Command::new("git");
     git.arg("clone")
         .arg(format!("{}.git", url))
@@ -133,8 +134,8 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         .arg("1")
         .arg("--recurse-submodules")
         .arg("--shallow-submodules")
-        .arg("--quiet")
         .arg("--single-branch")
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
@@ -147,8 +148,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
     match git.output() {
         Ok(_o) => {
             if _o.status.code().unwrap_or(-1) != 0 {
-                let mut error_string = std::str::from_utf8(_o.stderr.as_slice())?
-                    .to_string();
+                let mut error_string = std::str::from_utf8(_o.stderr.as_slice())?.to_string();
 
                 if let Ok(token_unwrapped) = get_keyring().get_password() {
                     error_string = error_string.replace(&token_unwrapped, "***");
@@ -168,7 +168,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         }
     }
 
-    Ok(out.exists())
+    Ok(out.try_exists()?)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
