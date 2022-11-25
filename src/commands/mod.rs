@@ -50,7 +50,7 @@ pub enum MainCommand {
     Doctor(doctor::DoctorCommand),
     Download(download::Download),
     #[cfg(feature = "templatr")]
-    Templatr(templatr::TemplatrCommand)
+    Templatr(templatr::TemplatrCommand),
 }
 
 impl Command for MainCommand {
@@ -69,7 +69,7 @@ impl Command for MainCommand {
             MainCommand::Install(c) => c.execute(),
             MainCommand::Doctor(c) => c.execute(),
             MainCommand::Download(c) => c.execute(),
-            #[cfg(feature="templatr")]
+            #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
         }
     }

@@ -1,5 +1,5 @@
 use std::{
-    fs::{File, self},
+    fs::{self, File},
     io::{Read, Write},
 };
 
@@ -9,7 +9,10 @@ use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 use walkdir::WalkDir;
 
-use crate::{models::{config::get_combine_config, package::PackageConfigExtensions}, repository::local::FileRepository};
+use crate::{
+    models::{config::get_combine_config, package::PackageConfigExtensions},
+    repository::local::FileRepository,
+};
 
 use super::Command;
 

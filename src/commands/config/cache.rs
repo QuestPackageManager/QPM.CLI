@@ -1,9 +1,9 @@
-use std::{path::PathBuf, fs};
+use std::{fs, path::PathBuf};
 
 use clap::{Args, Subcommand};
 use owo_colors::OwoColorize;
 
-use crate::{models::config::{UserConfig}};
+use crate::models::config::UserConfig;
 
 #[derive(Args, Debug, Clone)]
 pub struct CacheCommand {

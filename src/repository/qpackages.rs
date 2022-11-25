@@ -26,8 +26,9 @@ use crate::{
         config::get_combine_config, package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
-    network::agent::{get_agent, download_file},
-    utils::git, terminal::colors::QPMColor,
+    network::agent::{download_file, get_agent},
+    terminal::colors::QPMColor,
+    utils::git,
 };
 
 use super::Repository;
@@ -234,7 +235,9 @@ impl QPMRepository {
 
                 Err(e) => println!(
                     "Unable to validate shared package of {}:{} due to: \"{}\", continuing",
-                    config.info.name.dependency_id_color(), config.info.version.dependency_version_color(), e.red()
+                    config.info.name.dependency_id_color(),
+                    config.info.version.dependency_version_color(),
+                    e.red()
                 ),
             }
         }

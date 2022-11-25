@@ -17,15 +17,11 @@ impl NDKPath {
                 println!("Set ndk path to {}!", path.bright_yellow());
                 config.ndk_path = Some(path);
             }
-            None => {
-                match &config.ndk_path {
-                    Some(path) =>         println!("Current configured ndk path is: {}", path.bright_yellow()),
-                    None => println!("No ndk path was configured!"),
-                }
+            None => match &config.ndk_path {
+                Some(path) => println!("Current configured ndk path is: {}", path.bright_yellow()),
+                None => println!("No ndk path was configured!"),
             },
         }
         Ok(())
     }
 }
-
-

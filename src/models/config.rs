@@ -1,6 +1,7 @@
 use std::{
     fs::{self, File},
-    path::{Path, PathBuf}, sync,
+    path::{Path, PathBuf},
+    sync,
 };
 
 use color_eyre::Result;
@@ -8,11 +9,8 @@ use serde::{Deserialize, Serialize};
 
 static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
 
-
 pub fn get_combine_config() -> &'static UserConfig {
-    COMBINED_CONFIG.get_or_init(|| {
-        UserConfig::read_combine().unwrap()
-    })
+    COMBINED_CONFIG.get_or_init(|| UserConfig::read_combine().unwrap())
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
@@ -44,13 +42,13 @@ impl UserConfig {
 
     pub fn read_global() -> Result<Self> {
         fs::create_dir_all(Self::global_config_path().parent().unwrap())?;
-        
+
         if !Self::global_config_path().exists() {
             let def = Self::default();
             def.write(false)?;
-            return Ok(def); 
+            return Ok(def);
         }
-        
+
         let file = File::open(Self::global_config_path())?;
         Ok(serde_json::from_reader(file)?)
     }
@@ -83,14 +81,12 @@ impl UserConfig {
         let local = Self::read_workspace()?;
 
         Ok(match local {
-            Some(local) => {
-                Self {
-                    cache: local.cache.or(global.cache),
-                    timeout: local.timeout.or(global.timeout),
-                    symlink: local.symlink.or(global.symlink),
-                    ndk_path: local.ndk_path.or(global.ndk_path),
-                }
-            }
+            Some(local) => Self {
+                cache: local.cache.or(global.cache),
+                timeout: local.timeout.or(global.timeout),
+                symlink: local.symlink.or(global.symlink),
+                ndk_path: local.ndk_path.or(global.ndk_path),
+            },
             None => global,
         })
     }
@@ -106,7 +102,6 @@ impl Default for UserConfig {
         }
     }
 }
-
 
 #[inline]
 pub fn get_keyring() -> keyring::Entry {

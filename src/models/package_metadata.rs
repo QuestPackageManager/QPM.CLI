@@ -1,4 +1,4 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use qpm_package::models::{dependency::SharedDependency, package::PackageMetadata};
 

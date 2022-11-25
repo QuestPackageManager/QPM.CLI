@@ -30,7 +30,7 @@ impl Command for PackageCommand {
                     .bright_green()
             );
 
-            return Ok(())
+            return Ok(());
         }
 
         match &versions {

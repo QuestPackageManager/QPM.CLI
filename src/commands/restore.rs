@@ -1,6 +1,6 @@
 use std::{fs, io::Write};
 
-use clap::{Args};
+use clap::Args;
 use color_eyre::eyre::Context;
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
@@ -32,7 +32,7 @@ impl Command for RestoreCommand {
             true => {
                 shared_package = SharedPackageConfig::read(".")?;
                 dependency::locked_resolve(&shared_package, &repo)?.collect_vec()
-            },
+            }
             false => {
                 let (s, d) = SharedPackageConfig::resolve_from_package(package, &repo)?;
                 shared_package = s;
@@ -54,11 +54,12 @@ impl Command for RestoreCommand {
                 .context("Failed to write out ndkpath.txt")?;
         }
 
+        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
+
         if !self.locked {
             shared_package.write(".")?;
         }
 
-        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
         Ok(())
     }
 }

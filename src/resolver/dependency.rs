@@ -1,5 +1,10 @@
 use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
 
+use crate::{
+    repository::{local::FileRepository, Repository},
+    terminal::colors::QPMColor,
+    utils::cmake::{write_define_cmake, write_extern_cmake},
+};
 use color_eyre::{
     eyre::{bail, Context},
     Result,
@@ -9,11 +14,6 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 use stopwatch::Stopwatch;
-use crate::{
-    repository::{local::FileRepository, Repository},
-    terminal::colors::QPMColor,
-    utils::cmake::{write_define_cmake, write_extern_cmake},
-};
 
 use pubgrub::{
     error::PubGrubError,
@@ -53,7 +53,6 @@ impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
                     .map(|pv: PackageVersion| pv.version.into())
                     .collect_vec()
                     .into_iter()
-                    
             },
             potential_packages,
         );

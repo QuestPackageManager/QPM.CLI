@@ -3,8 +3,10 @@ use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfi
 use semver::Version;
 
 use crate::{
-    commands::Command, models::package::PackageConfigExtensions,
-    repository::multi::MultiDependencyRepository, utils::cmake::{write_define_cmake, write_extern_cmake},
+    commands::Command,
+    models::package::PackageConfigExtensions,
+    repository::multi::MultiDependencyRepository,
+    utils::cmake::{write_define_cmake, write_extern_cmake},
 };
 
 #[derive(Args, Debug, Clone)]

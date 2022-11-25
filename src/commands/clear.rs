@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
 use clap::Args;
-use color_eyre::{Result};
+use color_eyre::Result;
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 use walkdir::WalkDir;
@@ -26,7 +26,7 @@ impl Command for ClearCommand {
 
 fn remove(p: &str) -> Result<()> {
     if !Path::new(p).exists() {
-        return Ok(())
+        return Ok(());
     }
 
     fs::remove_file(p)?;

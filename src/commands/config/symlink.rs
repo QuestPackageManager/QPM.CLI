@@ -1,5 +1,3 @@
-
-
 use clap::{Args, Subcommand};
 use color_eyre::Result;
 use owo_colors::OwoColorize;
@@ -43,7 +41,6 @@ impl Symlink {
                 None => println!("Symlink usage is not configured!"),
             },
         };
-
 
         Ok(())
     }

@@ -8,13 +8,13 @@ use clap::Parser;
 use color_eyre::Result;
 use commands::Command;
 
+pub mod commands;
 pub mod models;
 pub mod network;
 pub mod repository;
-pub mod utils;
-pub mod terminal;
 pub mod resolver;
-pub mod commands;
+pub mod terminal;
+pub mod utils;
 
 #[cfg(benchmark)]
 mod benchmark;
@@ -22,11 +22,9 @@ mod benchmark;
 #[cfg(test)]
 mod tests;
 
-
 fn main() -> Result<()> {
     color_eyre::install()?;
     commands::MainCommand::parse().execute()?;
-
 
     Ok(())
 }

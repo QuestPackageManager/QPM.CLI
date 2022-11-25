@@ -1,9 +1,9 @@
-
-
 use color_eyre::Result;
 use semver::Version;
 
-use qpm_package::models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{
+    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
+};
 
 pub mod local;
 pub mod multi;

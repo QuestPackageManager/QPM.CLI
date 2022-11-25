@@ -118,7 +118,8 @@ impl Command for Download {
 
         println!(
             "Sucessfully downloaded and extracted {:?} into {:?}",
-            download.cyan(), &final_path.file_path_color()
+            download.cyan(),
+            &final_path.file_path_color()
         );
 
         Ok(())

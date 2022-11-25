@@ -1,6 +1,5 @@
 use owo_colors::{FgColorDisplay, OwoColorize};
 
-
 /// Defines a color scheme for Spiggy
 pub trait QPMColor: OwoColorize {
     #[inline(always)]
@@ -22,8 +21,6 @@ pub trait QPMColor: OwoColorize {
     fn dependency_version_color(&self) -> FgColorDisplay<owo_colors::colors::Magenta, Self> {
         self.purple()
     }
-
-
 }
 
 impl<D: OwoColorize> QPMColor for D {}

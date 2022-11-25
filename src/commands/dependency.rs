@@ -1,7 +1,13 @@
 use clap::{Args, Subcommand};
-use color_eyre::{eyre::{Context, bail}, Result};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
 use owo_colors::OwoColorize;
-use qpm_package::models::{extra::{PackageDependencyModifier}, package::{PackageConfig, PackageDependency}};
+use qpm_package::models::{
+    extra::PackageDependencyModifier,
+    package::{PackageConfig, PackageDependency},
+};
 use semver::VersionReq;
 
 use crate::{
@@ -76,7 +82,8 @@ fn add_dependency(dependency_args: DependencyOperationAddArgs) -> Result<()> {
         Option::Some(v) => v,
         // if no version given, use ^latest instead, should've specified a version idiot
         Option::None => {
-            semver::VersionReq::parse(&format!("^{}", versions.unwrap().first().unwrap().version)).unwrap()
+            semver::VersionReq::parse(&format!("^{}", versions.unwrap().first().unwrap().version))
+                .unwrap()
         }
     };
 

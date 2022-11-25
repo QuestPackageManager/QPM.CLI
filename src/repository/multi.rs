@@ -1,7 +1,4 @@
-use color_eyre::{
-    eyre::bail,
-    Result,
-};
+use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 
 use qpm_package::models::{

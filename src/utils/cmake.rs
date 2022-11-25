@@ -1,11 +1,10 @@
-use std::{fs::File, path::PathBuf, io::Write};
+use std::{fs::File, io::Write, path::PathBuf};
 
 use color_eyre::{eyre::Context, Result};
 use qpm_package::models::dependency::SharedPackageConfig;
 
-use crate::{repository::Repository, models::package_metadata::PackageMetadataExtensions};
+use crate::{models::package_metadata::PackageMetadataExtensions, repository::Repository};
 use std::fmt::Write as OtherWrite;
-
 
 /// Fern: Adds line ending after each element
 /// thanks raft
@@ -239,7 +238,11 @@ pub fn make_defines_string(dep: &SharedPackageConfig) -> Result<String> {
     )?;
     result.push_str("# derived from override .so name or just id_version\n");
 
-    writeln!(result, "set(COMPILE_ID \"{}\")", dep.config.info.get_module_id())?;
+    writeln!(
+        result,
+        "set(COMPILE_ID \"{}\")",
+        dep.config.info.get_module_id()
+    )?;
 
     result.push_str(
         "# derived from whichever codegen package is installed, will default to just codegen\n",
