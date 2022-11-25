@@ -165,7 +165,7 @@ impl FileRepository {
 
         if validate {
             let package_path = src_path;
-            let downloaded_package = SharedPackageConfig::read(&package_path)?;
+            let downloaded_package = SharedPackageConfig::read(package_path)?;
 
             // check if downloaded config is the same version as expected, if not, panic
             if downloaded_package.config.info.version != package.config.info.version {

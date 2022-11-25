@@ -1,5 +1,6 @@
 use std::{
     fs::File,
+    io::BufReader,
     path::Path,
     process::{Command, Stdio},
 };
@@ -125,7 +126,6 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         url = url[..url.len() - 1].to_string();
     }
 
-    // TODO: Fix on Windows
     let mut git = Command::new("git");
     git.arg("clone")
         .arg(format!("{}.git", url))
@@ -135,9 +135,9 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         .arg("--recurse-submodules")
         .arg("--shallow-submodules")
         .arg("--single-branch")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
     if let Some(branch_unwrapped) = branch {
         git.arg("-b").arg(branch_unwrapped);
@@ -145,16 +145,20 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         println!("No branch name found, cloning default branch");
     }
 
-    match git.output() {
-        Ok(_o) => {
-            if _o.status.code().unwrap_or(-1) != 0 {
-                let mut error_string = std::str::from_utf8(_o.stderr.as_slice())?.to_string();
+    let mut child = git.spawn()?;
+
+    match child.wait() {
+        Ok(e) => {
+            if e.code().unwrap_or(-1) != 0 {
+                let stderr = BufReader::new(child.stderr.as_mut().unwrap());
+
+                let mut error_string = std::str::from_utf8(stderr.buffer())?.to_string();
 
                 if let Ok(token_unwrapped) = get_keyring().get_password() {
                     error_string = error_string.replace(&token_unwrapped, "***");
                 }
 
-                bail!("Exit code {}: {}", _o.status, error_string);
+                bail!("Exit code {}: {}", e, error_string);
             }
         }
         Err(e) => {
