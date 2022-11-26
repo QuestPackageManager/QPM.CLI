@@ -7,6 +7,7 @@ use std::{
 };
 
 use color_eyre::{eyre::Context, Result};
+use pbr::ProgressBar;
 
 use crate::models::config::get_combine_config;
 
@@ -29,42 +30,48 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
     })
 }
 
-pub fn download_file<F>(url: &str, callback: F) -> Result<Vec<u8>>
+pub fn download_file<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
 where
-    F: Fn(usize, usize),
+    F: FnMut(usize, usize),
 {
-    let mut response = get_agent()
+    let response = get_agent()
         .get(url)
         .send()
         .with_context(|| format!("Unable to download file {url}"))?
         .error_for_status()?;
 
-    let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
+    Ok(response.bytes()?.into())
+        
+    // TODO: Fix
+    // let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
+    // let mut read_bytes = vec![0u8; 4 * 1024];
 
-    loop {
-        let mut read_bytes = vec![0u8; 128];
-        let read = response.read(&mut read_bytes)?;
-        bytes.append(&mut read_bytes);
+    // loop {
+    //     let read = response.read(&mut read_bytes)?;
+    //     bytes.append(&mut read_bytes);
 
-        callback(bytes.len(), bytes.capacity());
-        if read == 0 {
-            break;
-        }
-    }
+    //     callback(bytes.len(), bytes.capacity());
+    //     if read == 0 {
+    //         println!("Done!");
+    //         break;
+    //     }
+    // }
 
-    Ok(bytes)
+    // Ok(bytes)
 }
 
-pub fn download_file_report<F>(url: &str, callback: F) -> Result<Vec<u8>>
+#[inline(always)]
+pub fn download_file_report<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
 where
-    F: Fn(usize, usize),
+    F: FnMut(usize, usize),
 {
-    download_file(url, |current, expected| {
-        println!(
-            "Progress: {}%",
-            current / expected
-        );
+    let mut progress_bar = ProgressBar::new(1000);
+    let result = download_file(url, |current, expected| {
+        progress_bar.set((current / expected) as u64 * 1000);
 
         callback(current, expected)
-    })
+    });
+
+    // progress_bar.finish_println("");
+    result
 }

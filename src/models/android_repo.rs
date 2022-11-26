@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct AndroidRepositoryManifest {
     pub license: Vec<LicenseType>,
+    #[serde(rename = "remotePackage")]
     pub remote_package: Vec<RemotePackage>,
 }
 

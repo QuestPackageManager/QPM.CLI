@@ -13,7 +13,7 @@ use crate::{
     network::agent::get_agent,
     terminal::colors::QPMColor,
     utils::android::{
-        download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_versions,
+        download_ndk_version, get_android_manifest, get_ndk_str_versions,
     },
 };
 
@@ -34,7 +34,6 @@ pub enum NdkOperation {
 
 #[derive(Args, Debug, Clone)]
 pub struct DownloadArgs {
-    #[clap(long, short)]
     version: String,
 }
 
@@ -51,7 +50,7 @@ impl Command for Ndk {
                     None => bail!("Could not find ndk version {}", d.version),
                 }
             }
-            NdkOperation::List => {
+            NdkOperation::Available => {
                 let manifest = get_android_manifest()?;
                 get_ndk_str_versions(&manifest)
                     .iter()
@@ -60,7 +59,7 @@ impl Command for Ndk {
                     .take(5)
                     .for_each(|(v, p)| println!("{} -> {}", v.blue(), p.display_name.purple()))
             }
-            NdkOperation::Available => todo!(),
+            NdkOperation::List => todo!(),
         }
 
         Ok(())
