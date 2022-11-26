@@ -346,36 +346,28 @@ impl FileRepository {
                 continue;
             }
 
-            if shared_dep.config.info.additional_data.so_link.is_some()
-                || shared_dep
-                    .config
-                    .info
-                    .additional_data
-                    .debug_so_link
-                    .is_some()
-            {
-                let data = &shared_dep.config.info.additional_data;
-                // get so name or release so name
-                let name = match data.use_release.unwrap_or(false) || data.debug_so_link.is_none() {
-                    true => shared_dep.config.info.get_so_name(),
-                    false => format!("debug_{}", shared_dep.config.info.get_so_name()),
-                };
+            // Not header only
+            let data = &shared_dep.config.info.additional_data;
+            // get so name or release so name
+            let name = match data.use_release.unwrap_or(false) || data.debug_so_link.is_none() {
+                true => shared_dep.config.info.get_so_name(),
+                false => format!("debug_{}", shared_dep.config.info.get_so_name()),
+            };
 
-                let src_binary = libs_path.join(&name);
+            let src_binary = libs_path.join(&name);
 
-                if !src_binary.exists() {
-                    bail!(
-                        "Missing binary {name} for {}:{}",
-                        referenced_dep.id,
-                        shared_dep.config.info.version
-                    );
-                }
-
-                paths.insert(
-                    src_binary,
-                    extern_binaries.join(shared_dep.config.info.get_so_name()),
+            if !src_binary.exists() {
+                bail!(
+                    "Missing binary {name} for {}:{}",
+                    referenced_dep.id,
+                    shared_dep.config.info.version
                 );
             }
+
+            paths.insert(
+                src_binary,
+                extern_binaries.join(shared_dep.config.info.get_so_name()),
+            );
         }
 
         // Get headers of all dependencies restored
