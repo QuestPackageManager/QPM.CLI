@@ -59,5 +59,12 @@ pub fn download_file_report<F>(url: &str, callback: F) -> Result<Vec<u8>>
 where
     F: Fn(usize, usize),
 {
-    download_file(url, |current, expected| callback(current, expected))
+    download_file(url, |current, expected| {
+        println!(
+            "Progress: {}%",
+            current / expected
+        );
+
+        callback(current, expected)
+    })
 }
