@@ -18,7 +18,10 @@ impl NDKPath {
                 config.ndk_download_path = Some(path.into());
             }
             None => match &config.ndk_download_path {
-                Some(path) => println!("Current configured ndk path is: {}", path.to_str().unwrap().bright_yellow()),
+                Some(path) => println!(
+                    "Current configured ndk path is: {}",
+                    path.to_str().unwrap().bright_yellow()
+                ),
                 None => println!("No ndk path was configured!"),
             },
         }

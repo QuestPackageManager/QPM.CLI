@@ -26,7 +26,7 @@ use crate::{
         config::get_combine_config, package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
-    network::agent::{download_file, download_file_report, get_agent},
+    network::agent::{download_file_report, get_agent},
     terminal::colors::QPMColor,
     utils::git,
 };

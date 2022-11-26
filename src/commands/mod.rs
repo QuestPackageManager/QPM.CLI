@@ -10,11 +10,11 @@ pub mod doctor;
 pub mod download;
 pub mod install;
 pub mod list;
+pub mod ndk;
 pub mod package;
 pub mod publish;
 pub mod qmod;
 pub mod restore;
-pub mod ndk;
 
 #[cfg(feature = "templatr")]
 pub mod templatr;

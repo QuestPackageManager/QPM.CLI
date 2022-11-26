@@ -1,13 +1,6 @@
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-    sync,
-    time::Duration,
-};
+use std::{sync, time::Duration};
 
 use color_eyre::{eyre::Context, Result};
-use pbr::ProgressBar;
 
 use crate::models::config::get_combine_config;
 
@@ -30,7 +23,7 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
     })
 }
 
-pub fn download_file<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
+pub fn download_file<F>(url: &str, _callback: F) -> Result<Vec<u8>>
 where
     F: FnMut(usize, usize),
 {
@@ -41,7 +34,7 @@ where
         .error_for_status()?;
 
     Ok(response.bytes()?.into())
-        
+
     // TODO: Fix
     // let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
     // let mut read_bytes = vec![0u8; 4 * 1024];
@@ -65,13 +58,12 @@ pub fn download_file_report<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
 where
     F: FnMut(usize, usize),
 {
-    let mut progress_bar = ProgressBar::new(1000);
-    let result = download_file(url, |current, expected| {
-        progress_bar.set((current / expected) as u64 * 1000);
-
-        callback(current, expected)
-    });
+    // let mut progress_bar = ProgressBar::new(1000);
 
     // progress_bar.finish_println("");
-    result
+    download_file(url, |current, expected| {
+        // progress_bar.set((current / expected) as u64 * 1000);
+
+        callback(current, expected)
+    })
 }

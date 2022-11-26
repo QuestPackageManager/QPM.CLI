@@ -1,7 +1,7 @@
-use std::{fs, io::Write};
+use std::fs;
 
 use clap::Args;
-use color_eyre::eyre::Context;
+
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
@@ -46,7 +46,7 @@ impl Command for RestoreCommand {
         fs::create_dir_all(&shared_package.config.shared_dir)?;
 
         // write the ndk path to a file if available
-        let config = get_combine_config();
+        let _config = get_combine_config();
 
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
 

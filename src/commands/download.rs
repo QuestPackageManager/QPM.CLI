@@ -9,7 +9,7 @@ use color_eyre::{eyre::bail, Result};
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
-use crate::{network::agent::{get_agent, download_file_report}, terminal::colors::QPMColor};
+use crate::{network::agent::download_file_report, terminal::colors::QPMColor};
 
 use super::Command;
 
@@ -64,9 +64,7 @@ impl Command for Download {
         let exe = std::env::current_exe()?;
         let final_path = exe.parent().unwrap();
 
-
-
-        let bytes: Bytes = download_file_report(url, |_, _|{})?.into();
+        let bytes: Bytes = download_file_report(url, |_, _| {})?.into();
         let buffer = Cursor::new(bytes);
 
         // Extract to tmp folde

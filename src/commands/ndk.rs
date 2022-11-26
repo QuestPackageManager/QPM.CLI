@@ -1,21 +1,9 @@
-use std::{
-    fs::File,
-    io::{copy, Cursor, Read},
-};
-
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use zip::ZipArchive;
 
-use crate::{
-    network::agent::get_agent,
-    terminal::colors::QPMColor,
-    utils::android::{
-        download_ndk_version, get_android_manifest, get_ndk_str_versions,
-    },
-};
+use crate::utils::android::{download_ndk_version, get_android_manifest, get_ndk_str_versions};
 
 use super::Command;
 

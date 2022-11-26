@@ -1,10 +1,10 @@
-use std::{collections::HashMap, env, fmt::format, io::Cursor, iter::Filter, os};
+use std::{collections::HashMap, env, io::Cursor};
 
 use bytes::Bytes;
 use color_eyre::Result;
 use owo_colors::OwoColorize;
 use semver::{BuildMetadata, Prerelease, Version};
-use serde_xml_rs::{from_str, to_string};
+
 use zip::ZipArchive;
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
         android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
         config::get_combine_config,
     },
-    network::agent::{download_file, download_file_report, get_agent},
+    network::agent::{download_file_report, get_agent},
     terminal::colors::QPMColor,
 };
 
@@ -93,7 +93,7 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<()> {
         .ndk_download_path
         .as_ref()
         .expect("No NDK download path set");
-    let name = &archive.complete.url;
+    let _name = &archive.complete.url;
 
     let bytes: Bytes = download_file_report(&archive_url, |_, _| {})?.into();
 
