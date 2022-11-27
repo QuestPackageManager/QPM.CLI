@@ -10,6 +10,7 @@ pub mod doctor;
 pub mod download;
 pub mod install;
 pub mod list;
+pub mod ndk;
 pub mod package;
 pub mod publish;
 pub mod qmod;
@@ -49,6 +50,7 @@ pub enum MainCommand {
     /// Checks if your quest modding workspace is ready
     Doctor(doctor::DoctorCommand),
     Download(download::Download),
+    Ndk(ndk::Ndk),
     #[cfg(feature = "templatr")]
     Templatr(templatr::TemplatrCommand),
 }
@@ -69,6 +71,7 @@ impl Command for MainCommand {
             MainCommand::Install(c) => c.execute(),
             MainCommand::Doctor(c) => c.execute(),
             MainCommand::Download(c) => c.execute(),
+            MainCommand::Ndk(n) => n.execute(),
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
         }

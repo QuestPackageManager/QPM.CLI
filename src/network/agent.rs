@@ -1,10 +1,4 @@
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-    sync,
-    time::Duration,
-};
+use std::{sync, time::Duration};
 
 use color_eyre::{eyre::Context, Result};
 
@@ -29,32 +23,47 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
     })
 }
 
-pub fn download_file(url: &str, path: &Path) -> Result<Vec<u8>> {
-    let mut response = get_agent()
+pub fn download_file<F>(url: &str, _callback: F) -> Result<Vec<u8>>
+where
+    F: FnMut(usize, usize),
+{
+    let response = get_agent()
         .get(url)
         .send()
-        .with_context(|| format!("Unable to download file {url} to {path:?}"))?;
+        .with_context(|| format!("Unable to download file {url}"))?
+        .error_for_status()?;
 
-    let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
+    Ok(response.bytes()?.into())
 
-    loop {
-        let mut read_bytes = vec![0u8; 128];
-        let read = response.read(&mut read_bytes)?;
-        bytes.append(&mut read_bytes);
+    // TODO: Fix
+    // let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
+    // let mut read_bytes = vec![0u8; 4 * 1024];
 
-        println!(
-            "Progress: {}% for file {path:?}",
-            bytes.len() / bytes.capacity()
-        );
+    // loop {
+    //     let read = response.read(&mut read_bytes)?;
+    //     bytes.append(&mut read_bytes);
 
-        if read == 0 {
-            break;
-        }
-    }
+    //     callback(bytes.len(), bytes.capacity());
+    //     if read == 0 {
+    //         println!("Done!");
+    //         break;
+    //     }
+    // }
 
-    let mut file = File::create(path)?;
+    // Ok(bytes)
+}
 
-    file.write_all(&bytes)
-        .context("Failed to write out downloaded bytes")?;
-    Ok(bytes)
+#[inline(always)]
+pub fn download_file_report<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
+where
+    F: FnMut(usize, usize),
+{
+    // let mut progress_bar = ProgressBar::new(1000);
+
+    // progress_bar.finish_println("");
+    download_file(url, |current, expected| {
+        // progress_bar.set((current / expected) as u64 * 1000);
+
+        callback(current, expected)
+    })
 }

@@ -23,8 +23,9 @@ pub struct UserConfig {
     pub timeout: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symlink: Option<bool>,
+    /// Path where ndk downloads are stored
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ndk_path: Option<String>,
+    pub ndk_download_path: Option<PathBuf>,
 }
 
 impl UserConfig {
@@ -85,7 +86,7 @@ impl UserConfig {
                 cache: local.cache.or(global.cache),
                 timeout: local.timeout.or(global.timeout),
                 symlink: local.symlink.or(global.symlink),
-                ndk_path: local.ndk_path.or(global.ndk_path),
+                ndk_download_path: local.ndk_download_path.or(global.ndk_download_path),
             },
             None => global,
         })
@@ -98,7 +99,7 @@ impl Default for UserConfig {
             symlink: Some(true),
             cache: Some(dirs::data_dir().unwrap().join("QPM-Rust").join("cache")),
             timeout: Some(5000),
-            ndk_path: None,
+            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-Rust").join("ndk")),
         }
     }
 }

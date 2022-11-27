@@ -10,7 +10,7 @@ use std::{
     cell::UnsafeCell,
     collections::HashMap,
     fs::{self, File},
-    io::Cursor,
+    io::{Cursor, Write},
     path::Path,
 };
 use zip::ZipArchive;
@@ -26,7 +26,7 @@ use crate::{
         config::get_combine_config, package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
-    network::agent::{download_file, get_agent},
+    network::agent::{download_file_report, get_agent},
     terminal::colors::QPMColor,
     utils::git,
 };
@@ -50,7 +50,7 @@ impl QPMRepository {
         let url = format!("{}/{}", API_URL, path);
 
         let response = get_agent()
-            .get(&url)
+            .get(url)
             .send()
             .context("Unable to make request to qpackages.com")?;
 
@@ -83,7 +83,7 @@ impl QPMRepository {
         );
 
         let resp = get_agent()
-            .post(&url)
+            .post(url)
             .header("Authorization", auth)
             .json(&package)
             .send()?;
@@ -212,7 +212,7 @@ impl QPMRepository {
                 std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
             }
             let package_path = src_path;
-            let downloaded_package = SharedPackageConfig::read(&package_path);
+            let downloaded_package = SharedPackageConfig::read(package_path);
 
             match downloaded_package {
                 Ok(downloaded_package) =>
@@ -253,7 +253,12 @@ impl QPMRepository {
                             // github url!
                             git::get_release(url, path)?;
                         } else {
-                            download_file(url, path)?;
+                            let bytes = download_file_report(url, |_, _| {})?;
+
+                            let mut file = File::create(path)?;
+
+                            file.write_all(&bytes)
+                                .context("Failed to write out downloaded bytes")?;
                         }
                     }
                 }

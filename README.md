@@ -2,6 +2,7 @@
 QPM command line tool
 
 # Improvements over [QPM-Rust v1](https://github.com/RedBrumbler/QuestPackageManager-Rust)
+- `qpm-rust ndk download {version}/list/available` Downloading and managing NDK installations
 - `qpm-rust download cmake/ninja` for setting up CMake and Ninja.
 - `qpm-rust doctor` for checking if everything is setup properly.
 - `qpm-rust templatr` embedded.

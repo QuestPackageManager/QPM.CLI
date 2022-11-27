@@ -3,12 +3,13 @@ use std::{
     io::{copy, Cursor, Read},
 };
 
+use bytes::Bytes;
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::bail, Result};
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
-use crate::{network::agent::get_agent, terminal::colors::QPMColor};
+use crate::{network::agent::download_file_report, terminal::colors::QPMColor};
 
 use super::Command;
 
@@ -48,8 +49,7 @@ pub struct Download {
 pub enum DownloadOperation {
     Ninja,
     #[clap(name = "cmake")]
-    CMake, // TODO: NDK
-           // TODO: CMake?
+    CMake,
 }
 
 impl Command for Download {
@@ -64,10 +64,7 @@ impl Command for Download {
         let exe = std::env::current_exe()?;
         let final_path = exe.parent().unwrap();
 
-        // extract if zip
-        let response = get_agent().get(url).send()?.error_for_status()?;
-
-        let bytes = response.bytes()?;
+        let bytes: Bytes = download_file_report(url, |_, _| {})?.into();
         let buffer = Cursor::new(bytes);
 
         // Extract to tmp folde
