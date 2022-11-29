@@ -56,9 +56,9 @@ pub fn get_ndk_str_versions(manifest: &AndroidRepositoryManifest) -> HashMap<&st
 }
 
 pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
-    let os = if cfg!(linux) {
+    let os = if cfg!(target_os = linux) {
         "linux"
-    } else if cfg!(macos) {
+    } else if cfg!(target_os = macos) {
         "macosx"
     } else if cfg!(windows) {
         "windows"
