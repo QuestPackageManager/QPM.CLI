@@ -27,8 +27,11 @@ pub fn download_file<F>(url: &str, _callback: F) -> Result<Vec<u8>>
 where
     F: FnMut(usize, usize),
 {
-    let response = get_agent()
-        .get(url)
+    let mut request = get_agent().get(url).build()?;
+
+    request.timeout_mut().take(); // Set to none
+
+    let response = request
         .send()
         .with_context(|| format!("Unable to download file {url}"))?
         .error_for_status()?;
