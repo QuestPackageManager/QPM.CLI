@@ -31,8 +31,7 @@ where
 
     request.timeout_mut().take(); // Set to none
 
-    let response = request
-        .send()
+    let response = get_agent().execute(request)
         .with_context(|| format!("Unable to download file {url}"))?
         .error_for_status()?;
 
