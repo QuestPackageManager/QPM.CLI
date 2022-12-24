@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use color_eyre::eyre::Context;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
@@ -58,7 +59,7 @@ impl Command for InstallCommand {
                         "./build/{}",
                         shared_package.config.info.get_so_name()
                     ))
-                    .canonicalize()?,
+                    .canonicalize().context("Failed to retrieve release binary for publishing since it is not header only")?,
                 );
             }
 
@@ -68,7 +69,7 @@ impl Command for InstallCommand {
                         "./build/debug/{}",
                         shared_package.config.info.get_so_name()
                     ))
-                    .canonicalize()?,
+                    .canonicalize().context("Failed to retrieve debug binary for publishing since it is not header only")?,
                 );
             }
         }
