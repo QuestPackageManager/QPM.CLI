@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     path::{Path, PathBuf},
-    sync,
+    sync, io::BufReader,
 };
 
 use color_eyre::Result;
@@ -53,7 +53,7 @@ impl UserConfig {
         }
 
         let file = File::open(Self::global_config_path())?;
-        json::json_from_reader_fast(file)
+        json::json_from_reader_fast(BufReader::new(file))
     }
 
     pub fn read_workspace() -> Result<Option<Self>> {
@@ -63,7 +63,7 @@ impl UserConfig {
         }
 
         let file = File::options().read(true).open(path)?;
-        Ok(Some(json::json_from_reader_fast(&file)?))
+        Ok(Some(json::json_from_reader_fast(BufReader::new(file))?))
     }
 
     pub fn write(&self, workspace: bool) -> Result<()> {

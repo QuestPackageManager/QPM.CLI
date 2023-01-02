@@ -8,7 +8,7 @@
 #[inline(always)]
 pub fn json_from_reader_fast<R, T>(mut rdr: R) -> color_eyre::Result<T>
 where
-    R: std::io::Read,
+    R: std::io::BufRead,
     T: serde::de::DeserializeOwned, {
     let mut bytes = Vec::<u8>::with_capacity(8 * 1024);
     rdr.read_to_end(&mut bytes)?;

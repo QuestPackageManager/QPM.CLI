@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{hash_map::Entry, HashMap},
     fs,
-    io::Write,
+    io::{Write, BufReader},
     path::{Path, PathBuf},
 };
 
@@ -193,7 +193,7 @@ impl FileRepository {
             .context("Failed to make config folder")?;
 
         if let Ok(file) = std::fs::File::open(path) {
-            json::json_from_reader_fast(&file)
+            json::json_from_reader_fast(BufReader::new(file))
         } else {
             // didn't exist
             Ok(Self::default())

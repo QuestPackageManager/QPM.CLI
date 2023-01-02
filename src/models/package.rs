@@ -1,4 +1,4 @@
-use std::{fs::File, path::Path};
+use std::{fs::File, path::Path, io::BufReader};
 
 use color_eyre::{eyre::Context, Result};
 use itertools::Itertools;
@@ -27,7 +27,7 @@ pub trait SharedPackageConfigExtensions: Sized {
 impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let file = File::open(dir.as_ref().join("qpm.json"))?;
-        json::json_from_reader_fast(&file)
+        json::json_from_reader_fast(BufReader::new(file))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
@@ -45,7 +45,7 @@ impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let file =
             File::open(dir.as_ref().join("qpm.shared.json")).context("Missing qpm.shared.json")?;
-        json::json_from_reader_fast(&file)
+        json::json_from_reader_fast(BufReader::new(file))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {

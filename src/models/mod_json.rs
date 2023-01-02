@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::Read,
+    io::{Read, BufReader},
     path::{Path, PathBuf},
 };
 
@@ -54,7 +54,7 @@ impl ModJsonExtensions for ModJson {
     fn read(path: &Path) -> Result<ModJson> {
         let file = std::fs::File::open(path).context("Opening mod.json failed")?;
 
-        json::json_from_reader_fast(&file)
+        json::json_from_reader_fast(BufReader::new(file))
     }
 
     fn write(&self, path: &Path) -> Result<()> {
