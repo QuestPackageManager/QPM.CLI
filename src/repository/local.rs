@@ -22,7 +22,7 @@ use crate::{
         config::get_combine_config, package::PackageConfigExtensions,
         package_metadata::PackageMetadataExtensions,
     },
-    utils::fs::copy_things,
+    utils::{fs::copy_things, json},
 };
 
 use super::Repository;
@@ -193,7 +193,7 @@ impl FileRepository {
             .context("Failed to make config folder")?;
 
         if let Ok(file) = std::fs::File::open(path) {
-            Ok(serde_json::from_reader(&file)?)
+            json::json_from_reader_fast(&file)
         } else {
             // didn't exist
             Ok(Self::default())

@@ -7,6 +7,8 @@ use std::{
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 
+use crate::utils::json;
+
 static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
 
 pub fn get_combine_config() -> &'static UserConfig {
@@ -51,7 +53,7 @@ impl UserConfig {
         }
 
         let file = File::open(Self::global_config_path())?;
-        Ok(serde_json::from_reader(file)?)
+        json::json_from_reader_fast(file)
     }
 
     pub fn read_workspace() -> Result<Option<Self>> {
@@ -61,7 +63,7 @@ impl UserConfig {
         }
 
         let file = File::options().read(true).open(path)?;
-        Ok(Some(serde_json::from_reader(file)?))
+        Ok(Some(json::json_from_reader_fast(&file)?))
     }
 
     pub fn write(&self, workspace: bool) -> Result<()> {

@@ -21,6 +21,7 @@ const ANDROID_DL_URL: &str = "https://dl.google.com/android/repository";
 
 pub fn get_android_manifest() -> Result<AndroidRepositoryManifest> {
     let response = get_agent().get(ANDROID_REPO_MANIFEST).send()?;
+    
 
     Ok(serde_xml_rs::from_reader(response)?)
 }

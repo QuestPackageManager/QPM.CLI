@@ -7,6 +7,8 @@ use std::{
 use color_eyre::{eyre::Context, Result};
 use qpm_qmod::models::mod_json::ModJson;
 
+use crate::utils::json;
+
 pub trait ModJsonExtensions: Sized {
     fn get_template_name() -> &'static str;
     fn get_result_name() -> &'static str;
@@ -52,7 +54,7 @@ impl ModJsonExtensions for ModJson {
     fn read(path: &Path) -> Result<ModJson> {
         let file = std::fs::File::open(path).context("Opening mod.json failed")?;
 
-        Ok(serde_json::from_reader(file)?)
+        json::json_from_reader_fast(&file)
     }
 
     fn write(&self, path: &Path) -> Result<()> {
