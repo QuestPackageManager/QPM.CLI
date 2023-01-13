@@ -15,6 +15,7 @@ pub mod package;
 pub mod publish;
 pub mod qmod;
 pub mod restore;
+pub mod scripts;
 
 #[cfg(feature = "templatr")]
 pub mod templatr;
@@ -51,6 +52,10 @@ pub enum MainCommand {
     Doctor(doctor::DoctorCommand),
     Download(download::Download),
     Ndk(ndk::Ndk),
+
+    #[command(alias = "s")]
+    Scripts(scripts::ScriptsCommand),
+
     #[cfg(feature = "templatr")]
     Templatr(templatr::TemplatrCommand),
 }
@@ -74,6 +79,7 @@ impl Command for MainCommand {
             MainCommand::Ndk(n) => n.execute(),
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
+            MainCommand::Scripts(s) => s.execute(),
         }
     }
 }
