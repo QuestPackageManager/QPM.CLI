@@ -2,7 +2,7 @@ use std::{process::Stdio};
 
 use clap::Args;
 
-use color_eyre::eyre::bail;
+use color_eyre::eyre::{bail};
 use itertools::Itertools;
 use qpm_package::models::{package::PackageConfig};
 
@@ -57,7 +57,7 @@ impl Command for ScriptsCommand {
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
 
-            c.spawn()?.wait()?;
+            c.spawn()?.wait()?.exit_ok()?;
         }
 
         Ok(())
