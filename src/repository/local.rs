@@ -320,7 +320,7 @@ impl FileRepository {
         // delete if needed
         if extern_dir.exists() {
             fs::remove_dir_all(&extern_dir)
-                .with_context(|| format!("Unable to delete {:?}", extern_dir))?;
+                .with_context(|| format!("Unable to delete {extern_dir:?}"))?;
         }
 
         let extern_binaries = extern_dir.join("libs");

@@ -65,21 +65,21 @@ impl Command for EditArgs {
 }
 
 fn package_set_id(package: &mut PackageConfig, id: String) {
-    println!("Setting package id: {}", id);
+    println!("Setting package id: {id}");
     package.info.id = id;
 }
 
 fn package_set_name(package: &mut PackageConfig, name: String) {
-    println!("Setting package name: {}", name);
+    println!("Setting package name: {name}");
     package.info.name = name;
 }
 
 fn package_set_url(package: &mut PackageConfig, url: String) {
-    println!("Setting package url: {}", url);
+    println!("Setting package url: {url}");
     package.info.url = Option::Some(url);
 }
 
 fn package_set_version(package: &mut PackageConfig, version: Version) {
-    println!("Setting package version: {}", version);
+    println!("Setting package version: {version}");
     package.info.version = version;
 }

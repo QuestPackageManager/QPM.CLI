@@ -98,7 +98,7 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
             // this is the correct asset!
             let download = asset
                 .url
-                .replace("api.github.com", &format!("{}@api.github.com", token));
+                .replace("api.github.com", &format!("{token}@api.github.com"));
 
             let mut file = File::create(out).context("create so file failed")?;
 
@@ -118,7 +118,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
     check_git()?;
     if let Ok(token_unwrapped) = get_keyring().get_password() {
         if let Some(gitidx) = url.find("github.com") {
-            url.insert_str(gitidx, &format!("{}@", token_unwrapped));
+            url.insert_str(gitidx, &format!("{token_unwrapped}@"));
         }
     }
 
@@ -128,7 +128,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
 
     let mut git = Command::new("git");
     git.arg("clone")
-        .arg(format!("{}.git", url))
+        .arg(format!("{url}.git"))
         .arg(out)
         .arg("--depth")
         .arg("1")
