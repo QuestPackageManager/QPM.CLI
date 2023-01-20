@@ -38,13 +38,13 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
 
             if let Some(include_dirs) = compile_options.include_paths {
                 for dir in include_dirs.iter() {
-                    writeln!(result, "target_include_directories(${{COMPILE_ID}} PRIVATE ${{EXTERN_DIR}}/includes/{}/{})", package_id, dir)?;
+                    writeln!(result, "target_include_directories(${{COMPILE_ID}} PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})")?;
                 }
             }
 
             if let Some(system_include_dirs) = compile_options.system_includes {
                 for dir in system_include_dirs.iter() {
-                    writeln!(result, "target_include_directories(${{COMPILE_ID}} SYSTEM PRIVATE ${{EXTERN_DIR}}/includes/{}/{})", package_id, dir)?;
+                    writeln!(result, "target_include_directories(${{COMPILE_ID}} SYSTEM PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})")?;
                 }
             }
 
@@ -57,8 +57,7 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             for feature in features.iter() {
                 writeln!(
                     result,
-                    "target_compile_features(${{COMPILE_ID}} PRIVATE {})",
-                    feature
+                    "target_compile_features(${{COMPILE_ID}} PRIVATE {feature})"
                 )?;
             }
 
@@ -75,8 +74,7 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             for flag in flags.iter() {
                 writeln!(
                     result,
-                    "target_compile_options(${{COMPILE_ID}} PRIVATE {})",
-                    flag
+                    "target_compile_options(${{COMPILE_ID}} PRIVATE {flag})"
                 )?;
             }
         }
@@ -120,14 +118,12 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
 
                     writeln!(
                         result,
-                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{}_c}})",
-                        listname
+                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
                     )?;
 
                     writeln!(
                         result,
-                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{}_cpp}})",
-                        listname
+                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
                     )?;
                 }
             }
@@ -176,14 +172,12 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
 
                         writeln!(
                             result,
-                            "target_sources(${{COMPILE_ID}} PRIVATE ${{{}_c}})",
-                            listname
+                            "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
                         )?;
 
                         writeln!(
                             result,
-                            "target_sources(${{COMPILE_ID}} PRIVATE ${{{}_cpp}})",
-                            listname
+                            "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
                         )?;
                     }
                 }

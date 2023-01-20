@@ -45,7 +45,7 @@ pub struct Download {
     pub op: DownloadOperation,
 }
 
-#[derive(Subcommand, Debug, Clone)]
+#[derive(Subcommand, Debug, Clone, PartialEq, PartialOrd)]
 pub enum DownloadOperation {
     Ninja,
     #[clap(name = "cmake")]
@@ -70,7 +70,7 @@ impl Command for Download {
         // Extract to tmp folde
         let mut archive = ZipArchive::new(buffer)?;
 
-        if archive.len() == 1 {
+        if download == DownloadOperation::CMake && archive.len() == 1 {
             // Extract to tmp folder
             // let inner_bytes = bytes::Bytes::from(<zip::read::ZipFile<'_> as Into<bytes::Bytes>>::into(archive.by_index(0)?));
             let mut inner_archive = archive.by_index(0)?;

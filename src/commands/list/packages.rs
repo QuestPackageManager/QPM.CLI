@@ -19,7 +19,7 @@ impl Command for PackageListCommand {
                 ids.len().bright_yellow()
             );
 
-            ids.chunks(5).for_each(|_id| println!("{:?}\n", ids));
+            ids.chunks(5).for_each(|_id| println!("{ids:?}\n"));
         } else {
             println!("qpackages.com returned 0 packages, is something wrong?");
         }

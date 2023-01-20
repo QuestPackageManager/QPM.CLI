@@ -50,7 +50,7 @@ impl Command for InstallCommand {
             .headers_only
             .unwrap_or(false);
         #[cfg(debug_assertions)]
-        println!("Header only: {}", header_only);
+        println!("Header only: {header_only}");
 
         if !header_only {
             if binary_path.is_none() && self.cmake_build.unwrap_or(true) {

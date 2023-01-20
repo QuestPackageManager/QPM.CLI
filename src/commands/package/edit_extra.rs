@@ -141,32 +141,32 @@ impl Command for EditExtraArgs {
 }
 
 pub fn package_edit_extra_branch_name(package: &mut PackageConfig, branch_name: String) {
-    println!("Setting branch name: {:#?}", branch_name);
+    println!("Setting branch name: {branch_name:#?}");
     package.info.additional_data.branch_name = Some(branch_name);
 }
 
 pub fn package_edit_extra_headers_only(package: &mut PackageConfig, headers_only: bool) {
-    println!("Setting headers_only: {:#?}", headers_only);
+    println!("Setting headers_only: {headers_only:#?}");
     package.info.additional_data.headers_only = Some(headers_only);
 }
 
 pub fn package_edit_extra_static_linking(package: &mut PackageConfig, static_linking: bool) {
-    println!("Setting static_linking: {:#?}", static_linking);
+    println!("Setting static_linking: {static_linking:#?}");
     package.info.additional_data.static_linking = Some(static_linking);
 }
 
 pub fn package_edit_extra_so_link(package: &mut PackageConfig, so_link: String) {
-    println!("Setting so_link: {:#?}", so_link);
+    println!("Setting so_link: {so_link:#?}");
     package.info.additional_data.so_link = Some(so_link);
 }
 
 pub fn package_edit_extra_mod_link(package: &mut PackageConfig, mod_link: String) {
-    println!("Setting mod_link: {:#?}", mod_link);
+    println!("Setting mod_link: {mod_link:#?}");
     package.info.additional_data.mod_link = Some(mod_link);
 }
 
 pub fn package_edit_extra_extra_files(package: &mut PackageConfig, extra_file: String) {
-    println!("Setting extra_file: {}", extra_file);
+    println!("Setting extra_file: {extra_file}");
     match extra_file.chars().next().unwrap() {
         '-' => {
             // remove
@@ -198,16 +198,16 @@ pub fn package_edit_extra_add_extra_files(package: &mut PackageConfig, extra_fil
 }
 
 pub fn package_edit_extra_debug_so_link(package: &mut PackageConfig, debug_so_link: String) {
-    println!("Setting debug_so_link: {:#?}", debug_so_link);
+    println!("Setting debug_so_link: {debug_so_link:#?}");
     package.info.additional_data.debug_so_link = Some(debug_so_link);
 }
 
 pub fn package_edit_extra_override_so_name(package: &mut PackageConfig, override_so_name: String) {
-    println!("Setting override_so_name: {:#?}", override_so_name);
+    println!("Setting override_so_name: {override_so_name:#?}");
     package.info.additional_data.override_so_name = Some(override_so_name);
 }
 
 pub fn package_edit_extra_sub_folder(package: &mut PackageConfig, sub_folder: String) {
-    println!("Setting sub_folder: {:#?}", sub_folder);
+    println!("Setting sub_folder: {sub_folder:#?}");
     package.info.additional_data.sub_folder = Some(sub_folder);
 }

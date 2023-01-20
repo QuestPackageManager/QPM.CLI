@@ -47,7 +47,7 @@ impl QPMRepository {
     where
         T: for<'a> Deserialize<'a>,
     {
-        let url = format!("{}/{}", API_URL, path);
+        let url = format!("{API_URL}/{path}");
 
         let response = get_agent()
             .get(url)
@@ -65,11 +65,11 @@ impl QPMRepository {
 
     /// Requests the appriopriate package info from qpackage.com
     pub fn get_versions(id: &str) -> Result<Option<Vec<PackageVersion>>> {
-        Self::run_request(&format!("{}?limit=0", id))
+        Self::run_request(&format!("{id}?limit=0"))
     }
 
     pub fn get_shared_package(id: &str, ver: &Version) -> Result<Option<SharedPackageConfig>> {
-        Self::run_request(&format!("{}/{}", id, ver))
+        Self::run_request(&format!("{id}/{ver}"))
     }
 
     pub fn get_packages() -> Result<Vec<String>> {

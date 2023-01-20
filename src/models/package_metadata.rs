@@ -8,7 +8,7 @@ pub trait PackageMetadataExtensions {
     fn get_module_id(&self) -> String {
         let name = self.get_so_name();
         PathBuf::new()
-            .with_file_name(name[3..name.len() - 2].to_string())
+            .with_file_name(&name[3..name.len() - 2])
             .with_extension("")
             .file_name()
             .unwrap()

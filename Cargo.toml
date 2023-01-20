@@ -2,6 +2,7 @@
 name = "qpm_cli"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/QuestPackageManager/QPM.CLI"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -49,3 +50,6 @@ stopwatch = "0.0.7"
 [profile.release]
 opt-level = 3
 lto = true
+
+[profile.dev.package.backtrace]
+opt-level = 3

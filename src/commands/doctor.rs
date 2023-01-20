@@ -29,7 +29,7 @@ fn look_path(path: &str) -> Result<bool, std::env::VarError> {
     std::env::var("PATH").map(|paths| {
         paths
             .split(';')
-            .map(|p| format!("{}/{}", p, path))
+            .map(|p| format!("{p}/{path}"))
             .any(|p| Path::new(&p).with_extension("exe").exists())
     })
 }
