@@ -942,9 +942,9 @@ dependencies = [
 
 [[package]]
 name = "keyring"
-version = "1.2.0"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38fb8399ddcabfccb274577a8d90f0653e0b5b5977797c1c8834ad09839a10e5"
+checksum = "ba264b266563c1363dcce004776cbf198d7422a4262f77f4ca285bf26ae30955"
 dependencies = [
  "byteorder",
  "secret-service",
@@ -966,9 +966,9 @@ checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
 
 [[package]]
 name = "libgit2-sys"
-version = "0.14.1+1.5.0"
+version = "0.14.2+1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a07fb2692bc3593bda59de45a502bb3071659f2c515e28c71e728306b038e17"
+checksum = "7f3d95f6b51075fe9810a7ae22c7095f12b98005ab364d8544797a825ce946a4"
 dependencies = [
  "cc",
  "libc",
@@ -1528,7 +1528,7 @@ dependencies = [
 [[package]]
 name = "qpm_qmod"
 version = "0.1.0"
-source = "git+https://github.com/QuestPackageManager/QPM.Qmod.git#ef286665e04492404a8c6d06b3a19deb6e57f76a"
+source = "git+https://github.com/QuestPackageManager/QPM.Qmod.git#037ff67d240cc19805e793f5e6816db1b7586615"
 dependencies = [
  "cursed-semver-parser",
  "qpm_package",

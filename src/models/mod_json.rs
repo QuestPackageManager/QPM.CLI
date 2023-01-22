@@ -13,7 +13,7 @@ pub trait ModJsonExtensions: Sized {
     fn get_template_name() -> &'static str;
     fn get_result_name() -> &'static str;
     fn get_template_path() -> PathBuf;
-    fn read_and_preprocess(preprocess_data: &PreProcessingData) -> Result<Self>;
+    fn read_and_preprocess(preprocess_data: PreProcessingData) -> Result<Self>;
 
     fn read(path: &Path) -> Result<Self>;
     fn write(&self, path: &Path) -> Result<()>;
@@ -38,7 +38,7 @@ impl ModJsonExtensions for ModJson {
         PathBuf::new().join(Self::get_template_name())
     }
 
-    fn read_and_preprocess(preprocess_data: &PreProcessingData) -> Result<Self> {
+    fn read_and_preprocess(preprocess_data: PreProcessingData) -> Result<Self> {
         let mut file = File::open(Self::get_template_name()).context("Opening mod.json failed")?;
 
         // Get data
@@ -63,8 +63,8 @@ impl ModJsonExtensions for ModJson {
         Ok(())
     }
 }
-fn preprocess(s: String, preprocess_data: &PreProcessingData) -> String {
-    s.replace("${version}", preprocess_data.version.as_str())
-        .replace("${mod_id}", preprocess_data.mod_id.as_str())
-        .replace("${mod_name}", preprocess_data.mod_name.as_str())
+fn preprocess(s: String, preprocess_data: PreProcessingData) -> String {
+    s.replace("${version}", &preprocess_data.version)
+        .replace("${mod_id}", &preprocess_data.mod_id)
+        .replace("${mod_name}", &preprocess_data.mod_name)
 }

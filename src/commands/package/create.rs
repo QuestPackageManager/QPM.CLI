@@ -76,10 +76,11 @@ impl Command for PackageOperationCreateArgs {
         };
 
         let package = PackageConfig {
-            info: package_info,
             shared_dir: Path::new("shared").to_owned(),
             dependencies_dir: Path::new("extern").to_owned(),
+            info: package_info,
             dependencies: Default::default(),
+            workspace: Default::default(),
         };
 
         package.write(".")?;

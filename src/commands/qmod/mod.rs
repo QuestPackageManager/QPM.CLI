@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
-use color_eyre::Result;
+use color_eyre::{eyre::ensure, Result};
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
@@ -136,7 +136,7 @@ fn execute_qmod_create_operation(create_parameters: CreateQmodJsonOperationArgs)
 
 // This will parse the `qmod.template.json` and process it, then finally export a `qmod.json` for packaging and deploying.
 fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Result<()> {
-    assert!(std::path::Path::new("mod.template.json").exists(),
+    ensure!(std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 
     println!("Generating mod.json file from template...");
@@ -146,56 +146,52 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         &MultiDependencyRepository::useful_default_new()?,
     )?;
 
-    let mut mod_json: ModJson = shared_package.clone().into();
-
     // Parse template mod.template.json
     let preprocess_data = PreProcessingData {
         version: shared_package.config.info.version.to_string(),
-        mod_id: shared_package.config.info.id,
-        mod_name: shared_package.config.info.name,
+        mod_id: shared_package.config.info.id.clone(),
+        mod_name: shared_package.config.info.name.clone(),
     };
 
-    let mut existing_json = ModJson::read_and_preprocess(&preprocess_data)?;
-    if let Some(is_library) = build_parameters.is_library {
-        existing_json.is_library = Some(is_library);
-    }
+    let mut template_mod_json: ModJson = ModJson::from(shared_package);
+
+    let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
+    existing_json.is_library = build_parameters.is_library.or(existing_json.is_library);
 
     // if it's a library, append to libraryFiles, else to modFiles
     if existing_json.is_library.unwrap_or(false) {
-        existing_json.library_files.append(&mut mod_json.mod_files);
+        existing_json
+            .library_files
+            .append(&mut template_mod_json.mod_files);
     } else {
-        existing_json.mod_files.append(&mut mod_json.mod_files);
+        existing_json
+            .mod_files
+            .append(&mut template_mod_json.mod_files);
     }
 
     existing_json
         .dependencies
-        .append(&mut mod_json.dependencies);
+        .append(&mut template_mod_json.dependencies);
     existing_json
         .library_files
-        .append(&mut mod_json.library_files);
+        .append(&mut template_mod_json.library_files);
 
+    // exclude libraries
     if let Some(excluded) = build_parameters.exclude_libs {
         let exclude_filter = |lib_name: &String| -> bool {
             // returning false means don't include
             // don't include anything that is excluded
-            if excluded.iter().any(|s| lib_name == s) {
-                return false;
-            }
-
-            true
+            !excluded.iter().any(|s| lib_name == s)
         };
 
         existing_json.mod_files.retain(exclude_filter);
         existing_json.library_files.retain(exclude_filter);
+        // whitelist libraries
     } else if let Some(included) = build_parameters.include_libs {
         let include_filter = |lib_name: &String| -> bool {
             // returning false means don't include
             // only include anything that is specified included
-            if included.iter().any(|s| lib_name == s) {
-                return true;
-            }
-
-            false
+            included.iter().any(|s| lib_name == s)
         };
 
         existing_json.mod_files.retain(include_filter);
@@ -203,8 +199,6 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
     }
 
     // handled by preprocessing
-    // existing_json.id = mod_json.id;
-    // existing_json.version = mod_json.version;
 
     // Write mod.json
     existing_json.write(&PathBuf::from(ModJson::get_result_name()))?;

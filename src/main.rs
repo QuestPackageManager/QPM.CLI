@@ -28,9 +28,9 @@ mod tests;
 fn main() -> Result<()> {
     color_eyre::config::HookBuilder::default()
         .panic_section(concat!(
-            "version",
+            "version ",
             env!("CARGO_PKG_VERSION"),
-            "consider reporting the bug on github ",
+            " consider reporting the bug on github ",
             env!("CARGO_PKG_REPOSITORY"),
             "/issues/new"
         ))
