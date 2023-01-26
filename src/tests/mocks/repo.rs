@@ -13,6 +13,7 @@ pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
     SharedPackageConfig {
         config: PackageConfig {
             shared_dir: "shared".into(),
+            workspace: Default::default(),
             dependencies_dir: "extern".into(),
             info: PackageMetadata {
                 name: name.to_string(),
@@ -45,6 +46,7 @@ pub fn build_artifact_and_depend(
     };
     SharedPackageConfig {
         config: PackageConfig {
+            workspace: Default::default(),
             shared_dir: "shared".into(),
 
             dependencies_dir: "extern".into(),
@@ -71,6 +73,7 @@ pub fn build_artifact_and_depends(
 ) -> SharedPackageConfig {
     SharedPackageConfig {
         config: PackageConfig {
+            workspace: Default::default(),
             shared_dir: "shared".into(),
 
             dependencies_dir: "extern".into(),
