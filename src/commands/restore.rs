@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, env};
 
 use clap::Args;
 
@@ -8,7 +8,7 @@ use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfi
 use crate::{
     models::{
         config::get_combine_config,
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+        package::{PackageConfigExtensions, SharedPackageConfigExtensions, SharedPackageFileName},
     },
     repository::multi::MultiDependencyRepository,
     resolver::dependency,
@@ -19,7 +19,7 @@ use super::Command;
 #[derive(Args)]
 pub struct RestoreCommand {
     #[clap(default_value = "false", long, short)]
-    locked: bool,
+    update: bool,
 }
 
 impl Command for RestoreCommand {
@@ -28,12 +28,23 @@ impl Command for RestoreCommand {
         let shared_package: SharedPackageConfig;
         let mut repo = MultiDependencyRepository::useful_default_new()?;
 
-        let resolved_deps = match self.locked {
-            true => {
+        let unlocked = self.update || !SharedPackageConfig::check(".");
+
+        if unlocked && env::var("CI").contains(&"true".to_string()) {
+            eprintln!("Running in CI and using unlocked resolve, this seems like a bug!");
+            eprintln!("Make sure {SharedPackageFileName} is not gitignore'd and is comitted in the repository");
+        }
+
+        let resolved_deps = match unlocked {
+            false => {
+                println!("Using lock file for restoring");
+
                 shared_package = SharedPackageConfig::read(".")?;
                 dependency::locked_resolve(&shared_package, &repo)?.collect_vec()
             }
-            false => {
+            true => {
+                println!("Resolving packages");
+
                 let (s, d) = SharedPackageConfig::resolve_from_package(package, &repo)?;
                 shared_package = s;
                 d
@@ -50,7 +61,7 @@ impl Command for RestoreCommand {
 
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
 
-        if !self.locked {
+        if unlocked {
             shared_package.write(".")?;
         }
 
