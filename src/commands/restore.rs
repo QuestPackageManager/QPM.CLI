@@ -1,4 +1,4 @@
-use std::{fs, env};
+use std::{env, fs};
 
 use clap::Args;
 
@@ -39,7 +39,10 @@ impl Command for RestoreCommand {
             false => {
                 println!("Using lock file for restoring");
 
-                shared_package = SharedPackageConfig::read(".")?;
+                let mut temp_shared_package = SharedPackageConfig::read(".")?;
+                temp_shared_package.config = package;
+                shared_package = temp_shared_package;
+
                 dependency::locked_resolve(&shared_package, &repo)?.collect_vec()
             }
             true => {
@@ -61,9 +64,7 @@ impl Command for RestoreCommand {
 
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
 
-        if unlocked {
-            shared_package.write(".")?;
-        }
+        shared_package.write(".")?;
 
         Ok(())
     }
