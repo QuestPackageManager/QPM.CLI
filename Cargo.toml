@@ -26,6 +26,8 @@ color-eyre = { version = "0.6", default-features = false }
 # progress bar
 pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
+git2 = "0.16"
+
 bytes = "*"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 clap = { version = "4", features = ["derive"] }

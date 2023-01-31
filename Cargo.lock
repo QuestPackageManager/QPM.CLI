@@ -705,6 +705,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "git2"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccf7f68c2995f392c49fffb4f95ae2c873297830eb25c6bc4c114ce8f4562acc"
+dependencies = [
+ "bitflags",
+ "libc",
+ "libgit2-sys",
+ "log",
+ "openssl-probe",
+ "openssl-sys",
+ "url",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1495,6 +1510,7 @@ dependencies = [
  "cursed-semver-parser",
  "dirs",
  "fs_extra",
+ "git2 0.16.1",
  "itertools",
  "keyring",
  "owo-colors",
@@ -2006,7 +2022,7 @@ dependencies = [
  "color-eyre",
  "dirs",
  "fs_extra",
- "git2",
+ "git2 0.15.0",
  "regex",
  "serde",
  "serde_json",

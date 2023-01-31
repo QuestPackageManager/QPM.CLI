@@ -1,7 +1,8 @@
-use std::{env, fs};
+use std::{env, fs, path::Path};
 
 use clap::Args;
 
+use git2::Status;
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
@@ -22,6 +23,14 @@ pub struct RestoreCommand {
     update: bool,
 }
 
+fn is_ignored() -> bool {
+    git2::Repository::open(".").is_ok_and(|r| {
+        r.is_path_ignored(SharedPackageFileName).contains(&true)
+            || r.status_file(Path::new(SharedPackageFileName))
+                .is_ok_and(|s| s.is_empty())
+    })
+}
+
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
@@ -29,6 +38,11 @@ impl Command for RestoreCommand {
         let mut repo = MultiDependencyRepository::useful_default_new()?;
 
         let unlocked = self.update || !SharedPackageConfig::check(".");
+
+        if !unlocked && is_ignored() {
+            eprintln!("It seems that the current repository has {SharedPackageFileName} ignored. ");
+            eprintln!("Please commit it to avoid inconsistent dependency resolving. git add {SharedPackageFileName} --force");
+        }
 
         if unlocked && env::var("CI").contains(&"true".to_string()) {
             eprintln!("Running in CI and using unlocked resolve, this seems like a bug!");
