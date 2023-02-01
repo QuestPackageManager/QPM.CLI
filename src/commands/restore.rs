@@ -1,10 +1,10 @@
-use std::{env, fs, path::Path};
+use std::{collections::HashMap, env, fs, path::Path};
 
 use clap::Args;
 
-use git2::Status;
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use semver::VersionReq;
 
 use crate::{
     models::{
@@ -51,22 +51,54 @@ impl Command for RestoreCommand {
 
         let resolved_deps = match unlocked {
             false => {
-                println!("Using lock file for restoring");
-
+                // Check if dependencies and dependency ranges are the same 
                 let mut temp_shared_package = SharedPackageConfig::read(".")?;
                 temp_shared_package.config = package;
-                shared_package = temp_shared_package;
+                let restored_deps_set: HashMap<&String, &VersionReq> = temp_shared_package
+                    .restored_dependencies
+                    .iter()
+                    .map(|d| (&d.dependency.id, &d.dependency.version_range))
+                    .collect();
+                let package_deps_set: HashMap<&String, &VersionReq> = temp_shared_package
+                    .config
+                    .dependencies
+                    .iter()
+                    .map(|d| (&d.id, &d.version_range))
+                    .collect();
 
-                dependency::locked_resolve(&shared_package, &repo)?.collect_vec()
+                match package_deps_set == restored_deps_set {
+                    true => {
+                        // if the same, restore as usual
+                        println!("Using lock file for restoring");
+
+                        shared_package = temp_shared_package;
+
+                        dependency::locked_resolve(&shared_package, &repo)?.collect_vec()
+                    }
+                    false => {
+                        println!("Resolving packages");
+
+                        let (spc_result, restored_deps) =
+                            SharedPackageConfig::resolve_from_package(
+                                temp_shared_package.config,
+                                &repo,
+                            )?;
+                        shared_package = spc_result;
+                        restored_deps
+                    }
+                }
             }
             true => {
                 println!("Resolving packages");
 
-                let (s, d) = SharedPackageConfig::resolve_from_package(package, &repo)?;
-                shared_package = s;
-                d
+                let (spc_result, restored_deps) =
+                    SharedPackageConfig::resolve_from_package(package, &repo)?;
+                shared_package = spc_result;
+                restored_deps
             }
         };
+
+        if unlocked {}
 
         // create used dirs
         fs::create_dir_all("src")?;
