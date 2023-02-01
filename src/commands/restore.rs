@@ -58,7 +58,7 @@ impl Command for RestoreCommand {
                 let restored_deps_set: HashSet<&PackageDependency> =
                     temp_shared_package.config.dependencies.iter().collect();
                 let package_deps_set: HashSet<&PackageDependency> =
-                    temp_shared_package.config.dependencies.iter().collect();
+                    package.dependencies.iter().collect();
 
                 match package_deps_set == restored_deps_set {
                     true => {
