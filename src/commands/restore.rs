@@ -76,7 +76,7 @@ impl Command for RestoreCommand {
 
                         let (spc_result, restored_deps) =
                             SharedPackageConfig::resolve_from_package(
-                                temp_shared_package.config,
+                                package,
                                 &repo,
                             )?;
                         shared_package = spc_result;
