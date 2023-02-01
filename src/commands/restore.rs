@@ -1,10 +1,12 @@
-use std::{collections::HashMap, env, fs, path::Path};
+use std::{collections::HashSet, env, fs, path::Path};
 
 use clap::Args;
 
 use itertools::Itertools;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
-use semver::VersionReq;
+use qpm_package::models::{
+    dependency::SharedPackageConfig,
+    package::{PackageConfig, PackageDependency},
+};
 
 use crate::{
     models::{
@@ -51,25 +53,19 @@ impl Command for RestoreCommand {
 
         let resolved_deps = match unlocked {
             false => {
-                // Check if dependencies and dependency ranges are the same 
+                // Check if dependencies and dependency ranges are the same
                 let mut temp_shared_package = SharedPackageConfig::read(".")?;
-                temp_shared_package.config = package;
-                let restored_deps_set: HashMap<&String, &VersionReq> = temp_shared_package
-                    .restored_dependencies
-                    .iter()
-                    .map(|d| (&d.dependency.id, &d.dependency.version_range))
-                    .collect();
-                let package_deps_set: HashMap<&String, &VersionReq> = temp_shared_package
-                    .config
-                    .dependencies
-                    .iter()
-                    .map(|d| (&d.id, &d.version_range))
-                    .collect();
+                let restored_deps_set: HashSet<&PackageDependency> =
+                    temp_shared_package.config.dependencies.iter().collect();
+                let package_deps_set: HashSet<&PackageDependency> =
+                    temp_shared_package.config.dependencies.iter().collect();
 
                 match package_deps_set == restored_deps_set {
                     true => {
                         // if the same, restore as usual
                         println!("Using lock file for restoring");
+
+                        temp_shared_package.config = package;
 
                         shared_package = temp_shared_package;
 
