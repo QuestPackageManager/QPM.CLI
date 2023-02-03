@@ -10,6 +10,9 @@ use semver::VersionReq;
 
 use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
 
+pub const PackageFileName: &str = "qpm.json";
+pub const SharedPackageFileName: &str = "qpm.shared.json";
+
 pub trait PackageConfigExtensions {
     fn check<P: AsRef<Path>>(dir: P) -> bool;
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self>
@@ -26,36 +29,36 @@ pub trait SharedPackageConfigExtensions: Sized {
 
 impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().join("qpm.json"))?;
+        let file = File::open(dir.as_ref().join(PackageFileName))?;
         json::json_from_reader_fast(BufReader::new(file))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join("qpm.json"))?;
+        let file = File::create(dir.as_ref().join(PackageFileName))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
     }
 
     fn check<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().with_file_name("qpm.json").exists()
+        dir.as_ref().with_file_name(PackageFileName).exists()
     }
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let file =
-            File::open(dir.as_ref().join("qpm.shared.json")).context("Missing qpm.shared.json")?;
+            File::open(dir.as_ref().join(SharedPackageFileName)).context("Missing qpm.shared.json")?;
         json::json_from_reader_fast(BufReader::new(file))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join("qpm.shared.json"))?;
+        let file = File::create(dir.as_ref().join(SharedPackageFileName))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
     }
     fn check<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().with_file_name("qpm.shared.json").exists()
+        dir.as_ref().join(SharedPackageFileName).exists()
     }
 }
 
