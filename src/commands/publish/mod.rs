@@ -1,14 +1,18 @@
+use std::{path::Path, process::exit};
+
 use clap::Args;
 use color_eyre::eyre::{bail, Context};
+use git2::{ErrorCode, Status};
 use owo_colors::OwoColorize;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
     models::{
         config::get_publish_keyring,
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+        package::{PackageConfigExtensions, SharedPackageConfigExtensions, SharedPackageFileName},
     },
     repository::{multi::MultiDependencyRepository, qpackages::QPMRepository, Repository},
+    utils::git,
 };
 
 use super::Command;
@@ -85,6 +89,22 @@ impl Command for PublishCommand {
         }
 
         // TODO: Implement a check that gets the repo and checks if the shared folder and subfolder exists, if not it throws an error and won't let you publish
+
+        if shared_package
+            .config
+            .info
+            .url
+            .as_ref()
+            .is_some_and(|s| git::is_git_url(s))
+        {
+            let repo = git2::Repository::open(".")?;
+            let status = repo.status_file(Path::new(SharedPackageFileName));
+            if status.as_ref().is_ok_and(|s| s.is_ignored())
+                || status.is_err_and(|e| e.code() == ErrorCode::NotFound)
+            {
+                bail!("No {SharedPackageFileName} in git repo, exiting.");
+            }
+        }
 
         if let Some(key) = &self.publish_auth {
             QPMRepository::publish_package(&shared_package, key)?;

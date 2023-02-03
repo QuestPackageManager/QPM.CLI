@@ -151,7 +151,7 @@ impl QPMRepository {
             // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
             fs::create_dir_all(src_path.parent().unwrap()).context("Failed to create lib path")?;
             let url = config.info.url.as_ref().unwrap();
-            if url.contains("github.com") {
+            if git::is_git_url(url) {
                 // github url!
                 git::clone(
                     url.clone(),

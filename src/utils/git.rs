@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models::config::get_keyring, network::agent::get_agent};
 
+pub const GIT_URL_PREFIX: &str = "git:";
+
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
     git.arg("--version");
@@ -114,6 +116,10 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
     Ok(out.exists())
 }
 
+pub fn is_git_url(url: &str) -> bool {
+    return url.starts_with(GIT_URL_PREFIX) || url.contains("github.com")
+}
+
 pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
     check_git()?;
     if let Ok(token_unwrapped) = get_keyring().get_password() {
@@ -122,6 +128,9 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         }
     }
 
+    if url.starts_with("git:") {
+        url = url[GIT_URL_PREFIX.len()..].to_string();
+    }
     if url.ends_with('/') {
         url = url[..url.len() - 1].to_string();
     }
