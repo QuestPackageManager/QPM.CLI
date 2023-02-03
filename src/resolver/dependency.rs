@@ -163,12 +163,13 @@ pub fn restore<P: AsRef<Path>>(
     println!("Copying now");
     FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
 
-    if shared_package
+    // default to true
+    if !shared_package
         .config
         .info
         .additional_data
         .cmake
-        .contains(&true)
+        .contains(&false)
     {
         write_extern_cmake(shared_package, repository)?;
         write_define_cmake(shared_package)?;
