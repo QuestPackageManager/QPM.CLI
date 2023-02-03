@@ -24,7 +24,6 @@ pub enum NdkOperation {
     Download(DownloadArgs),
     List,
     Available(AvailableArgs),
-    Env(EnvArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -35,23 +34,6 @@ pub struct DownloadArgs {
 #[derive(Args, Debug, Clone)]
 pub struct AvailableArgs {
     page: usize,
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct EnvArgs {
-    #[clap(subcommand)]
-    op: EnvOperation,
-}
-
-#[derive(Subcommand, Debug, Clone)]
-pub enum EnvOperation {
-    Set(EnvSetArgs),
-    Get,
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct EnvSetArgs {
-    ndk: String,
 }
 
 impl Command for Ndk {
@@ -102,21 +84,7 @@ impl Command for Ndk {
                             p.path().to_str().unwrap()
                         )
                     })
-            }
-            NdkOperation::Env(e) => {
-                match e.op {
-                    EnvOperation::Set(e) => {
-                        env::set_var("NDK_ANDROID_HOME", &e.ndk);
-                        println!("Android ndk home set to {}", e.ndk.green())
-
-                    },
-                    EnvOperation::Get => {
-                        let ndk_home = env::var("NDK_ANDROID_HOME")?;
-                        println!("Android ndk home is set to {}", ndk_home.green())
-                    },
-                }
-
-            },
+            } 
         }
 
         Ok(())
