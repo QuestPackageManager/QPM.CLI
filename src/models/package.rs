@@ -58,7 +58,7 @@ impl PackageConfigExtensions for SharedPackageConfig {
         Ok(())
     }
     fn check<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().with_file_name(SharedPackageFileName).exists()
+        dir.as_ref().join(SharedPackageFileName).exists()
     }
 }
 
