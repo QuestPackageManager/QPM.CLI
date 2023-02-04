@@ -15,6 +15,10 @@ path = "src/main.rs"
 default = ["templatr"]
 templatr = ["dep:templatr"]
 
+[build-dependencies]
+vergen = "7"
+color-eyre = { version = "0.6", default-features = false }
+
 [dependencies]
 #qpm
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
