@@ -1,4 +1,4 @@
-use std::{collections::HashSet, env, fs, path::Path};
+use std::{collections::HashSet, env, path::Path};
 
 use clap::Args;
 
@@ -11,7 +11,9 @@ use qpm_package::models::{
 use crate::{
     models::{
         config::get_combine_config,
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions, SharedPackageFileName},
+        package::{
+            PackageConfigExtensions, SharedPackageConfigExtensions, SHARED_PACKAGE_FILE_NAME,
+        },
     },
     repository::multi::MultiDependencyRepository,
     resolver::dependency,
@@ -27,8 +29,8 @@ pub struct RestoreCommand {
 
 fn is_ignored() -> bool {
     git2::Repository::open(".").is_ok_and(|r| {
-        r.is_path_ignored(SharedPackageFileName).contains(&true)
-            || r.status_file(Path::new(SharedPackageFileName))
+        r.is_path_ignored(SHARED_PACKAGE_FILE_NAME).contains(&true)
+            || r.status_file(Path::new(SHARED_PACKAGE_FILE_NAME))
                 .is_ok_and(|s| s.is_empty())
     })
 }
@@ -42,13 +44,13 @@ impl Command for RestoreCommand {
         let unlocked = self.update || !SharedPackageConfig::check(".");
 
         if !unlocked && is_ignored() {
-            eprintln!("It seems that the current repository has {SharedPackageFileName} ignored. ");
-            eprintln!("Please commit it to avoid inconsistent dependency resolving. git add {SharedPackageFileName} --force");
+            eprintln!("It seems that the current repository has {SHARED_PACKAGE_FILE_NAME} ignored. ");
+            eprintln!("Please commit it to avoid inconsistent dependency resolving. git add {SHARED_PACKAGE_FILE_NAME} --force");
         }
 
         if unlocked && env::var("CI").contains(&"true".to_string()) {
             eprintln!("Running in CI and using unlocked resolve, this seems like a bug!");
-            eprintln!("Make sure {SharedPackageFileName} is not gitignore'd and is comitted in the repository");
+            eprintln!("Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository");
         }
 
         let resolved_deps = match unlocked {
@@ -75,10 +77,7 @@ impl Command for RestoreCommand {
                         println!("Resolving packages");
 
                         let (spc_result, restored_deps) =
-                            SharedPackageConfig::resolve_from_package(
-                                package,
-                                &repo,
-                            )?;
+                            SharedPackageConfig::resolve_from_package(package, &repo)?;
                         shared_package = spc_result;
                         restored_deps
                     }

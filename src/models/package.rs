@@ -1,4 +1,4 @@
-use std::{fs::File, path::Path, io::BufReader};
+use std::{fs::File, io::BufReader, path::Path};
 
 use color_eyre::{eyre::Context, Result};
 use itertools::Itertools;
@@ -10,8 +10,8 @@ use semver::VersionReq;
 
 use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
 
-pub const PackageFileName: &str = "qpm.json";
-pub const SharedPackageFileName: &str = "qpm.shared.json";
+pub const PACKAGE_FILE_NAME: &str = "qpm.json";
+pub const SHARED_PACKAGE_FILE_NAME: &str = "qpm.shared.json";
 
 pub trait PackageConfigExtensions {
     fn check<P: AsRef<Path>>(dir: P) -> bool;
@@ -29,36 +29,36 @@ pub trait SharedPackageConfigExtensions: Sized {
 
 impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().join(PackageFileName))?;
+        let file = File::open(dir.as_ref().join(PACKAGE_FILE_NAME))?;
         json::json_from_reader_fast(BufReader::new(file))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join(PackageFileName))?;
+        let file = File::create(dir.as_ref().join(PACKAGE_FILE_NAME))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
     }
 
     fn check<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().with_file_name(PackageFileName).exists()
+        dir.as_ref().with_file_name(PACKAGE_FILE_NAME).exists()
     }
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file =
-            File::open(dir.as_ref().join(SharedPackageFileName)).context("Missing qpm.shared.json")?;
+        let file = File::open(dir.as_ref().join(SHARED_PACKAGE_FILE_NAME))
+            .context("Missing qpm.shared.json")?;
         json::json_from_reader_fast(BufReader::new(file))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join(SharedPackageFileName))?;
+        let file = File::create(dir.as_ref().join(SHARED_PACKAGE_FILE_NAME))?;
 
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
     }
     fn check<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().join(SharedPackageFileName).exists()
+        dir.as_ref().join(SHARED_PACKAGE_FILE_NAME).exists()
     }
 }
 
