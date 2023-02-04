@@ -5,13 +5,11 @@ use std::{
 };
 
 use clap::{Args, Subcommand};
-use color_eyre::eyre::bail;
+use color_eyre::{eyre::bail, Help};
+use owo_colors::OwoColorize;
 
 use crate::{
-    network::{
-        agent::{download_file_report},
-        github,
-    },
+    network::{agent::download_file_report, github},
     terminal::colors::QPMColor,
 };
 
@@ -116,8 +114,15 @@ impl Command for VersionCommand {
                 let mut buf_tmp_write = BufWriter::new(tmp_file);
                 buf_tmp_write.write_all(&bytes)?;
 
+                let suggestion = format!(
+                    "Try renaming manually.\nmv \"{}\" \"{}\" {}",
+                    tmp_path.to_str().unwrap().red(),
+                    path.to_str().unwrap().blue(),
+                    if cfg!(windows) { "-Force" } else { "" }
+                );
+
                 println!("Renaming tmp file");
-                fs::rename(tmp_path, path)?;
+                fs::rename(&tmp_path, &path).suggestion(suggestion)?;
                 println!("Finished updating")
             }
         }
