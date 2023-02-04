@@ -16,6 +16,7 @@ pub mod publish;
 pub mod qmod;
 pub mod restore;
 pub mod scripts;
+pub mod version;
 
 #[cfg(feature = "templatr")]
 pub mod templatr;
@@ -58,6 +59,8 @@ pub enum MainCommand {
 
     #[cfg(feature = "templatr")]
     Templatr(templatr::TemplatrCommand),
+
+    Version(version::VersionCommand),
 }
 
 impl Command for MainCommand {
@@ -80,6 +83,7 @@ impl Command for MainCommand {
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
             MainCommand::Scripts(s) => s.execute(),
+            MainCommand::Version(v) => v.execute(),
         }
     }
 }
