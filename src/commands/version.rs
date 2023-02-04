@@ -122,6 +122,7 @@ impl Command for VersionCommand {
                 );
 
                 println!("Renaming tmp file");
+                fs::rename(&path, path.with_extension("old")).suggestion(suggestion.clone())?;
                 fs::rename(&tmp_path, &path).suggestion(suggestion)?;
                 println!("Finished updating")
             }
