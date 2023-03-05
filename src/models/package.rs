@@ -14,7 +14,7 @@ pub const PACKAGE_FILE_NAME: &str = "qpm.json";
 pub const SHARED_PACKAGE_FILE_NAME: &str = "qpm.shared.json";
 
 pub trait PackageConfigExtensions {
-    fn check<P: AsRef<Path>>(dir: P) -> bool;
+    fn exists<P: AsRef<Path>>(dir: P) -> bool;
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self>
     where
         Self: std::marker::Sized;
@@ -40,7 +40,7 @@ impl PackageConfigExtensions for PackageConfig {
         Ok(())
     }
 
-    fn check<P: AsRef<Path>>(dir: P) -> bool {
+    fn exists<P: AsRef<Path>>(dir: P) -> bool {
         dir.as_ref().with_file_name(PACKAGE_FILE_NAME).exists()
     }
 }
@@ -57,7 +57,7 @@ impl PackageConfigExtensions for SharedPackageConfig {
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
     }
-    fn check<P: AsRef<Path>>(dir: P) -> bool {
+    fn exists<P: AsRef<Path>>(dir: P) -> bool {
         dir.as_ref().join(SHARED_PACKAGE_FILE_NAME).exists()
     }
 }

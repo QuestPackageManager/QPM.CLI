@@ -42,7 +42,7 @@ pub struct PackageOperationCreateArgs {
 
 impl Command for PackageOperationCreateArgs {
     fn execute(self) -> color_eyre::Result<()> {
-        if PackageConfig::check(".") {
+        if PackageConfig::exists(".") {
             println!(
                 "{}",
                 "Package already existed, not creating a new package!".bright_red()

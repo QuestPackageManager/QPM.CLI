@@ -41,10 +41,12 @@ impl Command for RestoreCommand {
         let shared_package: SharedPackageConfig;
         let mut repo = MultiDependencyRepository::useful_default_new()?;
 
-        let unlocked = self.update || !SharedPackageConfig::check(".");
+        let unlocked = self.update || !SharedPackageConfig::exists(".");
 
         if !unlocked && is_ignored() {
-            eprintln!("It seems that the current repository has {SHARED_PACKAGE_FILE_NAME} ignored. ");
+            eprintln!(
+                "It seems that the current repository has {SHARED_PACKAGE_FILE_NAME} ignored. "
+            );
             eprintln!("Please commit it to avoid inconsistent dependency resolving. git add {SHARED_PACKAGE_FILE_NAME} --force");
         }
 
