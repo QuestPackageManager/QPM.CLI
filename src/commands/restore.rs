@@ -31,7 +31,7 @@ fn is_ignored() -> bool {
     git2::Repository::open(".").is_ok_and(|r| {
         r.is_path_ignored(SHARED_PACKAGE_FILE_NAME).contains(&true)
             || r.status_file(Path::new(SHARED_PACKAGE_FILE_NAME))
-                .is_ok_and(|s| s.is_empty())
+                .is_ok_and(|s| s.is_ignored())
     })
 }
 
