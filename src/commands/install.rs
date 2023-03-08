@@ -24,6 +24,9 @@ pub struct InstallCommand {
 
     #[clap(default_value = "false", long, short)]
     pub locked: bool, // pub additional_folders: Vec<String> // todo
+
+    #[clap(long)]
+    offline: bool,
 }
 
 impl Command for InstallCommand {
@@ -31,7 +34,7 @@ impl Command for InstallCommand {
         println!("Publishing package to local file repository");
 
         let package = PackageConfig::read(".")?;
-        let repo = MultiDependencyRepository::useful_default_new()?;
+        let repo = MultiDependencyRepository::useful_default_new(self.offline)?;
         let shared_package = match self.locked {
             true => SharedPackageConfig::read(".")?,
             false => SharedPackageConfig::resolve_from_package(package, &repo)?.0,

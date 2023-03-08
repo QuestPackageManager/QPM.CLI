@@ -27,7 +27,7 @@ impl Command for PublishCommand {
             bail!("Package without url can not be published!");
         }
 
-        let repo = MultiDependencyRepository::useful_default_new()?;
+        let repo = MultiDependencyRepository::useful_default_new(false)?;
         let qpackages = QPMRepository::default();
 
         let (shared_package, resolved_deps) =

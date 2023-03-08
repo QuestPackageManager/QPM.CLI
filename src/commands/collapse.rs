@@ -10,12 +10,15 @@ use crate::{
 use super::Command;
 
 #[derive(Args)]
-pub struct CollapseCommand {}
+pub struct CollapseCommand {
+    #[clap(long)]
+    offline: bool
+}
 
 impl Command for CollapseCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let binding = MultiDependencyRepository::useful_default_new()?;
+        let binding = MultiDependencyRepository::useful_default_new(self.offline)?;
         let resolved = resolve(&package, &binding)?;
         for shared_package in resolved {
             println!(

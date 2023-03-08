@@ -50,6 +50,26 @@ fn resolve() -> Result<()> {
     Ok(())
 }
 
+
+#[test]
+fn resolve_locked() -> Result<()> {
+    let repo = get_mock_repository();
+    let p = repo.get_package("artifact4", &Version::new(0, 1, 0))?;
+
+    assert!(p.is_some());
+    let unwrapped_p = p.unwrap();
+
+    let resolved = dependency::locked_resolve(&unwrapped_p, &repo)?.collect_vec();
+
+    println!(
+        "Resolved deps: {:?}",
+        resolved.iter().map(|s| s.config.info.id.clone())
+    );
+    assert_eq!(resolved.len(), 3);
+
+    Ok(())
+}
+
 #[test]
 fn resolve_fail() -> Result<()> {
     let repo = get_mock_repository();

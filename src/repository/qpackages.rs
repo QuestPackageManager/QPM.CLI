@@ -343,6 +343,10 @@ impl Repository for QPMRepository {
     fn write_repo(&self) -> Result<()> {
         Ok(())
     }
+
+    fn is_online(&self) -> bool {
+        true
+    }
 }
 trait UnsafeCellExt<T>: Sized {
     fn get_safe(&self) -> &T;

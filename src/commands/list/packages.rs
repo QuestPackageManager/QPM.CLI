@@ -9,11 +9,14 @@ use crate::{
 };
 
 #[derive(Args, Debug, Clone)]
-pub struct PackageListCommand {}
+pub struct PackageListCommand {
+    #[clap(long)]
+    offline: bool,
+}
 
 impl Command for PackageListCommand {
     fn execute(self) -> Result<()> {
-        let ids = MultiDependencyRepository::useful_default_new()?
+        let ids = MultiDependencyRepository::useful_default_new(self.offline)?
             .get_package_names()?
             .into_iter()
             .sorted()

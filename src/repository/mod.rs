@@ -17,6 +17,9 @@ pub trait Repository {
     // this just stores the shared config itself, not the package
     fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()>;
 
+    /// Returns true if the repository uses a network connection to retrieve data
+    fn is_online(&self) -> bool;
+
     // downloads if not in cache
     // What if we wanted to have a qpackages mirror or a new backend? ;)
     // Does not download dependencies

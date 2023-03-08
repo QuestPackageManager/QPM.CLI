@@ -53,6 +53,9 @@ pub struct EditExtraArgs {
     /// Additional options for compilation and edits to compilation related files.
     #[clap(subcommand)]
     pub compile_options: Option<EditExtraOptions>,
+
+       #[clap(long)]
+    offline: bool
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -133,7 +136,7 @@ impl Command for EditExtraArgs {
             write_define_cmake(&shared_package)?;
             write_extern_cmake(
                 &shared_package,
-                &MultiDependencyRepository::useful_default_new()?,
+                &MultiDependencyRepository::useful_default_new(self.offline)?,
             )?;
         }
         Ok(())

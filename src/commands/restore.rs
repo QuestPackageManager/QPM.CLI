@@ -25,6 +25,9 @@ use super::Command;
 pub struct RestoreCommand {
     #[clap(default_value = "false", long, short)]
     update: bool,
+
+    #[clap(long)]
+    offline: bool
 }
 
 fn is_ignored() -> bool {
@@ -39,7 +42,7 @@ impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         let shared_package: SharedPackageConfig;
-        let mut repo = MultiDependencyRepository::useful_default_new()?;
+        let mut repo = MultiDependencyRepository::useful_default_new(self.offline)?;
 
         let unlocked = self.update || !SharedPackageConfig::exists(".");
 

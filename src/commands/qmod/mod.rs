@@ -72,6 +72,9 @@ pub struct BuildQmodOperationArgs {
     ///
     #[clap(long = "include_libs")]
     pub include_libs: Option<Vec<String>>,
+
+    #[clap(long)]
+    offline: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -143,7 +146,7 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
     let package = PackageConfig::read(".")?;
     let (shared_package, _) = SharedPackageConfig::resolve_from_package(
         package,
-        &MultiDependencyRepository::useful_default_new()?,
+        &MultiDependencyRepository::useful_default_new(build_parameters.offline)?,
     )?;
 
     // Parse template mod.template.json
