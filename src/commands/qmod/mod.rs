@@ -9,9 +9,8 @@ use semver::Version;
 use crate::{
     models::{
         mod_json::{ModJsonExtensions, PreProcessingData},
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+        package::{PackageConfigExtensions},
     },
-    repository::multi::MultiDependencyRepository,
 };
 
 use super::Command;
@@ -140,11 +139,8 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 
     println!("Generating mod.json file from template...");
-    let package = PackageConfig::read(".")?;
-    let (shared_package, _) = SharedPackageConfig::resolve_from_package(
-        package,
-        &MultiDependencyRepository::useful_default_new()?,
-    )?;
+    let _package = PackageConfig::read(".")?;
+    let shared_package = SharedPackageConfig::read(".")?;
 
     // Parse template mod.template.json
     let preprocess_data = PreProcessingData {

@@ -1,14 +1,15 @@
 use clap::Args;
-use color_eyre::eyre::{bail, Context};
+use color_eyre::eyre::{anyhow, bail, Context};
 use owo_colors::OwoColorize;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
     models::{
         config::get_publish_keyring,
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+        package::{PackageConfigExtensions},
     },
     repository::{multi::MultiDependencyRepository, qpackages::QPMRepository, Repository},
+    terminal::colors::QPMColor,
 };
 
 use super::Command;
@@ -27,22 +28,21 @@ impl Command for PublishCommand {
             bail!("Package without url can not be published!");
         }
 
-        let repo = MultiDependencyRepository::useful_default_new()?;
         let qpackages = QPMRepository::default();
 
-        let (shared_package, resolved_deps) =
-            SharedPackageConfig::resolve_from_package(package, &repo)?;
+        let shared_package = SharedPackageConfig::read(".")?;
+        let resolved_deps = &shared_package.restored_dependencies;
 
         // check if all dependencies are available off of qpackages
-        for dependency in resolved_deps {
+        for shared_dependency in resolved_deps {
             match qpackages
-                .get_package(&dependency.config.info.id, &dependency.config.info.version)?
+                .get_package(&shared_dependency.dependency.id, &shared_dependency.version)?
             {
                 Option::Some(_s) => {}
                 Option::None => {
                     bail!(
                         "dependency {} was not available on qpackages in the given version range",
-                        &dependency.config.info.id
+                        &shared_dependency.dependency.id
                     );
                 }
             };
@@ -51,20 +51,22 @@ impl Command for PublishCommand {
         // check if all required dependencies are in the restored dependencies, and if they satisfy the version ranges
         for dependency in &shared_package.config.dependencies {
             // if we can not find any dependency that matches ID and version satisfies given range, then we are missing a dep
-            if let Some(el) = shared_package
+            let el = shared_package
                 .restored_dependencies
                 .iter()
                 .find(|el| el.dependency.id == dependency.id)
-            {
-                // if version doesn't match range, panic
-                if !dependency.version_range.matches(&el.version) {
-                    panic!(
-                        "Restored dependency {} version ({}) does not satisfy stated range ({})",
-                        dependency.id.bright_red(),
-                        el.version.to_string().bright_green(),
-                        dependency.version_range.to_string().bright_blue()
-                    );
-                }
+                .ok_or_else(|| {
+                    anyhow!("Restored dependencies does not contain {}", dependency.id)
+                })?;
+
+            // if version doesn't match range, panic
+            if !dependency.version_range.matches(&el.version) {
+                bail!(
+                    "Restored dependency {} version ({}) does not satisfy stated range ({})",
+                    dependency.id.bright_red(),
+                    el.version.to_string().bright_green(),
+                    dependency.version_range.to_string().bright_blue()
+                );
             }
         }
 
@@ -101,7 +103,8 @@ impl Command for PublishCommand {
 
         println!(
             "Package {} v{} published!",
-            shared_package.config.info.id, shared_package.config.info.version
+            shared_package.config.info.id.dependency_id_color(),
+            shared_package.config.info.version.version_id_color()
         );
 
         Ok(())

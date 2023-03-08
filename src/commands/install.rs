@@ -23,7 +23,7 @@ pub struct InstallCommand {
     pub cmake_build: Option<bool>,
 
     #[clap(default_value = "false", long, short)]
-    pub locked: bool, // pub additional_folders: Vec<String> // todo
+    pub update: bool, // pub additional_folders: Vec<String> // todo
 }
 
 impl Command for InstallCommand {
@@ -32,12 +32,16 @@ impl Command for InstallCommand {
 
         let package = PackageConfig::read(".")?;
         let repo = MultiDependencyRepository::useful_default_new()?;
-        let shared_package = match self.locked {
+        let shared_package = match !self.update {
             true => SharedPackageConfig::read(".")?,
             false => SharedPackageConfig::resolve_from_package(package, &repo)?.0,
         };
-        if !self.locked {
+
+        if self.update {
+            println!("Not using lock file, updating dependencies and writing!");
             shared_package.write(".")?;
+        } else {
+            println!("Using lock file");
         }
 
         let mut binary_path = self.binary_path;

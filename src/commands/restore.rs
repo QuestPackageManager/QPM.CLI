@@ -95,13 +95,6 @@ impl Command for RestoreCommand {
             }
         };
 
-        if unlocked {}
-
-        // create used dirs
-        // fs::create_dir_all("src")?;
-        // fs::create_dir_all("include")?;
-        // fs::create_dir_all(&shared_package.config.shared_dir)?;
-
         // write the ndk path to a file if available
         let _config = get_combine_config();
 
