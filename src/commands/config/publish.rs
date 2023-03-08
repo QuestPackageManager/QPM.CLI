@@ -34,9 +34,9 @@ impl Command for KeyCommand {
             );
         } else {
             // read token, possibly unused so prepend with _ to prevent warnings
-            if let Ok(_key) = get_publish_keyring().get_password() {
+            if let Ok(key) = get_publish_keyring().get_password() {
                 #[cfg(debug_assertions)]
-                println!("Configured publish key: {}", _key.bright_yellow());
+                println!("Configured publish key: {}", key.bright_yellow());
                 #[cfg(not(debug_assertions))]
                 println!(
                     "In release builds you {} view the configured publish key!",

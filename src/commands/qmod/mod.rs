@@ -139,7 +139,6 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 
     println!("Generating mod.json file from template...");
-    let _package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
     // Parse template mod.template.json
