@@ -10,7 +10,7 @@ use crate::{
 
 #[derive(Args, Debug, Clone)]
 pub struct PackageListCommand {
-    #[clap(long)]
+    #[clap(long, default_value = "false")]
     offline: bool,
 }
 

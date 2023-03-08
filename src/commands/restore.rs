@@ -26,8 +26,8 @@ pub struct RestoreCommand {
     #[clap(default_value = "false", long, short)]
     update: bool,
 
-    #[clap(long)]
-    offline: bool
+    #[clap(long, default_value = "false")]
+    offline: bool,
 }
 
 fn is_ignored() -> bool {

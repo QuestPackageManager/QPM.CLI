@@ -25,7 +25,7 @@ pub struct InstallCommand {
     #[clap(default_value = "false", long, short)]
     pub locked: bool, // pub additional_folders: Vec<String> // todo
 
-    #[clap(long)]
+    #[clap(long, default_value = "false")]
     offline: bool,
 }
 

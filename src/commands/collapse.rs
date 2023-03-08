@@ -11,8 +11,8 @@ use super::Command;
 
 #[derive(Args)]
 pub struct CollapseCommand {
-    #[clap(long)]
-    offline: bool
+    #[clap(long, default_value = "false")]
+    offline: bool,
 }
 
 impl Command for CollapseCommand {

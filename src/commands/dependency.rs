@@ -33,7 +33,7 @@ pub enum DependencyOperation {
 
 #[derive(Args, Debug, Clone)]
 pub struct DependencyOperationAddArgs {
-   #[clap(long)]
+    #[clap(long, default_value = "false")]
     offline: bool,
 
     /// Id of the dependency as listed on qpackages

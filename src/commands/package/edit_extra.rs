@@ -54,8 +54,8 @@ pub struct EditExtraArgs {
     #[clap(subcommand)]
     pub compile_options: Option<EditExtraOptions>,
 
-       #[clap(long)]
-    offline: bool
+    #[clap(long, default_value = "false")]
+    offline: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]

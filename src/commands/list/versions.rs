@@ -12,14 +12,14 @@ pub struct PackageCommand {
     #[clap(short, long)]
     pub latest: bool,
 
-       #[clap(long)]
-    offline: bool
+    #[clap(long, default_value = "false")]
+    offline: bool,
 }
 
 impl Command for PackageCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        let versions =
-            MultiDependencyRepository::useful_default_new(self.offline)?.get_package_versions(&self.package)?;
+        let versions = MultiDependencyRepository::useful_default_new(self.offline)?
+            .get_package_versions(&self.package)?;
         if self.latest {
             println!(
                 "The latest version for package {} is {}",

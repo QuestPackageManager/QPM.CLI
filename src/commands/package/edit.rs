@@ -25,8 +25,8 @@ pub struct EditArgs {
     #[clap(long)]
     pub version: Option<Version>,
 
-       #[clap(long)]
-    offline: bool
+    #[clap(long, default_value = "false")]
+    offline: bool,
 }
 
 impl Command for EditArgs {

@@ -73,7 +73,7 @@ pub struct BuildQmodOperationArgs {
     #[clap(long = "include_libs")]
     pub include_libs: Option<Vec<String>>,
 
-    #[clap(long)]
+    #[clap(long, default_value = "false")]
     offline: bool,
 }
 
