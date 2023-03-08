@@ -112,12 +112,12 @@ fn legacy_fix() -> Result<()> {
                 let mut buf: String = "".to_string();
                 match file.read_to_string(&mut buf) {
                     Ok(_) => {}
-                    Err(_e) => {
+                    Err(e) => {
                         #[cfg(debug_assertions)]
                         println!(
                             "reading file {} to string failed: {}",
                             entry_path.display().bright_yellow(),
-                            _e
+                            e
                         );
                         continue;
                     }
