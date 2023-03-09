@@ -114,15 +114,95 @@ pub mod agent {
 
 #[cfg(feature = "reqwest")]
 pub mod agent {
+    use std::collections::HashMap;
+
+    use reqwest::{StatusCode};
+    use serde::de::DeserializeOwned;
+    use thiserror::Error;
+
     pub use super::reqwest_agent::*;
 
-    pub type Error = reqwest::Error;
+    #[derive(Error, Debug)]
+    pub enum Error {
+        #[error("Agent error")]
+        AgentError(Box<AgentError>),
+        #[error("IO Error")]
+        IoError(std::io::Error),
+        #[error("Unauthorized")]
+        Unauthorized,
+    }
+
     pub type AgentError = reqwest::Error;
 
-    fn get<T>(url: &str) -> Result<T, Error>
+    fn map_err(e: AgentError) -> Error {
+        Error::AgentError(Box::new(e))
+    }
+
+    pub fn get<T>(url: &str) -> Result<T, Error>
     where
         T: DeserializeOwned,
     {
-        get_agent().get(url).send()?.json()
+        get_agent()
+            .get(url)
+            .send()
+            .map_err(map_err)?
+            .error_for_status()
+            .map_err(map_err)?
+            .json::<T>()
+            .map_err(map_err)
+    }
+
+    pub fn get_bytes(url: &str) -> Result<Vec<u8>, Error> {
+        get_agent()
+            .get(url)
+            .send()
+            .map_err(map_err)?
+            .bytes()
+            .map(|b| b.into())
+            .map_err(map_err)
+    }
+    pub fn get_str(url: &str) -> Result<String, Error> {
+        get_agent()
+            .get(url)
+            .send()
+            .map_err(map_err)?
+            .text()
+            .map_err(map_err)
+    }
+    pub fn post<T>(
+        url: &str,
+        data: impl serde::Serialize,
+        headers: &HashMap<&str, &str>,
+    ) -> Result<T, Error>
+    where
+        T: DeserializeOwned,
+    {
+        let mut req = get_agent().post(url);
+
+        for (key, val) in headers {
+            req = req.header(*key, *val);
+        }
+
+        let res = req.json(&data).send().map_err(map_err)?;
+        if res.status() == StatusCode::UNAUTHORIZED {
+            return Err(Error::Unauthorized);
+        }
+
+        res.json::<T>().map_err(map_err)
+    }
+
+    pub fn get_opt<T>(url: &str) -> Result<Option<T>, Error>
+    where
+        T: DeserializeOwned,
+    {
+        let req = get_agent().get(url).send().map_err(map_err)?;
+
+        if req.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+
+        let res = req.json::<T>().map_err(map_err)?;
+
+        Ok(Some(res))
     }
 }
