@@ -25,6 +25,14 @@ mod benchmark;
 #[cfg(test)]
 mod tests;
 
+
+#[cfg(all(feature = "reqwest", feature = "ureq"))]
+compile_error!("feature \"reqwest\" and feature \"ureq\" cannot be enabled at the same time");
+
+#[cfg(not(any(feature = "reqwest", feature = "ureq")))]
+compile_error!("feature \"reqwest\" or feature \"ureq\" must be enabled, though not both simultaneously");
+
+
 fn main() -> Result<()> {
     color_eyre::config::HookBuilder::default()
         .panic_section(concat!(

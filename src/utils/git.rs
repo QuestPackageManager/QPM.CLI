@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::BufReader,
+    io::{BufReader, BufWriter, Write},
     path::Path,
     process::{Command, Stdio},
 };
@@ -13,7 +13,10 @@ use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
 
-use crate::{models::config::get_keyring, network::agent::get_agent};
+use crate::{
+    models::config::get_keyring,
+    network::agent::{self},
+};
 
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
@@ -55,11 +58,10 @@ pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
 }
 
 pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<bool> {
-    let mut file = File::create(out).context("create so file failed")?;
-    get_agent()
-        .get(url)
-        .send()?
-        .copy_to(&mut file)
+    let file = File::create(out).context("create so file failed")?;
+    let mut writer = BufWriter::new(file);
+    writer
+        .write_all(&agent::get_bytes(url)?)
         .context("Failed to write to file")?;
 
     Ok(out.exists())
@@ -85,8 +87,8 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
         &token, &user, &repo, &tag
     );
 
-    let data = match get_agent().get(&asset_data_link).send() {
-        Ok(o) => o.json::<GithubReleaseData>().unwrap(),
+    let data = match agent::get::<GithubReleaseData>(&asset_data_link) {
+        Ok(o) => o,
         Err(e) => {
             let error_string = e.to_string().replace(token, "***");
             bail!("{}", error_string);
@@ -100,12 +102,11 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
                 .url
                 .replace("api.github.com", &format!("{token}@api.github.com"));
 
-            let mut file = File::create(out).context("create so file failed")?;
+            let file = File::create(out).context("create so file failed")?;
 
-            get_agent()
-                .get(download)
-                .send()?
-                .copy_to(&mut file)
+            let mut writer = BufWriter::new(file);
+            writer
+                .write_all(&agent::get_bytes(&download)?)
                 .context("Failed to write out downloaded bytes")?;
             break;
         }

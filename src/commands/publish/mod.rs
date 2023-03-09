@@ -8,7 +8,7 @@ use crate::{
         config::get_publish_keyring,
         package::{PackageConfigExtensions},
     },
-    repository::{multi::MultiDependencyRepository, qpackages::QPMRepository, Repository},
+    repository::{qpackages::QPMRepository, Repository},
     terminal::colors::QPMColor,
 };
 
