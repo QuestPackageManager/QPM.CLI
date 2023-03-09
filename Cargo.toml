@@ -12,8 +12,10 @@ name = "qpm-rust"
 path = "src/main.rs"
 
 [features]
-default = ["templatr"]
+default = ["templatr", "ureq"]
 templatr = ["dep:templatr"]
+reqwest = ["dep:reqwest"]
+ureq = ["dep:ureq"]
 
 [build-dependencies]
 vergen = "7"
@@ -33,7 +35,8 @@ pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 git2 = "0.16"
 
 bytes = "*"
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+reqwest = { version = "0.11", features = ["blocking", "json"], optional = true}
+ureq = { version = "2", features = ["json"], optional = true}
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -42,6 +45,7 @@ semver = { version = "1.0", features = ["serde"] }
 cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser.git", features = [
     "serde",
 ] }
+thiserror = "1"
 pubgrub = "0.2"
 owo-colors = "3"
 dirs = "4.0.0"

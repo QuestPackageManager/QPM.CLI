@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 
-use super::agent::get_agent;
+use super::agent::{self};
 
 const GITHUB_OWNER: &str = "QuestPackageManager";
 const GITHUB_REPO: &str = "QPM.CLI";
@@ -46,24 +46,18 @@ pub struct GithubCommitDiffCommitDataResponse {
     pub message: String,
 }
 
-pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, reqwest::Error> {
-    get_agent()
-        .get(format!(
-            "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/branches/{branch}"
-        ))
-        .send()?
-        .json()
+pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, agent::Error> {
+    agent::get(&format!(
+        "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/branches/{branch}"
+    ))
 }
 pub fn get_github_commit_diff(
     old: &str,
     new: &str,
-) -> Result<GithubCommitDiffResponse, reqwest::Error> {
-    get_agent()
-        .get(format!(
-            "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/compare/{old}...{new}"
-        ))
-        .send()?
-        .json()
+) -> Result<GithubCommitDiffResponse, agent::Error> {
+    agent::get(&format!(
+        "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/compare/{old}...{new}"
+    ))
 }
 
 pub fn download_github_artifact_url(sha: &str) -> String {
