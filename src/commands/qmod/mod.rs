@@ -138,7 +138,7 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
     ensure!(std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 
-    println!("Generating mod.json file from template...");
+    println!("Generating mod.json file from template using qpm.shared.json...");
     let shared_package = SharedPackageConfig::read(".")?;
 
     // Parse template mod.template.json
