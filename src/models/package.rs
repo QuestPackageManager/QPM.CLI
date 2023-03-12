@@ -29,7 +29,8 @@ pub trait SharedPackageConfigExtensions: Sized {
 
 impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().join(PACKAGE_FILE_NAME))?;
+        let path = dir.as_ref().join(PACKAGE_FILE_NAME);
+        let file = File::open(&path).with_context(|| format!("{path:?} does not exist"))?;
         json::json_from_reader_fast(BufReader::new(file))
     }
 
@@ -46,8 +47,8 @@ impl PackageConfigExtensions for PackageConfig {
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let file = File::open(dir.as_ref().join(SHARED_PACKAGE_FILE_NAME))
-            .context("Missing qpm.shared.json")?;
+        let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
+        let file = File::open(&path).with_context(|| format!("{path:?} not found"))?;
         json::json_from_reader_fast(BufReader::new(file))
     }
 
