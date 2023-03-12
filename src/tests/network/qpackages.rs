@@ -32,7 +32,7 @@ fn get_artifact_package_versions() -> Result<()> {
 #[test]
 fn get_artifact() -> Result<()> {
     let repo = QPMRepository::default();
-    let version = Version::new(3, 1, 4);
+    let version = Version::new(3, 14, 0);
     let p = repo.get_package("beatsaber-hook", &version)?;
 
     assert_ne!(p, None);
