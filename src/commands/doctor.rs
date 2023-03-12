@@ -45,25 +45,25 @@ impl Command for DoctorCommand {
         let qpm_rust = look_path("qpm-rust")?;
 
         if !cmake {
-            bail!("CMake is not installed in path!")
+            eprintln!("CMake is not installed in path! Use winget or your OS package manager to install CMake.")
         } else {
             println!("Cmake found!");
         }
 
         if !ninja {
-            bail!("Ninja is not installed in path!")
+            eprintln!("Ninja is not installed in path! Use {} to download ninja", "qpm-rust download ninja".yellow())
         } else {
             println!("Ninja found!");
         }
 
         if !qpm_rust {
-            bail!("QPM-Rust not found in path!")
+            eprintln!("QPM-Rust not found in path!")
         } else {
             println!("QPM-Rust found!");
         }
 
         if !adb {
-            bail!("ADB not installed in path")
+            eprintln!("ADB not installed in path. Use {} to download ADB", "qpm-rust download adb".yellow())
         } else {
             println!("ADB found!");
         }
@@ -81,8 +81,11 @@ impl Command for DoctorCommand {
             }
         };
 
-        println!("{}", "Everything looks good!".green());
-
+        if cmake && adb && qpm_rust && ninja {
+            println!("{}", "Everything looks good!".green());
+        } else {
+            bail!("Some functionality is missing")
+        }
         Ok(())
     }
 }
