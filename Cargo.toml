@@ -12,8 +12,9 @@ name = "qpm-rust"
 path = "src/main.rs"
 
 [features]
-default = ["templatr"]
+default = ["templatr", "network_test"]
 templatr = ["dep:templatr"]
+network_test = []
 
 [build-dependencies]
 vergen = "7"
