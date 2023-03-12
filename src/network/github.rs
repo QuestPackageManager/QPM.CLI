@@ -68,6 +68,6 @@ pub fn get_github_commit_diff(
 
 pub fn download_github_artifact_url(sha: &str) -> String {
     format!(
-            "https://nightly.link/{GITHUB_OWNER}/{GITHUB_REPO}/workflows/{GITHUB_ACTION}/{sha}/{GITHUB_ARTIFACT_NAME}"
+            "https://nightly.link/{GITHUB_OWNER}/{GITHUB_REPO}/workflows/{GITHUB_ACTION}/{sha}/{GITHUB_ARTIFACT_NAME}.zip"
         )
 }
