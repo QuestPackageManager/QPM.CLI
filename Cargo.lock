@@ -1560,6 +1560,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qpm_arg_tokenizer"
+version = "0.1.0"
+source = "git+https://github.com/QuestPackageManager/QPM.arg_tokenizer.git#ae85343dc2d24a3944aa02485a2365ee7fa41a43"
+dependencies = [
+ "itertools",
+ "lazy_static",
+ "regex",
+]
+
+[[package]]
 name = "qpm_cli"
 version = "0.1.0"
 dependencies = [
@@ -1575,6 +1585,7 @@ dependencies = [
  "owo-colors",
  "pbr",
  "pubgrub",
+ "qpm_arg_tokenizer",
  "qpm_package",
  "qpm_qmod",
  "reqwest",

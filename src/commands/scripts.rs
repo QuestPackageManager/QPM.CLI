@@ -1,22 +1,21 @@
-use std::{process::Stdio};
+use std::process::Stdio;
 
 use clap::Args;
 
-use color_eyre::eyre::{bail};
+use color_eyre::eyre::{anyhow, bail};
 use itertools::Itertools;
-use qpm_package::models::{package::PackageConfig};
+use qpm_arg_tokenizer::arg::Expression;
+use qpm_package::models::package::PackageConfig;
 
-use crate::{
-    models::{
-        package::{PackageConfigExtensions},
-    },
-};
+use crate::models::package::PackageConfigExtensions;
 
 use super::Command;
 
 #[derive(Args)]
 pub struct ScriptsCommand {
     script: String,
+
+    args: Option<Vec<String>>,
 }
 
 impl Command for ScriptsCommand {
@@ -37,6 +36,8 @@ impl Command for ScriptsCommand {
             bail!("Could not find script {}", self.script);
         }
 
+        let supplied_args = self.args.unwrap_or_default();
+
         for command_str in script.unwrap() {
             let split = command_str.split_once(' ');
 
@@ -45,14 +46,30 @@ impl Command for ScriptsCommand {
                 None => command_str,
             };
 
-            let args = match split {
-                Some(s) => s.1.split(' ').collect_vec(),
+            let args: Vec<String> = match split {
+                Some(s) => {
+                    let expression = s.1;
+                    let tokenized_args = Expression::parse(expression);
+
+                    let formatted_args = tokenized_args
+                        .replace(
+                            supplied_args
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect_vec()
+                                .as_slice(),
+                        ).map_err(|e| anyhow!("{}", e))?;
+
+                    formatted_args
+                        .split(' ')
+                        .map(|s| s.to_string())
+                        .collect_vec()
+                }
                 None => vec![],
             };
 
             let mut c = std::process::Command::new(exec);
-            c
-                .args(args)
+            c.args(args)
                 .stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());

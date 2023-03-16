@@ -24,6 +24,7 @@ color-eyre = { version = "0.6", default-features = false }
 #qpm
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
+qpm_arg_tokenizer ={ git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
 
 # No need for tracing support
