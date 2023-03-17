@@ -188,8 +188,13 @@ pub fn locked_resolve<'a, R: Repository>(
         .map(|d| {
             repository
                 .get_package(&d.dependency.id, &d.version)
-                .unwrap()
-                .unwrap()
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Encountered an issue resolving for package {}:{}, {e}",
+                        d.dependency.id, d.version
+                    )
+                })
+                .unwrap_or_else(|| panic!("No package found for {}:{}", d.dependency.id, d.version))
         })
         .dedup_by(|x, y| x.config.info.id == y.config.info.id))
 }

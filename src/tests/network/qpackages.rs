@@ -2,7 +2,7 @@ use color_eyre::{Result, Report};
 use itertools::Itertools;
 use qpm_package::models::{
     dependency::SharedPackageConfig,
-    extra::{AdditionalPackageMetadata, PackageDependencyModifier},
+    extra::{PackageDependencyModifier},
     package::{PackageConfig, PackageDependency, PackageMetadata},
 };
 use semver::{Version, VersionReq};
@@ -17,7 +17,7 @@ fn get_artifact_packages() -> Result<()> {
     let repo = QPMRepository::default();
     let names = repo.get_package_names()?;
 
-    assert!(names.len() > 0);
+    assert!(!names.is_empty());
     Ok(())
 }
 #[test]
@@ -54,7 +54,7 @@ fn resolve() -> Result<()> {
 
     let resolved = dependency::resolve(&unwrapped_p.config, &repo)?.collect_vec();
 
-    assert!(resolved.len() > 0);
+    assert!(!resolved.is_empty());
 
     let bs_hooks_dep = unwrapped_p
         .config

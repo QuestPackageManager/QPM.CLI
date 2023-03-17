@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{copy, Cursor, Read},
+    io::{copy, Cursor},
 };
 
 use bytes::Bytes;

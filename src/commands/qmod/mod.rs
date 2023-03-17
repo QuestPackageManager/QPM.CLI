@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::ensure, Result};
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{dependency::SharedPackageConfig};
 use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
 
