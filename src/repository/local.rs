@@ -483,4 +483,8 @@ impl Repository for FileRepository {
     fn write_repo(&self) -> Result<()> {
         self.write()
     }
+
+    fn is_online(&self) -> bool {
+        false
+    }
 }

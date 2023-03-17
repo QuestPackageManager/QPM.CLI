@@ -33,6 +33,9 @@ pub enum DependencyOperation {
 
 #[derive(Args, Debug, Clone)]
 pub struct DependencyOperationAddArgs {
+    #[clap(long, default_value = "false")]
+    offline: bool,
+
     /// Id of the dependency as listed on qpackages
     pub id: String,
 
@@ -65,7 +68,7 @@ fn add_dependency(dependency_args: DependencyOperationAddArgs) -> Result<()> {
         bail!("The dependency was too big to add, we can't add this one!");
     }
 
-    let repo = MultiDependencyRepository::useful_default_new()?;
+    let repo = MultiDependencyRepository::useful_default_new(dependency_args.offline)?;
 
     let versions = repo
         .get_package_versions(&dependency_args.id)

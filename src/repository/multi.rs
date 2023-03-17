@@ -24,8 +24,17 @@ impl MultiDependencyRepository {
         Self { repositories }
     }
 
-    pub fn useful_default_new() -> Result<Self> {
-        Ok(MultiDependencyRepository::new(default_repositories()?))
+    pub fn useful_default_new(offline: bool) -> Result<Self> {
+        let repos: Vec<Box<dyn Repository>> = if !offline {
+            default_repositories()?
+        } else {
+            default_repositories()?
+                .into_iter()
+                .filter(|r| !r.is_online())
+                .collect_vec()
+        };
+
+        Ok(MultiDependencyRepository::new(repos))
     }
 }
 
@@ -134,5 +143,9 @@ impl Repository for MultiDependencyRepository {
     fn write_repo(&self) -> Result<()> {
         self.repositories.iter().try_for_each(|r| r.write_repo())?;
         Ok(())
+    }
+
+    fn is_online(&self) -> bool {
+        self.repositories.iter().any(|r| r.is_online())
     }
 }
