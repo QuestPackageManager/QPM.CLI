@@ -60,6 +60,7 @@ stopwatch = "0.0.7"
 [profile.release]
 opt-level = 3
 lto = true
+strip = "symbols"
 
 [profile.dev.package.backtrace]
 opt-level = 3
