@@ -1,12 +1,14 @@
 use std::{
     env,
     fs::{self, File},
-    io::{BufWriter, Write},
+    io::{BufWriter, Cursor, Read, Write},
 };
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::bail, Help};
+use itertools::Itertools;
 use owo_colors::OwoColorize;
+use zip::ZipArchive;
 
 use crate::{
     network::{agent::download_file_report, github},
@@ -101,10 +103,14 @@ impl Command for VersionCommand {
 
                 let path = env::current_exe()?;
                 let tmp_path = path.with_extension("tmp");
-                let bytes = download_file_report(
+                let zip_bytes = download_file_report(
                     &github::download_github_artifact_url(&input_branch),
                     |_, _| {},
                 )?;
+
+                let cursor = Cursor::new(zip_bytes);
+                let mut zip = ZipArchive::new(cursor)?;
+                let bytes = zip.by_index(0)?.bytes();
 
                 println!("Finished downloading, writing to temp file");
                 let tmp_file = File::create(&tmp_path)?;
@@ -112,7 +118,8 @@ impl Command for VersionCommand {
                 fs::set_permissions(&tmp_path, perms)?;
 
                 let mut buf_tmp_write = BufWriter::new(tmp_file);
-                buf_tmp_write.write_all(&bytes)?;
+
+                buf_tmp_write.write_all(&bytes.try_collect::<_, Vec<u8>, _>()?)?;
 
                 let suggestion = format!(
                     "Try renaming manually.\nmv \"{}\" \"{}\" {}",
