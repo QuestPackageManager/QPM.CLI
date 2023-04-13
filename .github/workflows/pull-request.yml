@@ -5,12 +5,12 @@ on:
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'README.md'
-      - '**.json'
-      - '**.yml'
-      - 'LICENSE'
-      - '!.github/workflows/pull-request.yml'
-      - 'installer/**'
+      - "README.md"
+      - "**.json"
+      - "**.yml"
+      - "LICENSE"
+      - "!.github/workflows/pull-request.yml"
+      - "installer/**"
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -19,15 +19,15 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         include:
           - os: ubuntu-latest
-            file-name: qpm-rust
+            file-name: qpm
             prefix: linux
 
           - os: macOS-latest
-            file-name: qpm-rust
+            file-name: qpm
             prefix: macos
 
           - os: windows-latest
-            file-name: qpm-rust.exe
+            file-name: qpm.exe
             prefix: windows
 
     steps:

@@ -1,7 +1,8 @@
 use std::{
     fs::{self, File},
+    io::BufReader,
     path::{Path, PathBuf},
-    sync, io::BufReader,
+    sync,
 };
 
 use color_eyre::Result;
@@ -40,7 +41,7 @@ impl UserConfig {
     }
 
     pub fn global_config_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-Rust")
+        dirs::config_dir().unwrap().join("QPM-Rs")
     }
 
     pub fn read_global() -> Result<Self> {
@@ -99,9 +100,9 @@ impl Default for UserConfig {
     fn default() -> Self {
         Self {
             symlink: Some(true),
-            cache: Some(dirs::data_dir().unwrap().join("QPM-Rust").join("cache")),
+            cache: Some(dirs::data_dir().unwrap().join("QPM-Rs").join("cache")),
             timeout: Some(5000),
-            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-Rust").join("ndk")),
+            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-Rs").join("ndk")),
         }
     }
 }
