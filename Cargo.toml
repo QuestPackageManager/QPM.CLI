@@ -17,8 +17,11 @@ templatr = ["dep:templatr"]
 network_test = []
 
 [build-dependencies]
-vergen = "7"
+vergen = "8"
 color-eyre = { version = "0.6", default-features = false }
+
+[dev-dependencies]
+trycmd = "0.14"
 
 [dependencies]
 #qpm
@@ -32,7 +35,7 @@ color-eyre = { version = "0.6", default-features = false }
 # progress bar
 pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
-git2 = "0.16"
+git2 = "0.17"
 
 bytes = "*"
 reqwest = { version = "0.11", features = [
@@ -53,8 +56,8 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
 ] }
 pubgrub = "0.2"
 owo-colors = "3"
-dirs = "4.0.0"
-keyring = "1"
+dirs = "5.0.0"
+keyring = "2"
 zip = "0.6"
 walkdir = "2"
 symlink = "0.1.0"
