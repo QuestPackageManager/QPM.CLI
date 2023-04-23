@@ -109,9 +109,9 @@ impl Default for UserConfig {
 
 #[inline]
 pub fn get_keyring() -> keyring::Entry {
-    keyring::Entry::new("qpm", "github")
+    keyring::Entry::new("qpm", "github").unwrap()
 }
 #[inline]
 pub fn get_publish_keyring() -> keyring::Entry {
-    keyring::Entry::new("qpm", "publish")
+    keyring::Entry::new("qpm", "publish").unwrap()
 }

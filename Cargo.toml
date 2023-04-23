@@ -17,7 +17,7 @@ templatr = ["dep:templatr"]
 network_test = []
 
 [build-dependencies]
-vergen = "8"
+vergen = "7"
 color-eyre = { version = "0.6", default-features = false }
 
 [dev-dependencies]
