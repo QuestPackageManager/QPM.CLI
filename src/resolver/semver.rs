@@ -4,9 +4,9 @@ use pubgrub::range::Range;
 use semver::{Comparator, Op, Prerelease, VersionReq};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) struct VersionWrapper(semver::Version);
+pub struct VersionWrapper(pub semver::Version);
 
-pub(super) fn req_to_range(req: VersionReq) -> Range<VersionWrapper> {
+pub fn req_to_range(req: VersionReq) -> Range<VersionWrapper> {
     let mut range = Range::any();
     for comparator in req.comparators {
         let next = match comparator {

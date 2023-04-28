@@ -1,14 +1,18 @@
-
+use std::cmp::Ordering;
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 use owo_colors::OwoColorize;
+use semver::{Version, VersionReq};
 use walkdir::WalkDir;
 
 use crate::{
     models::config::get_combine_config,
-    utils::android::{download_ndk_version, get_android_manifest, get_ndk_str_versions},
+    resolver::semver::{req_to_range, VersionWrapper},
+    utils::android::{
+        download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
+    },
 };
 
 use super::Command;
@@ -41,23 +45,43 @@ impl Command for Ndk {
         match self.op {
             NdkOperation::Download(d) => {
                 let manifest = get_android_manifest()?;
-                let ndks = get_ndk_str_versions(&manifest);
 
-                let ndk = ndks.get(d.version.as_str());
+                // Find version matching version
+                let ndks_str = get_ndk_str_versions_str(&manifest);
+
+                let ndk = ndks_str.get(d.version.as_str());
                 match ndk {
                     Some(ndk) => download_ndk_version(ndk)?,
-                    None => bail!("Could not find ndk version {}", d.version),
+                    None => {
+                        // fuzzy search version using version ranges
+                        let fuzzy_version_range = req_to_range(VersionReq::parse(&d.version)?);
+
+                        // find version closest to specified
+                        let ndks = get_ndk_str_versions(&manifest);
+                        let ndks_versions = ndks.keys().sorted().rev().collect_vec();
+                        let matching_version_opt = ndks_versions.iter().find(|probe| {
+                            fuzzy_version_range.contains(&VersionWrapper((**probe).clone()))
+                        });
+
+                        match matching_version_opt {
+                            Some(matching_version) => {
+                                download_ndk_version(ndks.get(matching_version).unwrap())?
+                            }
+                            None => bail!("Could not find ndk version {}", d.version),
+                        }
+                    }
                 }
             }
             NdkOperation::Available(a) => {
                 let manifest = get_android_manifest()?;
                 let amount_per_page = 5;
 
-                let skip = (a.page - 1).max(0) * amount_per_page;
+                let page_offset = a.page;
+                let skip = page_offset * amount_per_page;
 
-                println!("Page: {amount_per_page}");
+                println!("Page: {page_offset}");
 
-                get_ndk_str_versions(&manifest)
+                get_ndk_str_versions_str(&manifest)
                     .iter()
                     .sorted_by(|a, b| a.0.cmp(b.0))
                     .rev()
@@ -84,7 +108,7 @@ impl Command for Ndk {
                             p.path().to_str().unwrap()
                         )
                     })
-            } 
+            }
         }
 
         Ok(())

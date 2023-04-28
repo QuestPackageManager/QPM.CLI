@@ -3,7 +3,7 @@ use std::{collections::HashMap, env, io::Cursor};
 use bytes::Bytes;
 use color_eyre::Result;
 use owo_colors::OwoColorize;
-use semver::{BuildMetadata, Prerelease, Version};
+use semver::{BuildMetadata, Prerelease, Version, VersionReq};
 
 use zip::ZipArchive;
 
@@ -21,7 +21,6 @@ const ANDROID_DL_URL: &str = "https://dl.google.com/android/repository";
 
 pub fn get_android_manifest() -> Result<AndroidRepositoryManifest> {
     let response = get_agent().get(ANDROID_REPO_MANIFEST).send()?;
-    
 
     Ok(serde_xml_rs::from_reader(response)?)
 }
@@ -44,7 +43,23 @@ pub fn get_ndk_version(ndk: &RemotePackage) -> Version {
     }
 }
 
-pub fn get_ndk_str_versions(manifest: &AndroidRepositoryManifest) -> HashMap<&str, &RemotePackage> {
+#[inline(always)]
+pub fn get_ndk_str_versions(
+    manifest: &AndroidRepositoryManifest,
+) -> HashMap<Version, &RemotePackage> {
+    get_ndk_str_versions_str(manifest)
+        .into_iter()
+        .map(|(s, p)| {
+            (
+                Version::parse(s).unwrap_or_else(|e| panic!("Unable to parse version string {s}: {e}")),
+                p,
+            )
+        })
+        .collect()
+}
+pub fn get_ndk_str_versions_str(
+    manifest: &AndroidRepositoryManifest,
+) -> HashMap<&str, &RemotePackage> {
     manifest
         .remote_package
         .iter()
@@ -56,6 +71,9 @@ pub fn get_ndk_str_versions(manifest: &AndroidRepositoryManifest) -> HashMap<&st
         .collect()
 }
 
+///
+/// Gets the archive matching the triplet for the current OS
+///
 pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
     let os = if cfg!(target_os = "linux") {
         "linux"
