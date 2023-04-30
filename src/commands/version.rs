@@ -66,7 +66,7 @@ impl Command for VersionCommand {
                 }
 
                 println!(
-                    "Current QPM-Rust build is behind {} commits",
+                    "Current QPM-RS build is behind {} commits",
                     diff.ahead_by.version_id_color()
                 );
                 if diff.ahead_by > 0 {

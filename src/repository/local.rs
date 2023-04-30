@@ -78,7 +78,7 @@ impl FileRepository {
         Ok(())
     }
 
-    /// for local qpm-rust installs
+    /// for local qpm-rs installs
     pub fn add_artifact_and_cache(
         &mut self,
         package: SharedPackageConfig,
@@ -217,7 +217,7 @@ impl FileRepository {
     }
 
     pub fn global_repository_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-Rust")
+        dirs::config_dir().unwrap().join("QPM-RS")
     }
 
     pub fn clear() -> Result<(), std::io::Error> {
