@@ -8,13 +8,13 @@ const GITHUB_REPO: &str = "QPM.CLI";
 const GITHUB_ACTION: &str = "cargo-build";
 
 #[cfg(windows)]
-const GITHUB_ARTIFACT_NAME: &str = "windows-qpm-rs.exe";
+const GITHUB_ARTIFACT_NAME: &str = "windows-qpm.exe";
 
 #[cfg(target_os = "linux")]
-const GITHUB_ARTIFACT_NAME: &str = "linux-qpm-rs";
+const GITHUB_ARTIFACT_NAME: &str = "linux-qpm";
 
 #[cfg(target_os = "macos")]
-const GITHUB_ARTIFACT_NAME: &str = "macos-qpm-rs";
+const GITHUB_ARTIFACT_NAME: &str = "macos-qpm";
 
 #[derive(Serialize, Deserialize)]
 pub struct GithubBranchResponse {
