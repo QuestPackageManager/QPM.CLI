@@ -276,29 +276,48 @@ pub fn make_defines_string(dep: &SharedPackageConfig) -> Result<String> {
         "\tset(CMAKE_BUILD_TYPE \"Debug\")",
         "endif()\n"
     ));
+    // TODO: Get this generated in a build preset
     result.push_str(concatln!(
-        "\n# defines used in ninja / cmake ndk builds",
-        "if (NOT DEFINED CMAKE_ANDROID_NDK)",
-        "\tif (EXISTS \"${CMAKE_CURRENT_LIST_DIR}/ndkpath.txt\")",
-        "\t\tfile (STRINGS \"ndkpath.txt\" CMAKE_ANDROID_NDK)",
-        "\telse()",
-        "\t\tif(EXISTS $ENV{ANDROID_NDK_HOME})",
-        "\t\t\tset(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_HOME})",
-        "\t\telseif(EXISTS $ENV{ANDROID_NDK_LATEST_HOME})",
-        "\t\t\tset(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_LATEST_HOME})",
+        "\n# Android defines used in ninja / cmake ndk builds",
+        // android start
+        "if (DEFINED ANDROID)",
+        // ndk start
+        "\tif (NOT DEFINED CMAKE_ANDROID_NDK)",
+        // ndkpath start
+        "\t\tif (EXISTS \"${CMAKE_CURRENT_LIST_DIR}/ndkpath.txt\")",
+        "\t\t\tfile (STRINGS \"ndkpath.txt\" CMAKE_ANDROID_NDK)",
+        "\t\telse()",
+        // ndk env start
+        "\t\t\tif(EXISTS $ENV{ANDROID_NDK_HOME})",
+        "\t\t\t\tset(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_HOME})",
+        "\t\t\telseif(EXISTS $ENV{ANDROID_NDK_LATEST_HOME})",
+        "\t\t\t\tset(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_LATEST_HOME})",
+        "\t\t\tendif()",
+        // ndk env end
         "\t\tendif()",
+        // ndk end
         "\tendif()",
+        "\tif (NOT DEFINED CMAKE_ANDROID_NDK)",
+        "\t\tmessage(\"Big time error buddy, no NDK\")",
+        "\tendif()",
+        // NDK Android Setup
+        "\tmessage(Using NDK ${CMAKE_ANDROID_NDK})",
+        "\tstring(REPLACE \"\\\\\" \"/\" CMAKE_ANDROID_NDK ${CMAKE_ANDROID_NDK})",
+        "\t\nset(ANDROID_PLATFORM 24)",
+        "\tset(ANDROID_ABI arm64-v8a)",
+        "\tset(ANDROID_STL c++_static)",
+        "\tset(ANDROID_USE_LEGACY_TOOLCHAIN_FILE OFF)",
+        "\tset(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake)",
+        // NDK Android Setup end
+        
+        // ndk log link start
+        "if (DEFINED ANDROID)",
+        "\ttarget_link_libraries(${COMPILE_ID} PRIVATE -llog)",
         "endif()",
-        "if (NOT DEFINED CMAKE_ANDROID_NDK)",
-        "\tmessage(Big time error buddy, no NDK)",
-        "endif()",
-        "message(Using NDK ${CMAKE_ANDROID_NDK})",
-        "string(REPLACE \"\\\\\" \"/\" CMAKE_ANDROID_NDK ${CMAKE_ANDROID_NDK})",
-        "\nset(ANDROID_PLATFORM 24)",
-        "set(ANDROID_ABI arm64-v8a)",
-        "set(ANDROID_STL c++_static)",
-        "set(ANDROID_USE_LEGACY_TOOLCHAIN_FILE OFF)",
-        "\nset(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake)"
+        // ndk log link end
+        
+        "endif()"
+        //android end
     ));
     result.push_str(concatln!(
         "\n# define used for external data, mostly just the qpm dependencies",
