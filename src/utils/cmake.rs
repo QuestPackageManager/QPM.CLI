@@ -309,12 +309,8 @@ pub fn make_defines_string(dep: &SharedPackageConfig) -> Result<String> {
         "\tset(ANDROID_USE_LEGACY_TOOLCHAIN_FILE OFF)",
         "\tset(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake)",
         // NDK Android Setup end
-        
-        // ndk log link start
-        "if (DEFINED ANDROID)",
-        "\ttarget_link_libraries(${COMPILE_ID} PRIVATE -llog)",
-        "endif()",
-        // ndk log link end
+
+
         
         "endif()"
         //android end
