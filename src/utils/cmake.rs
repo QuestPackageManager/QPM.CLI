@@ -280,7 +280,7 @@ pub fn make_defines_string(dep: &SharedPackageConfig) -> Result<String> {
     result.push_str(concatln!(
         "\n# Android defines used in ninja / cmake ndk builds",
         // android start
-        "if (DEFINED ANDROID)",
+        "if (DEFINED QPM_ANDROID)",
         // ndk start
         "\tif (NOT DEFINED CMAKE_ANDROID_NDK)",
         // ndkpath start
