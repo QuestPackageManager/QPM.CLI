@@ -62,7 +62,7 @@ zip = "0.6"
 walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
-itertools = "0.10"
+itertools = "0.11"
 stopwatch = "0.0.7"
 
 

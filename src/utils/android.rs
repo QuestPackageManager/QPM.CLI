@@ -3,7 +3,7 @@ use std::{collections::HashMap, env, io::Cursor};
 use bytes::Bytes;
 use color_eyre::Result;
 use owo_colors::OwoColorize;
-use semver::{BuildMetadata, Prerelease, Version, VersionReq};
+use semver::{BuildMetadata, Prerelease, Version};
 
 use zip::ZipArchive;
 
