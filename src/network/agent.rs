@@ -7,15 +7,15 @@ use crate::models::config::get_combine_config;
 static AGENT: sync::OnceLock<reqwest::blocking::Client> = sync::OnceLock::new();
 
 pub fn get_agent() -> &'static reqwest::blocking::Client {
+    let timeout = get_combine_config().timeout.unwrap_or(5000);
+
     AGENT.get_or_init(|| {
         reqwest::blocking::ClientBuilder::new()
-            .connect_timeout(Duration::from_millis(
-                get_combine_config().timeout.unwrap().into(),
-            ))
-            .tcp_nodelay(true)
-            .tcp_keepalive(Some(Duration::from_millis(
-                get_combine_config().timeout.unwrap().into(),
-            )))
+            .connect_timeout(Duration::from_millis(timeout.into()))
+            .tcp_keepalive(Duration::from_secs(5))
+            .connect_timeout(Duration::from_millis(timeout.into()))
+            .timeout(Duration::from_millis(timeout.into()))
+            .tcp_nodelay(false)
             .https_only(true)
             .user_agent(format!("questpackagemanager-rust2/{}", env!("CARGO_PKG_VERSION")).as_str())
             .build()
@@ -31,7 +31,8 @@ where
 
     request.timeout_mut().take(); // Set to none
 
-    let response = get_agent().execute(request)
+    let response = get_agent()
+        .execute(request)
         .with_context(|| format!("Unable to download file {url}"))?
         .error_for_status()?;
 
