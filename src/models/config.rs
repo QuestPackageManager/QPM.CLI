@@ -101,7 +101,7 @@ impl Default for UserConfig {
         Self {
             symlink: Some(true),
             cache: Some(dirs::data_dir().unwrap().join("QPM-RS").join("cache")),
-            timeout: Some(5000),
+            timeout: Some(60000),
             ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-RS").join("ndk")),
         }
     }
