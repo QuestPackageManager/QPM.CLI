@@ -2,15 +2,14 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::ensure, Result};
-use qpm_package::models::{dependency::SharedPackageConfig};
+use itertools::Itertools;
+use qpm_package::models::dependency::SharedPackageConfig;
 use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
 
-use crate::{
-    models::{
-        mod_json::{ModJsonExtensions, PreProcessingData},
-        package::{PackageConfigExtensions},
-    },
+use crate::models::{
+    mod_json::{ModJsonExtensions, PreProcessingData},
+    package::PackageConfigExtensions,
 };
 
 use super::Command;
@@ -167,9 +166,20 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
             .append(&mut template_mod_json.mod_files);
     }
 
-    existing_json
-        .dependencies
-        .append(&mut template_mod_json.dependencies);
+    // TODO: REDO
+    existing_json.dependencies.append(
+        &mut template_mod_json
+            .dependencies
+            .clone()
+            .into_iter()
+            .filter(|d| {
+                !existing_json
+                    .dependencies
+                    .iter()
+                    .any(|existing_d| existing_d.id == d.id)
+            })
+            .collect_vec(),
+    );
     existing_json
         .library_files
         .append(&mut template_mod_json.library_files);
