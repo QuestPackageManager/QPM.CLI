@@ -145,11 +145,12 @@ impl QPMRepository {
         if !src_path.exists() {
             // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
             if tmp_path.exists() {
-                fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
+                fs::remove_dir_all(&tmp_path).with_context(|| format!("Failed to remove existing tmp folder {tmp_path:?}"))?;
             }
 
             // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
-            fs::create_dir_all(src_path.parent().unwrap()).context("Failed to create lib path")?;
+            fs::create_dir_all(&base_path)
+                .with_context(|| format!("Failed to create lib path {base_path:?}"))?;
             let url = config.info.url.as_ref().unwrap();
             if url.contains("github.com") {
                 // github url!
