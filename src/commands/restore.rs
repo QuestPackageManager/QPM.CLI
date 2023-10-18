@@ -82,6 +82,8 @@ impl Command for RestoreCommand {
         // write the ndk path to a file if available
         let _config = get_combine_config();
 
+        shared_package.verify()?;
+
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
 
         shared_package.write(".")?;

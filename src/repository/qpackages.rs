@@ -138,6 +138,7 @@ impl QPMRepository {
         }
 
         let so_path = lib_path.join(config.info.get_so_name());
+        let static_path = lib_path.join(config.info.get_static_name());
         let debug_so_path = lib_path.join(format!("debug_{}", config.info.get_so_name().file_name().unwrap().to_string_lossy()));
 
         // Downloads the repo / zip file into src folder w/ subfolder taken into account
@@ -278,6 +279,7 @@ impl QPMRepository {
                 Ok(())
             };
 
+            download_binary(&static_path, config.info.additional_data.static_link.as_ref())?;
             download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
             download_binary(
                 &debug_so_path,

@@ -4,7 +4,10 @@ use owo_colors::OwoColorize;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
-    models::{config::get_publish_keyring, package::PackageConfigExtensions},
+    models::{
+        config::get_publish_keyring,
+        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    },
     repository::{qpackages::QPMRepository, Repository},
     terminal::colors::QPMColor,
 };
@@ -28,6 +31,9 @@ impl Command for PublishCommand {
         let qpackages = QPMRepository::default();
 
         let shared_package = SharedPackageConfig::read(".")?;
+
+        shared_package.verify()?;
+
         let resolved_deps = &shared_package.restored_dependencies;
 
         // check if all dependencies are available off of qpackages
