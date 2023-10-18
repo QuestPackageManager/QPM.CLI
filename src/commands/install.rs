@@ -2,13 +2,12 @@ use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre::Context;
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{dependency::SharedPackageConfig, package::PackageConfig},
-};
+use qpm_package::{models::{dependency::SharedPackageConfig, package::PackageConfig}, extensions::package_metadata::PackageMetadataExtensions};
 
 use crate::{
-    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    models::{
+        package::{PackageConfigExtensions, SharedPackageConfigExtensions}
+    },
     repository::{local::FileRepository, multi::MultiDependencyRepository},
 };
 

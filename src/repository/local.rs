@@ -15,11 +15,16 @@ use std::{
 
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
-    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
+    models::{
+        backend::PackageVersion, dependency::SharedPackageConfig, extra::DependencyLibType,
+        package::PackageConfig,
+    },
 };
 
 use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
+    models::{
+        config::get_combine_config, package::PackageConfigExtensions,
+    },
     utils::{fs::copy_things, json},
 };
 
@@ -133,16 +138,8 @@ impl FileRepository {
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
             let so_path = lib_path.join(package.config.info.get_so_name());
-            let debug_so_path = lib_path.join(format!(
-                "debug_{}",
-                package
-                    .config
-                    .info
-                    .get_so_name()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-            ));
+            let debug_so_path =
+                lib_path.join(format!("debug_{}", package.config.info.get_so_name().file_name().unwrap().to_string_lossy()));
 
             if let Some(binary_path_unwrapped) = &binary_path {
                 copy_things(binary_path_unwrapped, &so_path)?;
@@ -343,6 +340,8 @@ impl FileRepository {
                 .join(shared_dep.config.info.version.to_string());
             let libs_path = dep_cache_path.join("lib");
 
+            let lib_type_opt = referenced_dep.additional_data.lib_type.as_ref();
+
             // skip header only deps
             if shared_dep
                 .config
@@ -350,31 +349,61 @@ impl FileRepository {
                 .additional_data
                 .headers_only
                 .unwrap_or(false)
+                // if dependency is requested as header only
+                || lib_type_opt == Some(&DependencyLibType::HeaderOnly)
             {
+                if lib_type_opt.is_some_and(|t| *t != DependencyLibType::HeaderOnly) {
+                    eprintln!(
+                        "Header only library {} is requested as {:?}",
+                        shared_dep.config.info.id, lib_type_opt
+                    );
+                }
                 continue;
             }
 
             // Not header only
             let data = &shared_dep.config.info.additional_data;
-            // get so name or release so name
-            let name = match data.debug_so_link.is_none() {
-                true => shared_dep
-                    .config
-                    .info
-                    .get_so_name()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string(),
-                false => format!(
-                    "debug_{}",
-                    shared_dep
-                        .config
-                        .info
-                        .get_so_name()
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
+
+            let lib_type_infer = lib_type_opt.cloned().unwrap_or_else(|| {
+                if data.static_linking.is_some() || data.static_link.is_some() {
+                    DependencyLibType::Static
+                } else {
+                    DependencyLibType::Shared
+                }
+            });
+
+            let name = match lib_type_infer {
+                // if has so link and is not using static_link
+                DependencyLibType::Shared
+                    if (data.debug_so_link.is_some() || data.so_link.is_some())
+                        && !data.static_linking.unwrap_or(false) =>
+                {
+                    match data.debug_so_link.is_none() {
+                        true => shared_dep.config.info.get_so_name(),
+                        false => format!(
+                            "debug_{}",
+                            shared_dep
+                                .config
+                                .info
+                                .get_so_name()
+                                .file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                        )
+                        .into(),
+                    }
+                }
+                // if dependency is static and has static_linking
+                DependencyLibType::Static
+                    if data.static_linking.unwrap_or(false) && data.so_link.is_some() =>
+                {
+                    shared_dep.config.info.get_so_name().with_extension("a")
+                }
+                DependencyLibType::Static if data.static_link.is_some() => {
+                    shared_dep.config.info.get_static_name()
+                }
+                _ => bail!(
+                    "Attempting to use dependency as {lib_type_infer:?} but failed. Info: {data:?}"
                 ),
             };
 
@@ -382,7 +411,8 @@ impl FileRepository {
 
             if !src_binary.exists() {
                 bail!(
-                    "Missing binary {name} for {}:{}",
+                    "Missing binary {} for {}:{}",
+                    name.file_name().unwrap().to_string_lossy(),
                     referenced_dep.id,
                     shared_dep.config.info.version
                 );
