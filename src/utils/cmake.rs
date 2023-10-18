@@ -1,4 +1,8 @@
-use std::{fs::File, io::Write, path::{PathBuf, Path}};
+use std::{
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use color_eyre::{eyre::Context, Result};
 use qpm_package::models::dependency::SharedPackageConfig;
@@ -18,16 +22,15 @@ macro_rules! concatln {
 }
 
 pub fn write_cmake(shared_package: &SharedPackageConfig, repo: &impl Repository) -> Result<()> {
+    let cmake_opt = shared_package.config.info.additional_data.cmake;
+
+    if cmake_opt.is_none() && Path::new("./CMakeLists.txt").exists() {
+        eprintln!("qpm.json::info::additional_data::cmake is undefined in a CMake project, consider setting it to true");
+    }
+
     // default to true
-    let cmake = shared_package
-        .config
-        .info
-        .additional_data
-        .cmake
-        .unwrap_or(false);
+    let cmake = cmake_opt.unwrap_or(true);
     if !cmake {
-
-
         return Ok(());
     }
     write_extern_cmake(shared_package, repo)?;
@@ -38,7 +41,8 @@ pub fn write_cmake(shared_package: &SharedPackageConfig, repo: &impl Repository)
 
 pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> Result<()> {
     let path = Path::new("./").join(EXTERN_CMAKE_FILE);
-    let mut extern_cmake_file = File::create(path).context(format!("Unable to create {EXTERN_CMAKE_FILE}"))?;
+    let mut extern_cmake_file =
+        File::create(path).context(format!("Unable to create {EXTERN_CMAKE_FILE}"))?;
     let mut result = concatln!(
             "# YOU SHOULD NOT MANUALLY EDIT THIS FILE, QPM WILL VOID ALL CHANGES",
             "# always added",
