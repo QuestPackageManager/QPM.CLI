@@ -62,12 +62,8 @@ impl Command for RestoreCommand {
             false => {
                 // Check if dependencies and dependency ranges are the same
                 let mut temp_shared_package = SharedPackageConfig::read(".")?;
-                let restored_deps_set: HashSet<&PackageDependency> =
-                    temp_shared_package.config.dependencies.iter().collect();
-                let package_deps_set: HashSet<&PackageDependency> =
-                    package.dependencies.iter().collect();
 
-                match package_deps_set == restored_deps_set {
+                match package == temp_shared_package.config {
                     true => {
                         // if the same, restore as usual
                         println!("Using lock file for restoring");
