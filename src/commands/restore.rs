@@ -32,7 +32,7 @@ pub struct RestoreCommand {
 
 fn is_ignored() -> bool {
     git2::Repository::open(".").is_ok_and(|r| {
-        r.is_path_ignored(SHARED_PACKAGE_FILE_NAME).contains(&true)
+        r.is_path_ignored(SHARED_PACKAGE_FILE_NAME) == Ok(true)
             || r.status_file(Path::new(SHARED_PACKAGE_FILE_NAME))
                 .is_ok_and(|s| s.is_ignored())
     })
@@ -53,7 +53,7 @@ impl Command for RestoreCommand {
             eprintln!("Please commit it to avoid inconsistent dependency resolving. git add {SHARED_PACKAGE_FILE_NAME} --force");
         }
 
-        if unlocked && env::var("CI").contains(&"true".to_string()) {
+        if unlocked && env::var("CI") == Ok("true".to_string()) {
             eprintln!("Running in CI and using unlocked resolve, this seems like a bug!");
             eprintln!("Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository");
         }

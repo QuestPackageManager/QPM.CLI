@@ -1,10 +1,13 @@
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{fs::File, io::Write, path::{PathBuf, Path}};
 
 use color_eyre::{eyre::Context, Result};
 use qpm_package::models::dependency::SharedPackageConfig;
 
 use crate::{models::package_metadata::PackageMetadataExtensions, repository::Repository};
 use std::fmt::Write as OtherWrite;
+
+const EXTERN_CMAKE_FILE: &str = "extern.cmake";
+const QPM_CMAKE_FILE: &str = "qpm_defines.cmake";
 
 /// Fern: Adds line ending after each element
 /// thanks raft
@@ -14,8 +17,28 @@ macro_rules! concatln {
     }
 }
 
+pub fn write_cmake(shared_package: &SharedPackageConfig, repo: &impl Repository) -> Result<()> {
+    // default to true
+    let cmake = shared_package
+        .config
+        .info
+        .additional_data
+        .cmake
+        .unwrap_or(false);
+    if !cmake {
+
+
+        return Ok(());
+    }
+    write_extern_cmake(shared_package, repo)?;
+    write_define_cmake(shared_package)?;
+
+    Ok(())
+}
+
 pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> Result<()> {
-    let mut extern_cmake_file = File::create("extern.cmake")?;
+    let path = Path::new("./").join(EXTERN_CMAKE_FILE);
+    let mut extern_cmake_file = File::create(path).context(format!("Unable to create {EXTERN_CMAKE_FILE}"))?;
     let mut result = concatln!(
             "# YOU SHOULD NOT MANUALLY EDIT THIS FILE, QPM WILL VOID ALL CHANGES",
             "# always added",
@@ -206,8 +229,10 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
 }
 
 pub fn write_define_cmake(dep: &SharedPackageConfig) -> Result<()> {
+    let path = Path::new("./").join(QPM_CMAKE_FILE);
+
     let mut defines_cmake_file =
-        File::create("qpm_defines.cmake").expect("Failed to create defines cmake file");
+        File::create(path).context("Failed to create defines cmake file")?;
 
     defines_cmake_file
         .write_all(make_defines_string(dep)?.as_bytes())

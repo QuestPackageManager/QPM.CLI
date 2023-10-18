@@ -1,10 +1,7 @@
-#![feature(once_cell)]
 #![feature(entry_insert)]
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
 #![feature(let_chains)]
-#![feature(is_some_and)]
-#![feature(option_result_contains)]
 #![feature(exit_status_error)]
 
 use clap::Parser;
