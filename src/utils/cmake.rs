@@ -5,9 +5,9 @@ use std::{
 };
 
 use color_eyre::{eyre::Context, Result};
-use qpm_package::models::dependency::SharedPackageConfig;
+use qpm_package::{models::dependency::SharedPackageConfig, extensions::package_metadata::PackageMetadataExtensions};
 
-use crate::{models::package_metadata::PackageMetadataExtensions, repository::Repository};
+use crate::repository::Repository;
 use std::fmt::Write as OtherWrite;
 
 const EXTERN_CMAKE_FILE: &str = "extern.cmake";
@@ -106,55 +106,56 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             }
         }
 
-        if let Some(extra_files) = &shared_dep.dependency.additional_data.extra_files {
-            for path_str in extra_files.iter() {
-                let path = PathBuf::new().join(&format!(
-                    "extern/includes/{}/{}",
-                    &shared_dep.dependency.id, path_str
-                ));
-                let extern_path = PathBuf::new().join(&format!(
-                    "includes/{}/{}",
-                    &shared_dep.dependency.id, path_str
-                ));
-                if path.is_file() {
-                    writeln!(
-                        result,
-                        "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
-                        extern_path.display()
-                    )?;
-                } else {
-                    let listname = format!(
-                        "{}_{}_extra",
-                        path_str.replace(['/', '\\', '-'], "_"),
-                        shared_dep.dependency.id.replace('-', "_")
-                    );
+        //TODO: Revisit
+        // if let Some(extra_files) = &shared_dep.dependency.additional_data.extra_files {
+        //     for path_str in extra_files.iter() {
+        //         let path = PathBuf::new().join(&format!(
+        //             "extern/includes/{}/{}",
+        //             &shared_dep.dependency.id, path_str
+        //         ));
+        //         let extern_path = PathBuf::new().join(&format!(
+        //             "includes/{}/{}",
+        //             &shared_dep.dependency.id, path_str
+        //         ));
+        //         if path.is_file() {
+        //             writeln!(
+        //                 result,
+        //                 "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
+        //                 extern_path.display()
+        //             )?;
+        //         } else {
+        //             let listname = format!(
+        //                 "{}_{}_extra",
+        //                 path_str.replace(['/', '\\', '-'], "_"),
+        //                 shared_dep.dependency.id.replace('-', "_")
+        //             );
 
-                    writeln!(
-                        result,
-                        "RECURSE_FILES({}_c ${{EXTERN_DIR}}/{}/*.c)",
-                        listname,
-                        extern_path.display()
-                    )?;
+        //             writeln!(
+        //                 result,
+        //                 "RECURSE_FILES({}_c ${{EXTERN_DIR}}/{}/*.c)",
+        //                 listname,
+        //                 extern_path.display()
+        //             )?;
 
-                    writeln!(
-                        result,
-                        "RECURSE_FILES({}_cpp ${{EXTERN_DIR}}/{}/*.cpp)",
-                        listname,
-                        extern_path.display()
-                    )?;
+        //             writeln!(
+        //                 result,
+        //                 "RECURSE_FILES({}_cpp ${{EXTERN_DIR}}/{}/*.cpp)",
+        //                 listname,
+        //                 extern_path.display()
+        //             )?;
 
-                    writeln!(
-                        result,
-                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
-                    )?;
+        //             writeln!(
+        //                 result,
+        //                 "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
+        //             )?;
 
-                    writeln!(
-                        result,
-                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
-                    )?;
-                }
-            }
-        }
+        //             writeln!(
+        //                 result,
+        //                 "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
+        //             )?;
+        //         }
+        //     }
+        // }
 
         if let Some(dep) = dep
             .config

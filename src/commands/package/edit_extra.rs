@@ -34,10 +34,6 @@ pub struct EditExtraArgs {
     #[clap(long = "debugSoLink")]
     pub debug_so_link: Option<String>,
 
-    /// Provide an additional file to add to the extra files list, prepend with - to remove an entry
-    #[clap(long = "extraFiles")]
-    pub extra_files: Option<String>,
-
     /// Provide an overridden name for the .so file
     #[clap(long = "overrideSoName")]
     pub override_so_name: Option<String>,
@@ -105,10 +101,6 @@ impl Command for EditExtraArgs {
             package_edit_extra_so_link(&mut package, so_link);
             any_changed = true;
         }
-        if let Some(extra_files) = self.extra_files {
-            package_edit_extra_extra_files(&mut package, extra_files);
-            any_changed = true;
-        }
         if let Some(debug_so_link) = self.debug_so_link {
             package_edit_extra_debug_so_link(&mut package, debug_so_link);
             any_changed = true;
@@ -168,37 +160,6 @@ pub fn package_edit_extra_mod_link(package: &mut PackageConfig, mod_link: String
     package.info.additional_data.mod_link = Some(mod_link);
 }
 
-pub fn package_edit_extra_extra_files(package: &mut PackageConfig, extra_file: String) {
-    println!("Setting extra_file: {extra_file}");
-    match extra_file.chars().next().unwrap() {
-        '-' => {
-            // remove
-            package_edit_extra_remove_extra_files(package, extra_file[1..].to_string());
-        }
-        _ => {
-            // add
-            package_edit_extra_add_extra_files(package, extra_file);
-        }
-    }
-}
-
-pub fn package_edit_extra_remove_extra_files(package: &mut PackageConfig, extra_file: String) {
-    if let Some(extra_files) = &mut package.info.additional_data.extra_files {
-        if let Some(idx) = extra_files.iter().position(|f| f == &extra_file) {
-            extra_files.remove(idx);
-        }
-    }
-}
-
-pub fn package_edit_extra_add_extra_files(package: &mut PackageConfig, extra_file: String) {
-    if let Some(extra_files) = &mut package.info.additional_data.extra_files {
-        if !extra_files.iter().any(|f| f == &extra_file) {
-            extra_files.push(extra_file);
-        }
-    } else {
-        package.info.additional_data.extra_files = Some(vec![extra_file]);
-    }
-}
 
 pub fn package_edit_extra_debug_so_link(package: &mut PackageConfig, debug_so_link: String) {
     println!("Setting debug_so_link: {debug_so_link:#?}");

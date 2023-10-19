@@ -13,14 +13,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use qpm_package::models::{
+use qpm_package::{models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-};
+}, extensions::package_metadata::PackageMetadataExtensions};
 
 use crate::{
     models::{
-        config::get_combine_config, package::PackageConfigExtensions,
-        package_metadata::PackageMetadataExtensions,
+        config::get_combine_config, package::PackageConfigExtensions
     },
     utils::{fs::copy_things, json},
 };
@@ -135,7 +134,7 @@ impl FileRepository {
             let lib_path = cache_path.join("lib");
             let so_path = lib_path.join(package.config.info.get_so_name());
             let debug_so_path =
-                lib_path.join(format!("debug_{}", package.config.info.get_so_name()));
+                lib_path.join(format!("debug_{}", package.config.info.get_so_name().file_name().unwrap().to_string_lossy()));
 
             if let Some(binary_path_unwrapped) = &binary_path {
                 copy_things(binary_path_unwrapped, &so_path)?;
@@ -349,9 +348,9 @@ impl FileRepository {
             // Not header only
             let data = &shared_dep.config.info.additional_data;
             // get so name or release so name
-            let name = match data.use_release.unwrap_or(false) || data.debug_so_link.is_none() {
-                true => shared_dep.config.info.get_so_name(),
-                false => format!("debug_{}", shared_dep.config.info.get_so_name()),
+            let name = match data.debug_so_link.is_none() {
+                true => shared_dep.config.info.get_so_name().file_name().unwrap().to_string_lossy().to_string(),
+                false => format!("debug_{}", shared_dep.config.info.get_so_name().file_name().unwrap().to_string_lossy()),
             };
 
             let src_binary = libs_path.join(&name);

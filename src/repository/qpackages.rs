@@ -17,14 +17,13 @@ use zip::ZipArchive;
 
 use serde::Deserialize;
 
-use qpm_package::models::{
+use qpm_package::{models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-};
+}, extensions::package_metadata::PackageMetadataExtensions};
 
 use crate::{
     models::{
         config::get_combine_config, package::PackageConfigExtensions,
-        package_metadata::PackageMetadataExtensions,
     },
     network::agent::{download_file_report, get_agent},
     terminal::colors::QPMColor,
@@ -139,7 +138,7 @@ impl QPMRepository {
         }
 
         let so_path = lib_path.join(config.info.get_so_name());
-        let debug_so_path = lib_path.join(format!("debug_{}", config.info.get_so_name()));
+        let debug_so_path = lib_path.join(format!("debug_{}", config.info.get_so_name().file_name().unwrap().to_string_lossy()));
 
         // Downloads the repo / zip file into src folder w/ subfolder taken into account
         if !src_path.exists() {
