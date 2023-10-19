@@ -256,9 +256,9 @@ dependencies = [
 
 [[package]]
 name = "async-task"
-version = "4.4.1"
+version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9441c6b2fe128a7c2bf680a44c34d0df31ce09e5b7e401fcca3faa483dbc921"
+checksum = "b4eb2cdb97421e01129ccb49169d8279ed21e829929144f4a22a6e54ac549ca1"
 
 [[package]]
 name = "async-trait"
@@ -1702,9 +1702,9 @@ checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
 name = "parking"
-version = "2.1.1"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e52c774a4c39359c1d1c52e43f73dd91a75a614652c825408eec30c95a9b2067"
+checksum = "bb813b8af86854136c6922af0598d719255ecb2179515e6e7730d468f05c9cae"
 
 [[package]]
 name = "password-hash"
@@ -1879,7 +1879,7 @@ dependencies = [
 [[package]]
 name = "qpm_package"
 version = "0.2.0"
-source = "git+https://github.com/QuestPackageManager/QPM.Package.git#364aead7fc91abbc588d5042a23e33e38fe753b1"
+source = "git+https://github.com/QuestPackageManager/QPM.Package.git#1be063645cea0b0981ce3dddd664af257ce6f880"
 dependencies = [
  "cursed-semver-parser",
  "semver",
@@ -1890,7 +1890,7 @@ dependencies = [
 [[package]]
 name = "qpm_qmod"
 version = "0.1.0"
-source = "git+https://github.com/QuestPackageManager/QPM.Qmod.git#33f6378ea372cf3c7704b7d458619ce021c38a04"
+source = "git+https://github.com/QuestPackageManager/QPM.Qmod.git#c5582a33ab696c5d94d97af33cd9e2c1bf8cbc72"
 dependencies = [
  "cursed-semver-parser",
  "qpm_package",
@@ -2681,9 +2681,9 @@ checksum = "b6bc1c9ce2b5135ac7f93c72918fc37feb872bdc6a5533a8b85eb4b86bfdae52"
 
 [[package]]
 name = "tracing"
-version = "0.1.39"
+version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2ef2af84856a50c1d430afce2fdded0a4ec7eda868db86409b4543df0797f9"
+checksum = "c3523ab5a71916ccf420eebdf5521fcef02141234bbc0b8a49f2fdc4544364ef"
 dependencies = [
  "pin-project-lite",
  "tracing-attributes",
