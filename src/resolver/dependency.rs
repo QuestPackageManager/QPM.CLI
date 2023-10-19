@@ -3,7 +3,7 @@ use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
 use crate::{
     repository::{local::FileRepository, Repository},
     terminal::colors::QPMColor,
-    utils::cmake::{write_define_cmake, write_extern_cmake, write_cmake},
+    utils::cmake::{write_cmake},
 };
 use color_eyre::{
     eyre::{bail, Context},

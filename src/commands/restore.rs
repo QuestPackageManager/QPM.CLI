@@ -1,11 +1,11 @@
-use std::{collections::HashSet, env, path::Path};
+use std::{env, path::Path};
 
 use clap::Args;
 
 use itertools::Itertools;
 use qpm_package::models::{
     dependency::SharedPackageConfig,
-    package::{PackageConfig, PackageDependency},
+    package::{PackageConfig},
 };
 
 use crate::{
