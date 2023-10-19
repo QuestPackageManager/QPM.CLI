@@ -90,6 +90,7 @@ impl FileRepository {
         project_folder: PathBuf,
         binary_path: Option<PathBuf>,
         debug_binary_path: Option<PathBuf>,
+        static_binary_path: Option<PathBuf>,
         copy: bool,
         overwrite_existing: bool,
     ) -> Result<()> {
@@ -99,6 +100,7 @@ impl FileRepository {
                 project_folder,
                 binary_path,
                 debug_binary_path,
+                static_binary_path,
                 false,
             )?;
         }
@@ -112,6 +114,7 @@ impl FileRepository {
         project_folder: PathBuf,
         binary_path: Option<PathBuf>,
         debug_binary_path: Option<PathBuf>,
+        static_binary_path: Option<PathBuf>,
         validate: bool,
     ) -> Result<()> {
         println!(
@@ -136,9 +139,10 @@ impl FileRepository {
 
         fs::create_dir_all(&src_path).context("Failed to create lib path")?;
 
-        if binary_path.is_some() || debug_binary_path.is_some() {
+        if binary_path.is_some() || debug_binary_path.is_some() || static_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
             let so_path = lib_path.join(package.config.info.get_so_name());
+            let static_path = lib_path.join(package.config.info.get_static_name());
             let debug_so_path = lib_path.join(format!(
                 "debug_{}",
                 package
@@ -156,6 +160,9 @@ impl FileRepository {
 
             if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
                 copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
+            }
+            if let Some(static_binary_path_unwrapped) = &static_binary_path {
+                copy_things(static_binary_path_unwrapped, &static_path)?;
             }
         }
 
@@ -361,7 +368,12 @@ impl FileRepository {
                 // if dependency is requested as header only
                 || lib_type_opt == DependencyLibType::HeaderOnly
             {
-                if referenced_dep.additional_data.lib_type.as_ref().is_some_and(|t| *t != DependencyLibType::HeaderOnly) {
+                if referenced_dep
+                    .additional_data
+                    .lib_type
+                    .as_ref()
+                    .is_some_and(|t| *t != DependencyLibType::HeaderOnly)
+                {
                     eprintln!(
                         "Header only library {} is requested as {:?}",
                         shared_dep.config.info.id, lib_type_opt

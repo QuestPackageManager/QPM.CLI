@@ -16,6 +16,7 @@ use super::Command;
 #[derive(Args, Debug, Clone)]
 pub struct InstallCommand {
     pub binary_path: Option<PathBuf>,
+    pub static_path: Option<PathBuf>,
     pub debug_binary_path: Option<PathBuf>,
 
     #[clap(long)]
@@ -50,6 +51,7 @@ impl Command for InstallCommand {
         }
 
         let mut binary_path = self.binary_path;
+        let mut static_path = self.static_path;
         let mut debug_binary_path = self.debug_binary_path;
 
         let header_only = shared_package
@@ -60,14 +62,22 @@ impl Command for InstallCommand {
             .unwrap_or(false);
         #[cfg(debug_assertions)]
         println!("Header only: {header_only}");
-
-        // TODO: Handle static library
+        
         if !header_only {
             if binary_path.is_none() && self.cmake_build.unwrap_or(true) {
                 binary_path = Some(
                     PathBuf::from(format!(
                         "./build/{}",
                         shared_package.config.info.get_so_name().file_name().unwrap().to_string_lossy()
+                    ))
+                    .canonicalize().context("Failed to retrieve release binary for publishing since it is not header only")?,
+                );
+            }
+            if static_path.is_none() && self.cmake_build.unwrap_or(true) {
+                static_path = Some(
+                    PathBuf::from(format!(
+                        "./build/{}",
+                        shared_package.config.info.get_static_name().file_name().unwrap().to_string_lossy()
                     ))
                     .canonicalize().context("Failed to retrieve release binary for publishing since it is not header only")?,
                 );
@@ -102,6 +112,7 @@ impl Command for InstallCommand {
             PathBuf::from(".").canonicalize()?,
             binary_path,
             debug_binary_path,
+            static_path,
             true,
             true,
         )?;
