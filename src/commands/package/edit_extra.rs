@@ -160,7 +160,6 @@ pub fn package_edit_extra_mod_link(package: &mut PackageConfig, mod_link: String
     package.info.additional_data.mod_link = Some(mod_link);
 }
 
-
 pub fn package_edit_extra_debug_so_link(package: &mut PackageConfig, debug_so_link: String) {
     println!("Setting debug_so_link: {debug_so_link:#?}");
     package.info.additional_data.debug_so_link = Some(debug_so_link);

@@ -3,10 +3,7 @@ use std::{env, path::Path};
 use clap::Args;
 
 use itertools::Itertools;
-use qpm_package::models::{
-    dependency::SharedPackageConfig,
-    package::{PackageConfig},
-};
+use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
     models::{

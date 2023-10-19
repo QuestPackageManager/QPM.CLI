@@ -4,10 +4,7 @@ use owo_colors::OwoColorize;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
-    models::{
-        config::get_publish_keyring,
-        package::{PackageConfigExtensions},
-    },
+    models::{config::get_publish_keyring, package::PackageConfigExtensions},
     repository::{qpackages::QPMRepository, Repository},
     terminal::colors::QPMColor,
 };

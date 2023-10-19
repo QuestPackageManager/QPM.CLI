@@ -1,12 +1,15 @@
-use std::{fs::File, io::BufReader, path::Path, collections::HashSet};
+use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
 
 use color_eyre::{eyre::Context, Result};
 use itertools::Itertools;
-use qpm_package::{models::{
-    dependency::{Dependency, SharedDependency, SharedPackageConfig},
-    package::PackageConfig,
-}, extensions::package_metadata::PackageMetadataExtensions};
-use qpm_qmod::models::mod_json::{ModJson, ModDependency};
+use qpm_package::{
+    extensions::package_metadata::PackageMetadataExtensions,
+    models::{
+        dependency::{Dependency, SharedDependency, SharedPackageConfig},
+        package::PackageConfig,
+    },
+};
+use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
 
 use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
@@ -97,12 +100,11 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     }
 
     fn to_mod_json(self) -> ModJson {
-//        Self {
+        //        Self {
         //     id: dep.id,
         //     version_range: dep.version_range,
         //     mod_link: dep.additional_data.mod_link,
         // }
-
 
         let local_deps = &self.config.dependencies;
 
@@ -210,13 +212,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             is_library: None,
             dependencies: mods,
             // TODO: Change
-            late_mod_files: vec![self
-                .config
-                .info
-                .get_so_name()
-                .to_str()
-                .unwrap()
-                .to_string()],
+            late_mod_files: vec![self.config.info.get_so_name().to_str().unwrap().to_string()],
             library_files: libs,
             ..Default::default()
         }

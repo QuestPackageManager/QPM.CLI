@@ -1,8 +1,8 @@
-use color_eyre::{Result, Report};
+use color_eyre::{Report, Result};
 use itertools::Itertools;
 use qpm_package::models::{
     dependency::SharedPackageConfig,
-    extra::{PackageDependencyModifier},
+    extra::PackageDependencyModifier,
     package::{PackageConfig, PackageDependency, PackageMetadata},
 };
 use semver::{Version, VersionReq};
@@ -118,7 +118,6 @@ fn resolve_fail() -> Result<()> {
     assert!(resolved.is_err());
     let report: Report = resolved.err().unwrap();
     println!("{report:?}");
-    
 
     Ok(())
 }

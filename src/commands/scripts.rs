@@ -58,7 +58,8 @@ impl Command for ScriptsCommand {
                                 .map(|s| s.as_str())
                                 .collect_vec()
                                 .as_slice(),
-                        ).map_err(|e| anyhow!("{}", e))?;
+                        )
+                        .map_err(|e| anyhow!("{}", e))?;
 
                     formatted_args
                         .split(' ')

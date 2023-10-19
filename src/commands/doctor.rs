@@ -51,7 +51,10 @@ impl Command for DoctorCommand {
         }
 
         if !ninja {
-            eprintln!("Ninja is not installed in path! Use {} to download ninja", "qpm download ninja".yellow())
+            eprintln!(
+                "Ninja is not installed in path! Use {} to download ninja",
+                "qpm download ninja".yellow()
+            )
         } else {
             println!("Ninja found!");
         }
@@ -63,7 +66,10 @@ impl Command for DoctorCommand {
         }
 
         if !adb {
-            eprintln!("ADB not installed in path. Use {} to download ADB", "qpm download adb".yellow())
+            eprintln!(
+                "ADB not installed in path. Use {} to download ADB",
+                "qpm download adb".yellow()
+            )
         } else {
             println!("ADB found!");
         }

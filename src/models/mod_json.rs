@@ -1,12 +1,12 @@
 use std::{
     fs::File,
-    io::{Read, BufReader},
+    io::{BufReader, Read},
     path::{Path, PathBuf},
 };
 
 use color_eyre::{eyre::Context, Result};
 
-use qpm_qmod::models::mod_json::{ModJson};
+use qpm_qmod::models::mod_json::ModJson;
 
 use crate::utils::json;
 

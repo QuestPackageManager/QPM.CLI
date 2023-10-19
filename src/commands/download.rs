@@ -37,7 +37,8 @@ const ADB_DOWNLOAD: &str =
     "https://dl.google.com/android/repository/platform-tools-latest-linux.zip";
 
 #[cfg(target_os = "macos")]
-const ADB_DOWNLOAD: &str = "https://dl.google.com/android/repository/platform-tools-latest-darwin.zip";
+const ADB_DOWNLOAD: &str =
+    "https://dl.google.com/android/repository/platform-tools-latest-darwin.zip";
 
 #[derive(Args, Debug, Clone)]
 pub struct Download {

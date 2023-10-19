@@ -9,18 +9,17 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{hash_map::Entry, HashMap},
     fs,
-    io::{Write, BufReader},
+    io::{BufReader, Write},
     path::{Path, PathBuf},
 };
 
-use qpm_package::{models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-}, extensions::package_metadata::PackageMetadataExtensions};
+use qpm_package::{
+    extensions::package_metadata::PackageMetadataExtensions,
+    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
+};
 
 use crate::{
-    models::{
-        config::get_combine_config, package::PackageConfigExtensions
-    },
+    models::{config::get_combine_config, package::PackageConfigExtensions},
     utils::{fs::copy_things, json},
 };
 
@@ -133,8 +132,16 @@ impl FileRepository {
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
             let so_path = lib_path.join(package.config.info.get_so_name());
-            let debug_so_path =
-                lib_path.join(format!("debug_{}", package.config.info.get_so_name().file_name().unwrap().to_string_lossy()));
+            let debug_so_path = lib_path.join(format!(
+                "debug_{}",
+                package
+                    .config
+                    .info
+                    .get_so_name()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+            ));
 
             if let Some(binary_path_unwrapped) = &binary_path {
                 copy_things(binary_path_unwrapped, &so_path)?;
@@ -349,8 +356,24 @@ impl FileRepository {
             let data = &shared_dep.config.info.additional_data;
             // get so name or release so name
             let name = match data.debug_so_link.is_none() {
-                true => shared_dep.config.info.get_so_name().file_name().unwrap().to_string_lossy().to_string(),
-                false => format!("debug_{}", shared_dep.config.info.get_so_name().file_name().unwrap().to_string_lossy()),
+                true => shared_dep
+                    .config
+                    .info
+                    .get_so_name()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(),
+                false => format!(
+                    "debug_{}",
+                    shared_dep
+                        .config
+                        .info
+                        .get_so_name()
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                ),
             };
 
             let src_binary = libs_path.join(&name);

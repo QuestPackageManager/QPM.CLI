@@ -1,10 +1,8 @@
-
-
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use semver::{VersionReq};
+use semver::VersionReq;
 use walkdir::WalkDir;
 
 use crate::{

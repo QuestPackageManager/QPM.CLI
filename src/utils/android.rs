@@ -51,7 +51,8 @@ pub fn get_ndk_str_versions(
         .into_iter()
         .map(|(s, p)| {
             (
-                Version::parse(s).unwrap_or_else(|e| panic!("Unable to parse version string {s}: {e}")),
+                Version::parse(s)
+                    .unwrap_or_else(|e| panic!("Unable to parse version string {s}: {e}")),
                 p,
             )
         })

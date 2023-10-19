@@ -50,7 +50,6 @@ fn resolve() -> Result<()> {
     Ok(())
 }
 
-
 #[test]
 fn resolve_locked() -> Result<()> {
     let repo = get_mock_repository();
