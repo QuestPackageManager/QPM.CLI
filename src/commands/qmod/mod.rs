@@ -103,7 +103,7 @@ impl Command for QmodCommand {
 fn execute_qmod_create_operation(create_parameters: CreateQmodJsonOperationArgs) -> Result<()> {
     let schema_version = match &create_parameters.schema_version {
         Option::Some(s) => s.clone(),
-        Option::None => Version::new(1, 0, 0),
+        Option::None => Version::new(1, 1, 0),
     };
 
     let json = ModJson {
@@ -124,11 +124,7 @@ fn execute_qmod_create_operation(create_parameters: CreateQmodJsonOperationArgs)
         ),
         cover_image: create_parameters.cover_image,
         is_library: create_parameters.is_library,
-        dependencies: Default::default(),
-        mod_files: Default::default(),
-        library_files: Default::default(),
-        file_copies: Default::default(),
-        copy_extensions: Default::default(),
+        ..Default::default()
     };
 
     json.write(&PathBuf::from(ModJson::get_template_name()))?;

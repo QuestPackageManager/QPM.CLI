@@ -5,7 +5,8 @@ use std::{
 };
 
 use color_eyre::{eyre::Context, Result};
-use qpm_qmod::models::mod_json::ModJson;
+use qpm_package::models::dependency::{SharedPackageConfig, Dependency, SharedDependency};
+use qpm_qmod::models::mod_json::{ModJson, ModDependency};
 
 use crate::utils::json;
 
