@@ -1,6 +1,7 @@
 use std::{sync, time::Duration};
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{eyre::{Context, bail}, Result};
+use reqwest::StatusCode;
 
 use crate::models::config::get_combine_config;
 
@@ -35,6 +36,9 @@ where
         .execute(request)
         .with_context(|| format!("Unable to download file {url}"))?
         .error_for_status()?;
+    if response.status() == StatusCode::NOT_FOUND {
+        bail!("Not found!");
+    }
 
     Ok(response.bytes()?.into())
 
