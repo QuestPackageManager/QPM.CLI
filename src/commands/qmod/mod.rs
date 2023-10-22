@@ -155,11 +155,17 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
     if existing_json.is_library.unwrap_or(false) {
         existing_json
             .library_files
+            .append(&mut template_mod_json.late_mod_files);
+        existing_json
+            .library_files
             .append(&mut template_mod_json.mod_files);
     } else {
         existing_json
             .mod_files
             .append(&mut template_mod_json.mod_files);
+        existing_json
+            .late_mod_files
+            .append(&mut template_mod_json.late_mod_files);
     }
 
     // TODO: REDO
@@ -191,16 +197,21 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         existing_json.mod_files.retain(exclude_filter);
         existing_json.library_files.retain(exclude_filter);
         // whitelist libraries
-    } else if let Some(included) = build_parameters.include_libs {
-        let include_filter = |lib_name: &String| -> bool {
-            // returning false means don't include
-            // only include anything that is specified included
-            included.iter().any(|s| lib_name == s)
-        };
+    } else {
+    match build_parameters.include_libs {
+        Some(included) => {
+            let include_filter = |lib_name: &String| -> bool {
+                // returning false means don't include
+                // only include anything that is specified included
+                included.iter().any(|s| lib_name == s)
+            };
 
-        existing_json.mod_files.retain(include_filter);
-        existing_json.library_files.retain(include_filter);
+            existing_json.mod_files.retain(include_filter);
+            existing_json.library_files.retain(include_filter);
+        }
+        _ => (),
     }
+}
 
     // handled by preprocessing
 
