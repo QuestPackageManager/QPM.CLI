@@ -1,19 +1,23 @@
 use std::fs::File;
 
 use clap::{Args, Subcommand};
-use color_eyre::{eyre::{bail, Context}, Result};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
 use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
-use semver::{VersionReq, Version};
+use semver::{Version, VersionReq};
 use std::io::Write;
 
 use crate::{
     models::{config::get_combine_config, package::PackageConfigExtensions},
     resolver::semver::{req_to_range, VersionWrapper},
+    terminal::colors::QPMColor,
     utils::android::{
         download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
-    }, terminal::colors::QPMColor,
+    },
 };
 
 use super::Command;
@@ -66,12 +70,14 @@ fn do_use(u: UseArgs) -> Result<()> {
         .get_ndk_installed()
         .into_iter()
         .flatten()
-        .find(|s| s.file_name().to_string_lossy().to_string() == u.version);
+        .find(|s| s.file_name().to_string_lossy() == u.version);
 
     if ndk_installed.is_none() {
         bail!("Could not find NDK version {}", u.version);
     }
-    let ndk_path = ndk_installed.unwrap().path().as_os_str().to_string_lossy();
+    let ndk_path = ndk_installed
+        .map(|p| p.path().as_os_str().to_string_lossy().to_string())
+        .unwrap();
 
     let package = PackageConfig::read(".")?;
     let ndk_requirement = package.workspace.ndk.as_ref();
@@ -87,7 +93,6 @@ fn do_use(u: UseArgs) -> Result<()> {
     }
 
     let mut ndk_file = File::create("./ndkpath.txt").context("Unable to open ndkpath.txt")?;
-
 
     writeln!(ndk_file, "{}", ndk_path)?;
 
