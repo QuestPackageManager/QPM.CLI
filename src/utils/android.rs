@@ -64,11 +64,8 @@ pub fn get_ndk_str_versions_str(
     manifest
         .remote_package
         .iter()
-        .filter_map(|p| {
-            // if NDK and compatible with host machine
-            (p.path.starts_with("ndk;") && get_host_archive(p).is_some())
-                .then(|| (p.path.split_once(';').unwrap().1, p))
-        })
+        .filter(|&p| (p.path.starts_with("ndk;") && get_host_archive(p).is_some()))
+        .map(|p| (p.path.split_once(';').unwrap().1, p))
         .collect()
 }
 
