@@ -53,14 +53,18 @@ impl ModJsonExtensions for ModJson {
     }
 
     fn read(path: &Path) -> Result<ModJson> {
-        let file = std::fs::File::open(path).context("Opening mod.json failed")?;
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Opening ModJson at {path:?} failed"))?;
 
         json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to deserialize ModJson at {path:?}"))
     }
 
     fn write(&self, path: &Path) -> Result<()> {
-        let file = File::create(path)?;
-        serde_json::to_writer_pretty(file, self)?;
+        let file = File::create(path)
+            .with_context(|| format!("Unable to create ModJson file at {path:?}"))?;
+        serde_json::to_writer_pretty(file, self)
+            .with_context(|| format!("Unable to deserialize ModJson file at {path:?}"))?;
         Ok(())
     }
 }

@@ -5,7 +5,7 @@ use std::{
     sync,
 };
 
-use color_eyre::Result;
+use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::json;
@@ -53,8 +53,12 @@ impl UserConfig {
             return Ok(def);
         }
 
-        let file = File::open(Self::global_config_path())?;
+        let path = Self::global_config_path();
+
+        let file = File::open(&path)
+            .with_context(|| format!("Unable to open global config file at {path:?}"))?;
         json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to deserialize global config file at {path:?}"))
     }
 
     pub fn read_workspace() -> Result<Option<Self>> {
@@ -63,8 +67,15 @@ impl UserConfig {
             return Ok(None);
         }
 
-        let file = File::options().read(true).open(path)?;
-        Ok(Some(json::json_from_reader_fast(BufReader::new(file))?))
+        let file = File::options()
+            .read(true)
+            .open(&path)
+            .with_context(|| format!("Unable to open workspace config file at {path:?}"))?;
+
+        let config = json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to deserialize workspace config file at {path:?}"))?;
+
+        Ok(Some(config))
     }
 
     pub fn write(&self, workspace: bool) -> Result<()> {
@@ -74,8 +85,10 @@ impl UserConfig {
             Self::global_config_path()
         };
 
-        let mut file = File::create(path)?;
-        serde_json::to_writer_pretty(&mut file, self)?;
+        let mut file = File::create(&path)
+            .with_context(|| format!("Unable to write config file at {path:?}"))?;
+        serde_json::to_writer_pretty(&mut file, self)
+            .with_context(|| format!("Unable to serialize global config file at {path:?}"))?;
 
         Ok(())
     }

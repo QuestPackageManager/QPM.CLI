@@ -199,7 +199,7 @@ impl FileRepository {
             .context("Failed to make config folder")?;
 
         if let Ok(file) = std::fs::File::open(path) {
-            json::json_from_reader_fast(BufReader::new(file))
+            json::json_from_reader_fast(BufReader::new(file)).context("Unable to read local repository config")
         } else {
             // didn't exist
             Ok(Self::default())

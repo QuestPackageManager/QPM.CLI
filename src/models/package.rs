@@ -38,12 +38,15 @@ impl PackageConfigExtensions for PackageConfig {
         let path = dir.as_ref().join(PACKAGE_FILE_NAME);
         let file = File::open(&path).with_context(|| format!("{path:?} does not exist"))?;
         json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to read PackageConfig at {path:?}"))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join(PACKAGE_FILE_NAME))?;
+        let path = dir.as_ref().join(PACKAGE_FILE_NAME);
+        let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
-        serde_json::to_writer_pretty(file, self)?;
+        serde_json::to_writer_pretty(file, self)
+            .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
         Ok(())
     }
 
@@ -56,12 +59,15 @@ impl PackageConfigExtensions for SharedPackageConfig {
         let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
         let file = File::open(&path).with_context(|| format!("{path:?} not found"))?;
         json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to read SharedPackageConfig at {path:?}"))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join(SHARED_PACKAGE_FILE_NAME))?;
+        let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
+        let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
-        serde_json::to_writer_pretty(file, self)?;
+        serde_json::to_writer_pretty(file, self)
+            .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
         Ok(())
     }
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
