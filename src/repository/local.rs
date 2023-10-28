@@ -29,6 +29,7 @@ use super::Repository;
 // like resolver
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct FileRepository {
+    #[serde(default)]
     pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
 }
 
