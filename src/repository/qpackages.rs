@@ -255,9 +255,6 @@ impl QPMRepository {
             fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
             // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
             let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
-                dbg!(path);
-                dbg!(url_opt);
-                println!();
                 if !path.exists() || File::open(path).is_err() {
                     if let Some(url) = url_opt {
                         println!(
