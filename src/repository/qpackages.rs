@@ -193,7 +193,7 @@ impl QPMRepository {
                 // only log this on debug builds
                 #[cfg(debug_assertions)]
                 println!(
-                    "from: {}\nto: {}",
+                    "Moving from: {}\nto: {}",
                     sub_package_path.display().bright_yellow(),
                     src_path.display().bright_yellow()
                 );
@@ -255,8 +255,22 @@ impl QPMRepository {
             fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
             // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
             let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
+                dbg!(path);
+                dbg!(url_opt);
+                println!();
                 if !path.exists() || File::open(path).is_err() {
                     if let Some(url) = url_opt {
+                        println!(
+                            "Downloading {} from {} to {}",
+                            path.file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                                .download_file_name_color(),
+                            url_opt.unwrap().version_id_color(),
+                            path.as_os_str()
+                                .to_string_lossy()
+                                .alternate_dependency_version_color()
+                        );
                         // so_link existed, download
                         if url.contains("github.com") {
                             // github url!
@@ -279,6 +293,17 @@ impl QPMRepository {
                 &debug_so_path,
                 config.info.additional_data.debug_so_link.as_ref(),
             )?;
+        }
+        if config.info.additional_data.so_link.is_none()
+            && config.info.additional_data.debug_so_link.is_none()
+            && config.info.additional_data.static_link.is_none()
+            && !config.info.additional_data.headers_only.unwrap_or(false)
+        {
+            eprintln!(
+                "No binaries are provided for {}:{} but is also not header only!",
+                config.info.id.dependency_id_color(),
+                config.info.version.version_id_color()
+            );
         }
         Ok(())
     }
