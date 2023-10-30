@@ -9,7 +9,7 @@ use semver::Version;
 
 use crate::models::{
     mod_json::{ModJsonExtensions, PreProcessingData},
-    package::PackageConfigExtensions,
+    package::{PackageConfigExtensions, SharedPackageConfigExtensions},
 };
 
 use super::Command;
@@ -146,7 +146,7 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         mod_name: shared_package.config.info.name.clone(),
     };
 
-    let mut template_mod_json: ModJson = ModJson::from(shared_package);
+    let mut template_mod_json: ModJson = shared_package.to_mod_json();
 
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
     existing_json.is_library = build_parameters.is_library.or(existing_json.is_library);

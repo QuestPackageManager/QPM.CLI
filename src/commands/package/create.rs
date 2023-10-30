@@ -81,6 +81,7 @@ impl Command for PackageOperationCreateArgs {
             info: package_info,
             dependencies: Default::default(),
             workspace: Default::default(),
+            ..Default::default()
         };
 
         package.write(".")?;
