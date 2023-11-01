@@ -64,7 +64,6 @@ pub fn build_artifact_and_depend(
             dependency: dep,
             version: shared_dep.config.info.version.clone(),
         }],
-        ..Default::default()
     }
 }
 pub fn build_artifact_and_depends(
