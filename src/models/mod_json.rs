@@ -24,6 +24,7 @@ pub struct PreProcessingData {
     pub version: String,
     pub mod_id: String,
     pub mod_name: String,
+    pub binary: Option<String>,
 }
 
 impl ModJsonExtensions for ModJson {
@@ -72,4 +73,8 @@ fn preprocess(s: String, preprocess_data: PreProcessingData) -> String {
     s.replace("${version}", &preprocess_data.version)
         .replace("${mod_id}", &preprocess_data.mod_id)
         .replace("${mod_name}", &preprocess_data.mod_name)
+        .replace(
+            "${binary}",
+            preprocess_data.binary.unwrap_or("${binary}".to_string()).as_str(),
+        )
 }

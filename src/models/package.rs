@@ -23,6 +23,14 @@ pub trait PackageConfigExtensions {
     where
         Self: std::marker::Sized;
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()>;
+    fn run_if_version(
+        &self,
+        req: &VersionReq,
+        func: impl FnOnce() -> color_eyre::Result<()>,
+    ) -> color_eyre::Result<()>;
+    fn matches_version(&self, req: &VersionReq) -> bool;
+
+    fn validate(&self) -> color_eyre::Result<()>;
 }
 pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
@@ -37,8 +45,11 @@ impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let path = dir.as_ref().join(PACKAGE_FILE_NAME);
         let file = File::open(&path).with_context(|| format!("{path:?} does not exist"))?;
-        json::json_from_reader_fast(BufReader::new(file))
-            .with_context(|| format!("Unable to read PackageConfig at {path:?}"))
+        let res = json::json_from_reader_fast::<_, Self>(BufReader::new(file))
+            .with_context(|| format!("Unable to read PackageConfig at {path:?}"))?;
+        res.validate()?;
+
+        Ok(res)
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
@@ -52,6 +63,31 @@ impl PackageConfigExtensions for PackageConfig {
 
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
         dir.as_ref().with_file_name(PACKAGE_FILE_NAME).exists()
+    }
+
+    fn run_if_version(
+        &self,
+        req: &VersionReq,
+        func: impl FnOnce() -> color_eyre::Result<()>,
+    ) -> color_eyre::Result<()> {
+        if req.matches(&self.version) {
+            return func();
+        }
+
+        Ok(())
+    }
+    fn matches_version(&self, req: &VersionReq) -> bool {
+        req.matches(&self.version)
+    }
+
+    fn validate(&self) -> color_eyre::Result<()> {
+        let default = Self::default();
+
+        if self.version.major != default.version.major {
+            eprintln!("Warning: using outdate qpm schema. Current {} Latest: {}", self.version, default.version.major);
+        }
+
+        Ok(())
     }
 }
 impl PackageConfigExtensions for SharedPackageConfig {
@@ -72,6 +108,22 @@ impl PackageConfigExtensions for SharedPackageConfig {
     }
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
         dir.as_ref().join(SHARED_PACKAGE_FILE_NAME).exists()
+    }
+
+    fn run_if_version(
+        &self,
+        req: &VersionReq,
+        func: impl FnOnce() -> color_eyre::Result<()>,
+    ) -> color_eyre::Result<()> {
+        self.config.run_if_version(req, func)
+    }
+
+    fn matches_version(&self, req: &VersionReq) -> bool {
+        self.config.matches_version(req)
+    }
+
+    fn validate(&self) -> color_eyre::Result<()> {
+        self.config.validate()
     }
 }
 
