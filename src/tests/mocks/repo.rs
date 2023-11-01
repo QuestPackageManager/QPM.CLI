@@ -23,6 +23,7 @@ pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
                 additional_data: Default::default(),
             },
             dependencies: vec![],
+            ..Default::default()
         },
         restored_dependencies: vec![],
     }
@@ -57,11 +58,13 @@ pub fn build_artifact_and_depend(
                 additional_data: Default::default(),
             },
             dependencies: vec![p_dep],
+            ..Default::default()
         },
         restored_dependencies: vec![SharedDependency {
             dependency: dep,
             version: shared_dep.config.info.version.clone(),
         }],
+        ..Default::default()
     }
 }
 pub fn build_artifact_and_depends(
@@ -90,6 +93,7 @@ pub fn build_artifact_and_depends(
                     additional_data: Default::default(),
                 })
                 .collect(),
+            ..Default::default()
         },
         restored_dependencies: deps
             .iter()
