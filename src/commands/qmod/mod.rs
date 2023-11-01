@@ -176,7 +176,7 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
 
     // if it's a library, append to libraryFiles, else to modFiles
 
-    if package.matches_version(&VersionReq::parse("^1.0.0")?) {
+    if package.matches_version(&VersionReq::parse("^0.1.0")?) {
         if existing_json.is_library.unwrap_or(false) {
             existing_json
                 .library_files
