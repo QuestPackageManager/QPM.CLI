@@ -94,7 +94,7 @@ impl QPMRepository {
         let resp = get_agent()
             .post(&url)
             .set("Authorization", auth)
-            .send_json(&package)
+            .send_json(package)
             .or_any_status()?;
 
         if resp.status() == 403 {

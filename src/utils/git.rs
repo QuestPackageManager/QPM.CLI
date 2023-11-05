@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, Write},
+    io::{self, BufReader},
     path::Path,
     process::{Command, Stdio},
 };
@@ -12,6 +12,7 @@ use color_eyre::{
 use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
+
 
 use crate::{models::config::get_keyring, network::agent::get_agent};
 
@@ -56,11 +57,10 @@ pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
 
 pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<bool> {
     let mut file = File::create(out).context("create so file failed")?;
-    let reader = get_agent().get(url).call()?.into_string()?;
-
-    file.write_all(reader.as_bytes()).with_context(|| {
+    let mut reader = get_agent().get(url).call()?.into_reader();
+    io::copy(&mut reader, &mut file).with_context(|| {
         format!(
-            "Failed to write to file {}",
+            "Failed to write out downloaded bytes to {}",
             out.as_os_str().to_string_lossy()
         )
     })?;
@@ -105,8 +105,9 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
 
             let mut file = File::create(out).context("create so file failed")?;
 
-            let res = get_agent().get(&download).call()?.into_string()?;
-            file.write_all(res.as_bytes()).with_context(|| {
+            let mut reader = get_agent().get(&download).call()?.into_reader();
+
+            io::copy(&mut reader, &mut file).with_context(|| {
                 format!(
                     "Failed to write out downloaded bytes to {}",
                     out.as_os_str().to_string_lossy()

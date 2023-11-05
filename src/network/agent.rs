@@ -1,10 +1,8 @@
 use std::{sync, time::Duration};
 
-use color_eyre::{
-    eyre::{Context},
-    Result,
-};
-
+use color_eyre::{eyre::Context, Result};
+use itertools::Itertools;
+use std::io::Read;
 
 use crate::models::config::get_combine_config;
 
@@ -32,16 +30,17 @@ where
     let request = get_agent().get(url).timeout(Duration::MAX);
 
     // non-200 status codes are raised as errors
-    let response = request.call()
+    let response = request
+        .call()
         .with_context(|| format!("Unable to download file {url}"))?;
-        // .error_for_status()?;
+    // .error_for_status()?;
     // if response.status() == ureq::OrAnyStatus::NOT_FOUND {
     //     bail!("Not found!");
     // }
 
-    let reader = response.into_string()?;
+    let reader = response.into_reader();
 
-    Ok(reader.into_bytes())
+    Ok(reader.bytes().try_collect()?)
 
     // TODO: Fix
     // let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
