@@ -13,7 +13,6 @@ use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
 
-
 use crate::{models::config::get_keyring, network::agent::get_agent};
 
 pub fn check_git() -> Result<()> {
