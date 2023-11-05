@@ -1,4 +1,4 @@
-use color_eyre::Result;
+
 use serde::{Deserialize, Serialize};
 
 use super::agent::get_agent;
@@ -46,24 +46,26 @@ pub struct GithubCommitDiffCommitDataResponse {
     pub message: String,
 }
 
-pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, reqwest::Error> {
-    get_agent()
+pub fn get_github_branch(branch: &str) -> color_eyre::Result<GithubBranchResponse> {
+    let res = get_agent()
         .get(format!(
             "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/branches/{branch}"
-        ))
-        .send()?
-        .json()
+        ).as_str())
+        .call()?
+        .into_json()?;
+    Ok(res)
 }
 pub fn get_github_commit_diff(
     old: &str,
     new: &str,
-) -> Result<GithubCommitDiffResponse, reqwest::Error> {
-    get_agent()
+) -> color_eyre::Result<GithubCommitDiffResponse> {
+    let res = get_agent()
         .get(format!(
             "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/compare/{old}...{new}"
-        ))
-        .send()?
-        .json()
+        ).as_str())
+        .call()?
+        .into_json()?;
+    Ok(res)
 }
 
 pub fn download_github_artifact_url(sha: &str) -> String {
