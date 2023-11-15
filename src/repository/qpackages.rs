@@ -190,7 +190,8 @@ impl QPMRepository {
                 // not a github url, assume it's a zip
                 let response = get_agent().get(url).call()?;
 
-                let buffer = Cursor::new(response.into_string()?);
+                let mut buffer = Cursor::new(Vec::new());
+                response.into_reader().read_to_end(buffer.get_mut())?;
                 // Extract to tmp folder
                 ZipArchive::new(buffer)?.extract(&tmp_path)?;
             }
