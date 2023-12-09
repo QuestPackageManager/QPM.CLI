@@ -1,11 +1,10 @@
 use std::{
-    fs::File,
-    io::{copy, Cursor},
+    io::{Cursor},
 };
 
 use bytes::Bytes;
 use clap::{Args, Subcommand};
-use color_eyre::{eyre::bail, Result};
+use color_eyre::{Result};
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 

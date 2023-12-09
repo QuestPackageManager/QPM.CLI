@@ -9,7 +9,7 @@ use crate::models::config::get_combine_config;
 static AGENT: sync::OnceLock<ureq::Agent> = sync::OnceLock::new();
 
 pub fn get_agent() -> &'static ureq::Agent {
-    let timeout = get_combine_config().timeout.unwrap_or(5000);
+    let _timeout = get_combine_config().timeout.unwrap_or(5000);
 
     AGENT.get_or_init(|| {
         ureq::AgentBuilder::new()
