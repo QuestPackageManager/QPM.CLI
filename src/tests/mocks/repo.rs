@@ -12,6 +12,7 @@ use crate::repository::local::FileRepository;
 pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
     SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
             shared_dir: "shared".into(),
             workspace: Default::default(),
             dependencies_dir: "extern".into(),
@@ -46,6 +47,7 @@ pub fn build_artifact_and_depend(
     };
     SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
             workspace: Default::default(),
             shared_dir: "shared".into(),
 
@@ -73,6 +75,7 @@ pub fn build_artifact_and_depends(
 ) -> SharedPackageConfig {
     SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
             workspace: Default::default(),
             shared_dir: "shared".into(),
 

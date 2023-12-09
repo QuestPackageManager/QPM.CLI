@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::BufReader,
+    io::{self, BufReader},
     path::Path,
     process::{Command, Stdio},
 };
@@ -56,11 +56,13 @@ pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
 
 pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<bool> {
     let mut file = File::create(out).context("create so file failed")?;
-    get_agent()
-        .get(url)
-        .send()?
-        .copy_to(&mut file)
-        .context("Failed to write to file")?;
+    let mut reader = get_agent().get(url).call()?.into_reader();
+    io::copy(&mut reader, &mut file).with_context(|| {
+        format!(
+            "Failed to write out downloaded bytes to {}",
+            out.as_os_str().to_string_lossy()
+        )
+    })?;
 
     Ok(out.exists())
 }
@@ -85,8 +87,8 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
         &token, &user, &repo, &tag
     );
 
-    let data = match get_agent().get(asset_data_link).send() {
-        Ok(o) => o.json::<GithubReleaseData>().unwrap(),
+    let data = match get_agent().get(&asset_data_link).call() {
+        Ok(o) => o.into_json::<GithubReleaseData>()?,
         Err(e) => {
             let error_string = e.to_string().replace(token, "***");
             bail!("{}", error_string);
@@ -102,11 +104,14 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
 
             let mut file = File::create(out).context("create so file failed")?;
 
-            get_agent()
-                .get(download)
-                .send()?
-                .copy_to(&mut file)
-                .context("Failed to write out downloaded bytes")?;
+            let mut reader = get_agent().get(&download).call()?.into_reader();
+
+            io::copy(&mut reader, &mut file).with_context(|| {
+                format!(
+                    "Failed to write out downloaded bytes to {}",
+                    out.as_os_str().to_string_lossy()
+                )
+            })?;
             break;
         }
     }

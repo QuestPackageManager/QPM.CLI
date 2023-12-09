@@ -22,11 +22,7 @@ impl Command for ScriptsCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
-        let scripts = &package.workspace.scripts;
-
-        if scripts.is_empty() {
-            bail!("No scripts defined in qpm.json::workspace::scripts");
-        }
+        let scripts = package.workspace.scripts;
 
         let script = scripts.get(&self.script);
 

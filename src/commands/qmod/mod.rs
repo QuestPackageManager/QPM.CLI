@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::ensure, Result};
@@ -174,6 +174,25 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
     existing_json.is_library = build_parameters.is_library.or(existing_json.is_library);
 
+    let existing_binaries: HashSet<String> = existing_json
+        .library_files
+        .iter()
+        .chain(existing_json.mod_files.iter())
+        .chain(existing_json.late_mod_files.iter())
+        .cloned()
+        .collect();
+
+    // Don't add files that are already defined
+    template_mod_json
+        .late_mod_files
+        .retain(|s| !existing_binaries.contains(s));
+    template_mod_json
+        .mod_files
+        .retain(|s| !existing_binaries.contains(s));
+    template_mod_json
+        .library_files
+        .retain(|s| !existing_binaries.contains(s));
+
     // if it's a library, append to libraryFiles, else to modFiles
 
     if package.matches_version(&VersionReq::parse("^0.1.0")?) {
@@ -236,6 +255,10 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         existing_json.library_files.retain(include_filter);
     }
 
+    // Ensure no duplicates
+    existing_json.mod_files = existing_json.mod_files.into_iter().unique().collect();
+    existing_json.late_mod_files = existing_json.late_mod_files.into_iter().unique().collect();
+    existing_json.library_files = existing_json.library_files.into_iter().unique().collect();
     // handled by preprocessing
 
     // Write mod.json

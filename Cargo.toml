@@ -37,19 +37,21 @@ color-eyre = { version = "0.6", default-features = false }
 pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
 git2 = "0.18"
-
-#tokio fix
-tokio = { version = ">=1.33", features = ["io-util", "io-std", "net"] }
-
 bytes = "*"
-reqwest = { version = "0.11", features = [
-    "blocking",
-    "json",
-    "default-tls",
-    "gzip",
-    "deflate",
-    "brotli",
-], default-features = false }
+
+ureq = { version = "*", features = ["json", "charset", "cookies"] }
+
+# #tokio fix
+# tokio = { version = ">=1.33", features = ["io-util", "io-std", "net"] }
+
+# reqwest = { version = "0.11", features = [
+#     "blocking",
+#     "json",
+#     "default-tls",
+#     "gzip",
+#     "deflate",
+#     "brotli",
+# ], default-features = false }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
