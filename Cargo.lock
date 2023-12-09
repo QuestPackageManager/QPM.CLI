@@ -185,7 +185,7 @@ dependencies = [
  "futures-lite 2.1.0",
  "parking",
  "polling 3.3.1",
- "rustix 0.38.27",
+ "rustix 0.38.28",
  "slab",
  "tracing",
  "windows-sys 0.52.0",
@@ -224,7 +224,7 @@ dependencies = [
  "cfg-if",
  "event-listener 3.1.0",
  "futures-lite 1.13.0",
- "rustix 0.38.27",
+ "rustix 0.38.28",
  "windows-sys 0.48.0",
 ]
 
@@ -251,7 +251,7 @@ dependencies = [
  "cfg-if",
  "futures-core",
  "futures-io",
- "rustix 0.38.27",
+ "rustix 0.38.28",
  "signal-hook-registry",
  "slab",
  "windows-sys 0.48.0",
@@ -1668,7 +1668,7 @@ dependencies = [
  "cfg-if",
  "concurrent-queue",
  "pin-project-lite",
- "rustix 0.38.27",
+ "rustix 0.38.28",
  "tracing",
  "windows-sys 0.52.0",
 ]
@@ -1760,7 +1760,7 @@ dependencies = [
 [[package]]
 name = "qpm_package"
 version = "0.2.0"
-source = "git+https://github.com/QuestPackageManager/QPM.Package.git#6dc56f354329a35a3f372e40850509f828964cbe"
+source = "git+https://github.com/QuestPackageManager/QPM.Package.git#cd21626047e487d5446e35adcf8eeacfd99e0803"
 dependencies = [
  "cursed-semver-parser",
  "semver",
@@ -1978,9 +1978,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.27"
+version = "0.38.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfeae074e687625746172d639330f1de242a178bf3189b51e35a7a21573513ac"
+checksum = "72e572a5e8ca657d7366229cdde4bd14c4eb5499a9573d4d366fe1b599daa316"
 dependencies = [
  "bitflags 2.4.1",
  "errno",
@@ -2334,7 +2334,7 @@ dependencies = [
  "cfg-if",
  "fastrand 2.0.1",
  "redox_syscall",
- "rustix 0.38.27",
+ "rustix 0.38.28",
  "windows-sys 0.48.0",
 ]
 
