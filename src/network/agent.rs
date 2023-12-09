@@ -13,9 +13,9 @@ pub fn get_agent() -> &'static ureq::Agent {
 
     AGENT.get_or_init(|| {
         ureq::AgentBuilder::new()
-            .timeout_read(Duration::from_millis(timeout.into()))
-            .timeout_connect(Duration::from_millis(timeout.into()))
-            .timeout_write(Duration::from_millis(timeout.into()))
+            // .timeout_read(Duration::from_millis(timeout.into()))
+            // .timeout_connect(Duration::from_millis(timeout.into()))
+            // .timeout_write(Duration::from_millis(timeout.into()))
             .user_agent(format!("questpackagemanager-rust2/{}", env!("CARGO_PKG_VERSION")).as_str())
             .no_delay(false)
             .https_only(true)

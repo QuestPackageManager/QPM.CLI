@@ -151,11 +151,11 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
     existing_json.is_library = build_parameters.is_library.or(existing_json.is_library);
 
-    let existing_binaries: HashSet<String> = template_mod_json
+    let existing_binaries: HashSet<String> = existing_json
         .library_files
         .iter()
-        .chain(template_mod_json.mod_files.iter())
-        .chain(template_mod_json.late_mod_files.iter())
+        .chain(existing_json.mod_files.iter())
+        .chain(existing_json.late_mod_files.iter())
         .cloned()
         .collect();
 
