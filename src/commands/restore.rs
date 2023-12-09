@@ -41,6 +41,7 @@ impl Command for RestoreCommand {
         let mut repo = MultiDependencyRepository::useful_default_new(self.offline)?;
 
         let unlocked = self.update || !SharedPackageConfig::exists(".");
+        let locked = !unlocked;
 
         if !unlocked && is_ignored() {
             eprintln!(
@@ -54,12 +55,11 @@ impl Command for RestoreCommand {
             eprintln!("Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository");
         }
 
-        // Check if dependencies and dependency ranges are the same
-        let mut temp_shared_package = SharedPackageConfig::read(".")?;
+        let temp_shared_package = locked.then(|| SharedPackageConfig::read(".")).transpose()?;
 
-        let (shared_package, resolved_deps) = match unlocked {
+        let (shared_package, resolved_deps) = match temp_shared_package {
             // only do this if shared and local are the same
-            false if package == temp_shared_package.config => {
+            Some(mut temp_shared_package) if package == temp_shared_package.config => {
                 // if the same, restore as usual
                 println!("Using lock file for restoring");
 
@@ -69,6 +69,7 @@ impl Command for RestoreCommand {
 
                 (temp_shared_package, dependencies)
             }
+            // Unlocked resolve
             _ => {
                 println!("Resolving packages");
 
