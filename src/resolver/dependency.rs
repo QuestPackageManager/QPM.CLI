@@ -131,7 +131,7 @@ pub fn resolve<'a>(
             bail!("failed to resolve dependencies: \n{}", report)
         }
         Err(err) => {
-            bail!("{}", err)
+            bail!("pubgrub: {err}\n{err:?}");
         }
     };
     println!("Took {}ms to dependency resolve", sw.elapsed_ms());
