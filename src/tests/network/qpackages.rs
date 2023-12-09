@@ -87,6 +87,8 @@ fn resolve_fail() -> Result<()> {
     let repo = QPMRepository::default();
     let p = SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
+
             shared_dir: Default::default(),
             dependencies_dir: Default::default(),
             info: PackageMetadata {
@@ -108,7 +110,7 @@ fn resolve_fail() -> Result<()> {
                     additional_data: PackageDependencyModifier::default(),
                 },
             ],
-            workspace: None,
+            workspace: Default::default(),
         },
         restored_dependencies: vec![],
     };
