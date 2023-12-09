@@ -81,7 +81,7 @@ impl Command for PackageOperationCreateArgs {
             info: package_info,
             dependencies: Default::default(),
             workspace: Default::default(),
-            version: PackageConfig::default().version
+            version: PackageConfig::default().version,
         };
 
         package.write(".")?;

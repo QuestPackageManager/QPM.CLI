@@ -1,10 +1,8 @@
-use std::{
-    io::{Cursor},
-};
+use std::io::Cursor;
 
 use bytes::Bytes;
 use clap::{Args, Subcommand};
-use color_eyre::{Result};
+use color_eyre::Result;
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
