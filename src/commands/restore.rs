@@ -38,7 +38,6 @@ fn is_ignored() -> bool {
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let shared_package: SharedPackageConfig;
         let mut repo = MultiDependencyRepository::useful_default_new(self.offline)?;
 
         let unlocked = self.update || !SharedPackageConfig::exists(".");
@@ -55,39 +54,27 @@ impl Command for RestoreCommand {
             eprintln!("Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository");
         }
 
-        let resolved_deps = match unlocked {
-            false => {
-                // Check if dependencies and dependency ranges are the same
-                let mut temp_shared_package = SharedPackageConfig::read(".")?;
+        // Check if dependencies and dependency ranges are the same
+        let mut temp_shared_package = SharedPackageConfig::read(".")?;
 
-                match package == temp_shared_package.config {
-                    true => {
-                        // if the same, restore as usual
-                        println!("Using lock file for restoring");
+        let (shared_package, resolved_deps) = match unlocked {
+            // only do this if shared and local are the same
+            false if package == temp_shared_package.config => {
+                // if the same, restore as usual
+                println!("Using lock file for restoring");
 
-                        temp_shared_package.config = package;
+                temp_shared_package.config = package;
+                let dependencies =
+                    dependency::locked_resolve(&temp_shared_package, &repo)?.collect_vec();
 
-                        shared_package = temp_shared_package;
-
-                        dependency::locked_resolve(&shared_package, &repo)?.collect_vec()
-                    }
-                    false => {
-                        println!("Resolving packages");
-
-                        let (spc_result, restored_deps) =
-                            SharedPackageConfig::resolve_from_package(package, &repo)?;
-                        shared_package = spc_result;
-                        restored_deps
-                    }
-                }
+                (temp_shared_package, dependencies)
             }
-            true => {
+            _ => {
                 println!("Resolving packages");
 
                 let (spc_result, restored_deps) =
                     SharedPackageConfig::resolve_from_package(package, &repo)?;
-                shared_package = spc_result;
-                restored_deps
+                (spc_result, restored_deps)
             }
         };
 
