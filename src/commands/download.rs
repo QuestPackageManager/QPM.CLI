@@ -85,32 +85,7 @@ impl Command for Download {
 
         match download {
             DownloadOperation::Ninja => archive.extract(final_path)?,
-            DownloadOperation::ADB => {
-                let mut file = File::create(if cfg!(windows) {
-                    final_path.join("adb").with_extension("exe")
-                } else {
-                    final_path.join("adb")
-                })?;
-
-                let name = archive
-                    .file_names()
-                    .find(|i| {
-                        if cfg!(windows) {
-                            i.ends_with("adb.exe")
-                        } else {
-                            i.ends_with("adb")
-                        }
-                    })
-                    .map(|s| s.to_string());
-
-                if name.is_none() {
-                    bail!("Unable to find cmake binary in archive");
-                }
-
-                let mut adb_bin = archive.by_name(name.unwrap().as_str())?; // 2nd file /cmake-wehauehw/bin/cmake.exe
-
-                copy(&mut adb_bin, &mut file)?;
-            }
+            DownloadOperation::ADB => archive.extract(final_path)?,
         }
 
         println!(
