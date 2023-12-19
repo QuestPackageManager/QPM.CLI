@@ -1,11 +1,17 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::ensure, Result};
 use itertools::Itertools;
-use qpm_package::models::dependency::SharedPackageConfig;
-use qpm_qmod::models::mod_json::ModJson;
-use semver::Version;
+use qpm_package::{
+    extensions::package_metadata::PackageMetadataExtensions,
+    models::{dependency::SharedPackageConfig, package::PackageConfig},
+};
+use qpm_qmod::models::mod_json::{ModDependency, ModJson};
+use semver::{Version, VersionReq};
 
 use crate::models::{
     mod_json::{ModJsonExtensions, PreProcessingData},
@@ -137,75 +143,43 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 
     println!("Generating mod.json file from template using qpm.shared.json...");
+    let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
+
+    let binary = shared_package
+        .config
+        .info
+        .additional_data
+        .headers_only
+        .unwrap_or(false)
+        .then(|| {
+            shared_package
+                .config
+                .info
+                .get_so_name()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string()
+        });
 
     // Parse template mod.template.json
     let preprocess_data = PreProcessingData {
         version: shared_package.config.info.version.to_string(),
         mod_id: shared_package.config.info.id.clone(),
         mod_name: shared_package.config.info.name.clone(),
+        binary,
     };
-
-    let mut template_mod_json: ModJson = shared_package.to_mod_json();
 
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
     existing_json.is_library = build_parameters.is_library.or(existing_json.is_library);
 
-    let existing_binaries: HashSet<String> = existing_json
-        .library_files
-        .iter()
-        .chain(existing_json.mod_files.iter())
-        .chain(existing_json.late_mod_files.iter())
-        .cloned()
-        .collect();
+    let template_mod_json: ModJson = shared_package.to_mod_json();
+    let legacy_0_1_0 = package.matches_version(&VersionReq::parse("^0.1.0")?);
 
-    // Don't add files that are already defined
-    template_mod_json
-        .late_mod_files
-        .retain(|s| !existing_binaries.contains(s));
-    template_mod_json
-        .mod_files
-        .retain(|s| !existing_binaries.contains(s));
-    template_mod_json
-        .library_files
-        .retain(|s| !existing_binaries.contains(s));
+    existing_json = ModJson::merge_modjson(existing_json, template_mod_json, legacy_0_1_0);
 
-    // if it's a library, append to libraryFiles, else to modFiles
-    if existing_json.is_library.unwrap_or(false) {
-        existing_json
-            .library_files
-            .append(&mut template_mod_json.late_mod_files);
-        existing_json
-            .library_files
-            .append(&mut template_mod_json.mod_files);
-    } else {
-        existing_json
-            .mod_files
-            .append(&mut template_mod_json.mod_files);
-        existing_json
-            .late_mod_files
-            .append(&mut template_mod_json.late_mod_files);
-    }
-
-    // TODO: REDO
-    existing_json.dependencies.append(
-        &mut template_mod_json
-            .dependencies
-            .clone()
-            .into_iter()
-            .filter(|d| {
-                !existing_json
-                    .dependencies
-                    .iter()
-                    .any(|existing_d| existing_d.id == d.id)
-            })
-            .collect_vec(),
-    );
-    existing_json
-        .library_files
-        .append(&mut template_mod_json.library_files);
-
-    // exclude libraries
     if let Some(excluded) = build_parameters.exclude_libs {
         let exclude_filter = |lib_name: &String| -> bool {
             // returning false means don't include
@@ -226,12 +200,6 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         existing_json.mod_files.retain(include_filter);
         existing_json.library_files.retain(include_filter);
     }
-
-    // Ensure no duplicates
-    existing_json.mod_files = existing_json.mod_files.into_iter().unique().collect();
-    existing_json.late_mod_files = existing_json.late_mod_files.into_iter().unique().collect();
-    existing_json.library_files = existing_json.library_files.into_iter().unique().collect();
-    // handled by preprocessing
 
     // Write mod.json
     existing_json.write(&PathBuf::from(ModJson::get_result_name()))?;

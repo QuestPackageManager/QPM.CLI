@@ -4,7 +4,7 @@ use clap::Args;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     extra::AdditionalPackageMetadata,
-    package::{PackageConfig, PackageMetadata},
+    package::{PackageConfig, PackageMetadata, self},
 };
 use semver::Version;
 
@@ -81,7 +81,7 @@ impl Command for PackageOperationCreateArgs {
             info: package_info,
             dependencies: Default::default(),
             workspace: Default::default(),
-            version: PackageConfig::default().version,
+            version: package::package_target_version(),
         };
 
         package.write(".")?;
