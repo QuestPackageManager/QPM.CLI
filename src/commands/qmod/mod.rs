@@ -146,23 +146,23 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
-    let binary = shared_package
+    let is_header_only = shared_package
         .config
         .info
         .additional_data
         .headers_only
-        .unwrap_or(false)
-        .then(|| {
-            shared_package
-                .config
-                .info
-                .get_so_name()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string()
-        });
+        .unwrap_or(false);
+    let binary = (!is_header_only).then(|| {
+        shared_package
+            .config
+            .info
+            .get_so_name()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+    });
 
     // Parse template mod.template.json
     let preprocess_data = PreProcessingData {
