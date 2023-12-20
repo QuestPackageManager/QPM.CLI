@@ -4,6 +4,7 @@ use color_eyre::{
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
+use reqwest::StatusCode;
 use semver::Version;
 use std::{
     cell::UnsafeCell,
@@ -12,7 +13,6 @@ use std::{
     io::{Cursor, Write},
     path::Path,
 };
-use ureq::OrAnyStatus;
 use zip::ZipArchive;
 
 use serde::Deserialize;
@@ -48,26 +48,15 @@ impl QPMRepository {
         let url = format!("{API_URL}/{path}");
 
         let response = get_agent()
-            .get(&url)
-            .call()
-            .or_any_status()
+            .get(url)
+            .send()
             .context("Unable to make request to qpackages.com")?;
 
-        // not found
-        if response.status() == 404 {
+        if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
         }
 
-        if response.status() >= 400 {
-            bail!(
-                "Response error code: {} {} {:?}",
-                response.status(),
-                response.status_text(),
-                response
-            );
-        }
-
-        let result: T = response.into_json().context("Into json failed")?;
+        let result: T = response.json().context("Into json failed")?;
 
         Ok(Some(result))
     }
@@ -92,26 +81,18 @@ impl QPMRepository {
         );
 
         let resp = get_agent()
-            .post(&url)
-            .set("Authorization", auth)
-            .send_json(package)
-            .or_any_status()?;
+            .post(url)
+            .header("Authorization", auth)
+            .json(&package)
+            .send()?;
 
-        if resp.status() == 403 {
+        if resp.status() == StatusCode::UNAUTHORIZED {
             bail!(
                 "Could not publish to {}: Unauthorized! Did you provide the correct key?",
                 API_URL
             );
         }
-        if resp.status() >= 400 {
-            bail!(
-                "Could not publish to {}: Error {} {} {:?}",
-                API_URL,
-                resp.status(),
-                resp.status_text(),
-                resp
-            );
-        }
+        resp.error_for_status()?;
         Ok(())
     }
 
@@ -188,10 +169,9 @@ impl QPMRepository {
                 )?;
             } else {
                 // not a github url, assume it's a zip
-                let response = get_agent().get(url).call()?;
+                let response = get_agent().get(url).send()?;
 
-                let mut buffer = Cursor::new(Vec::new());
-                response.into_reader().read_to_end(buffer.get_mut())?;
+                let buffer = Cursor::new(response.bytes()?);
                 // Extract to tmp folder
                 ZipArchive::new(buffer)?.extract(&tmp_path)?;
             }
