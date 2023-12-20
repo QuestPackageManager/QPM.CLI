@@ -84,7 +84,7 @@ impl PackageConfigExtensions for PackageConfig {
         let default = Self::default();
 
         if self.version.major != default.version.major {
-            eprintln!("Warning: using outdate qpm schema. Current {} Latest: {}", self.version, default.version.major);
+            eprintln!("Warning: using outdate qpm schema. Current {} Latest: {:?}", self.version, default.version);
         }
 
         Ok(())
