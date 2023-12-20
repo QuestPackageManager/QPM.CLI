@@ -60,12 +60,18 @@ impl Command for VersionCommand {
                         .alternate_dependency_version_color()
                 );
 
+                if latest_branch.commit.sha == base_commit {
+                    println!("Using the latest version");
+                    return Ok(());
+                }
+
                 let diff: github::GithubCommitDiffResponse =
                     github::get_github_commit_diff(base_commit, &input_branch)?;
 
                 if diff.behind_by > 0 {
                     bail!("Selected an older branch")
                 }
+
 
                 println!(
                     "Current QPM-RS build is behind {} commits",
