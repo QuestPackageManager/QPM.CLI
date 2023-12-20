@@ -25,7 +25,8 @@ pub struct VersionCommand {
 
 #[derive(Subcommand, Debug, Clone, PartialEq, PartialOrd)]
 enum VersionOperation {
-    Latest(LatestOperationArgs),
+    #[clap(alias("latest"))]
+    Check(LatestOperationArgs),
     Current,
     Update(LatestOperationArgs),
 }
@@ -39,7 +40,7 @@ struct LatestOperationArgs {
 impl Command for VersionCommand {
     fn execute(self) -> color_eyre::Result<()> {
         match self.op {
-            VersionOperation::Latest(b) => {
+            VersionOperation::Check(b) => {
                 let base_branch = env!("VERGEN_GIT_BRANCH");
                 let base_commit = env!("VERGEN_GIT_SHA");
 
@@ -59,22 +60,21 @@ impl Command for VersionCommand {
                         .alternate_dependency_version_color()
                 );
 
-                let diff = github::get_github_commit_diff(base_commit, &input_branch)?;
+                let diff: github::GithubCommitDiffResponse =
+                    github::get_github_commit_diff(base_commit, &input_branch)?;
 
-                if diff.ahead_by > 0 {
+                if diff.behind_by > 0 {
                     bail!("Selected an older branch")
                 }
 
                 println!(
                     "Current QPM-RS build is behind {} commits",
-                    diff.ahead_by.version_id_color()
+                    diff.behind_by.version_id_color()
                 );
-                if diff.ahead_by > 0 {
-                    println!("Changelog:");
+                println!("Changelog:");
 
-                    for commit in diff.commits {
-                        println!("- {}", commit.commit.message);
-                    }
+                for commit in diff.commits {
+                    println!("- {}", commit.commit.message);
                 }
             }
 
