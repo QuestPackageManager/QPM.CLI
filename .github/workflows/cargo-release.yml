@@ -4,7 +4,7 @@ name: Cargo Release
 on:
   release:
     types: published
-    
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -30,7 +30,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -61,5 +61,5 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: softprops/action-gh-release@v1
         with:
-          files: | 
+          files: |
             ./target/release/${{ matrix.file-name }}
