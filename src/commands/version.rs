@@ -93,6 +93,12 @@ impl Command for VersionCommand {
                     base_branch.dependency_version_color(),
                     base_commit.version_id_color()
                 );
+
+                if base_commit == latest_branch.commit.sha {
+                    println!("Already running commit");
+                    return Ok(());
+                }
+
                 println!(
                     "Downloading {}",
                     latest_branch
