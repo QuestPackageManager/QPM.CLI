@@ -27,7 +27,7 @@ pub fn download_file<F>(url: &str, _callback: F) -> Result<Vec<u8>>
 where
     F: FnMut(usize, usize),
 {
-    let request = get_agent().get(url).timeout(Duration::MAX);
+    let request = get_agent().get(url);
 
     // non-200 status codes are raised as errors
     let response = request
