@@ -59,7 +59,7 @@ jobs:
 
       - name: Rename build
         run: |
-          pwsh Compress-Archive ./target/release/${{matrix.file-name}} -DestinationPath qpm-${{matrix.prefix}}.zip
+          pwsh -Command Compress-Archive ./target/release/${{matrix.file-name}} -DestinationPath qpm-${{matrix.prefix}}.zip
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
