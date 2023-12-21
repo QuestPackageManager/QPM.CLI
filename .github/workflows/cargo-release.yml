@@ -57,9 +57,42 @@ jobs:
           command: build
           args: --release
 
+      - name: Rename build
+        run: |
+          pwsh Compress-Archive ./target/release/${{matrix.file-name}} -DestinationPath qpm-${{matrix.prefix}}.zip
+
       - name: Upload Release Assets
-        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./target/release/${{ matrix.file-name }}
+            qpm-${{matrix.prefix}}.zip
+
+      # TODO: Move to somewhere else
+      - name: Download Inno Setup
+        uses: suisei-cn/actions-download-file@v1
+        if: ${{matrix.os == 'windows-latest' }}
+        with:
+          url: https://jrsoftware.org/download.php/is.exe
+          target: ../
+
+      - name: Install Inno Setup
+        if: ${{matrix.os == 'windows-latest' }}
+        run: "../is.exe /VERYSILENT /NORESTART /ALLUSERS"
+
+      - name: Compile Installer
+        if: ${{matrix.os == 'windows-latest' }}
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /f installer/installer.iss'
+
+      - name: Artifact Upload
+        uses: actions/upload-artifact@v2
+        if: ${{matrix.os == 'windows-latest' }}
+        with:
+          name: qpm-installer.exe
+          path: ./installer/qpm-installer.exe
+          
+      - name: Upload Installer Assets
+        if: ${{matrix.os == 'windows-latest' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            qpm-installer.exe
