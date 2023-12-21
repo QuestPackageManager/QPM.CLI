@@ -83,16 +83,8 @@ jobs:
         if: ${{matrix.os == 'windows-latest' }}
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /f installer/installer.iss'
 
-      - name: Artifact Upload
-        uses: actions/upload-artifact@v2
-        if: ${{matrix.os == 'windows-latest' }}
-        with:
-          name: qpm-installer.exe
-          path: ./installer/qpm-installer.exe
-          
       - name: Upload Installer Assets
         if: ${{matrix.os == 'windows-latest' }}
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            qpm-installer.exe
+          files: ./installer/qpm-installer.exe
