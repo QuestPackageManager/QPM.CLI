@@ -82,7 +82,11 @@ impl Command for Download {
 
         match download {
             DownloadOperation::Ninja => archive.extract(final_path)?,
-            DownloadOperation::ADB => archive.extract(final_path)?,
+            DownloadOperation::ADB => {
+                archive.extract(final_path)?;
+                // add symlink from platform-tools/adb to adb
+                symlink::symlink_file(final_path.join("platform-tools").join("adb"), final_path.join("adb"))?;
+            },
         }
 
         println!(
