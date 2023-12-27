@@ -64,9 +64,34 @@ jobs:
           command: build
           args: --release
 
+      - uses: actions-rs/toolchain@v1
+        if: ${{matrix.os == 'macos-latest' }}
+        with:
+          toolchain: nightly
+          target: aarch64-apple-darwin
+
+      - name: Cargo build for aarch64 Mac
+        if: ${{matrix.os == 'macos-latest' }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target aarch64-apple-darwin
+
+      - name: Install Inno Setup
+        if: ${{matrix.os == 'macos-latest' }}
+        run: lipo -create -output qpm-universal target/release/arch target/aarch64-apple-darwin/release/arch
+
+      - name: Artifact Upload
+        uses: actions/upload-artifact@v2
+        if: ${{matrix.os == 'macos-latest' }}
+        with:
+          name: qpm-universal
+          path: qpm-universal
+          if-no-files-found: error
+
       - name: Download Inno Setup
-        uses: suisei-cn/actions-download-file@v1
         if: ${{matrix.os == 'windows-latest' }}
+        uses: suisei-cn/actions-download-file@v1
         with:
           url: https://jrsoftware.org/download.php/is.exe
           target: ../
@@ -85,6 +110,7 @@ jobs:
         with:
           name: qpm-installer.exe
           path: ./installer/qpm-installer.exe
+          if-no-files-found: error
 
       - name: Upload executable
         uses: actions/upload-artifact@v2

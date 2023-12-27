@@ -67,6 +67,31 @@ jobs:
           files: |
             qpm-${{matrix.prefix}}.zip
 
+            # MacOS Universal binaries
+
+      - uses: actions-rs/toolchain@v1
+        if: ${{matrix.os == 'macos-latest' }}
+        with:
+          toolchain: nightly
+          target: aarch64-apple-darwin
+
+      - name: Cargo build for aarch64 Mac
+        if: ${{matrix.os == 'macos-latest' }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target aarch64-apple-darwin
+
+      - name: Install Inno Setup
+        if: ${{matrix.os == 'macos-latest' }}
+        run: lipo -create -output qpm-universal target/release/arch target/aarch64-apple-darwin/release/arch
+
+      - name: Artifact Upload
+        if: ${{matrix.os == 'macos-latest' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: qpm-universal
+
       # TODO: Move to somewhere else
       - name: Download Inno Setup
         uses: suisei-cn/actions-download-file@v1
