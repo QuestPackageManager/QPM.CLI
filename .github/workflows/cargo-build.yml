@@ -70,6 +70,12 @@ jobs:
           toolchain: nightly
           target: aarch64-apple-darwin
 
+      - name: Double check
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          rustup target add aarch64-apple-darwin 
+          rustup show
+
       - name: Cargo build for aarch64 Mac
         if: ${{matrix.os == 'macos-latest' }}
         uses: actions-rs/cargo@v1
@@ -77,7 +83,7 @@ jobs:
           command: build
           args: --release --target aarch64-apple-darwin
 
-      - name: Install Inno Setup
+      - name: Make M1 Universal binary
         if: ${{matrix.os == 'macos-latest' }}
         run: lipo -create -output qpm-universal target/release/arch target/aarch64-apple-darwin/release/arch
 
