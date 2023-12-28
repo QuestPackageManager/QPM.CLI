@@ -90,7 +90,7 @@ jobs:
 
       - name: Make M1 Universal binary
         if: ${{matrix.os == 'macos-latest' }}
-        run: lipo -create -output qpm-universal target/release/arch target/aarch64-apple-darwin/release/arch
+        run: lipo -create -output qpm-universal target/release/${{matrix.file-name}} target/aarch64-apple-darwin/release/${{matrix.file-name}}
 
       - name: Artifact Upload
         if: ${{matrix.os == 'macos-latest' }}
