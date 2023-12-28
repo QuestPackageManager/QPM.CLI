@@ -14,15 +14,18 @@ jobs:
         include:
           - os: ubuntu-latest
             file-name: qpm
-            prefix: linux
+            prefix: linux-x64
+            arch: x64
 
           - os: macOS-latest
             file-name: qpm
-            prefix: macos
+            prefix: macos-x64
+            arch: x64
 
           - os: windows-latest
             file-name: qpm.exe
-            prefix: windows
+            prefix: windows-x64
+            arch: x64
 
     steps:
       - uses: actions/checkout@v2
@@ -57,7 +60,7 @@ jobs:
           command: build
           args: --release
 
-      - name: Rename build
+      - name: Compress build
         run: |
           pwsh -Command Compress-Archive ./target/release/${{matrix.file-name}} -DestinationPath qpm-${{matrix.prefix}}.zip
 
@@ -90,13 +93,15 @@ jobs:
 
       - name: Make M1 Universal binary
         if: ${{matrix.os == 'macos-latest' }}
-        run: lipo -create -output qpm-universal target/release/${{matrix.file-name}} target/aarch64-apple-darwin/release/${{matrix.file-name}}
+        run: |
+          lipo -create -output qpm target/release/${{matrix.file-name}} target/aarch64-apple-darwin/release/${{matrix.file-name}}
+          pwsh -Command Compress-Archive qpm -DestinationPath qpm-macos-universal.zip 
 
       - name: Artifact Upload
         if: ${{matrix.os == 'macos-latest' }}
         uses: softprops/action-gh-release@v1
         with:
-          files: qpm-universal
+          files: qpm-macos-universal.zip
 
       # TODO: Move to somewhere else
       - name: Download Inno Setup
