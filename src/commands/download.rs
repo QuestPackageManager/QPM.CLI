@@ -85,8 +85,12 @@ impl Command for Download {
             DownloadOperation::ADB => {
                 archive.extract(final_path)?;
                 // add symlink from platform-tools/adb to adb
-                symlink::symlink_file(final_path.join("platform-tools").join("adb"), final_path.join("adb"))?;
-            },
+                let adb_name = if cfg!(windows) { "adb.exe" } else { "adb" };
+                symlink::symlink_file(
+                    final_path.join("platform-tools").join(adb_name),
+                    final_path.join(adb_name),
+                )?;
+            }
         }
 
         println!(
