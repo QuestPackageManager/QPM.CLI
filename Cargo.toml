@@ -51,6 +51,11 @@ reqwest = { version = "0.11", features = [
     "brotli",
     "rustls-tls"
 ], default-features = false }
+
+# Allow cross compiles
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
+
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -60,14 +65,14 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
     "serde",
 ] }
 pubgrub = "0.2"
-owo-colors = "3"
+owo-colors = "4"
 dirs = "5.0.0"
 keyring = "2"
 zip = "0.6"
 walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
-itertools = "0.11"
+itertools = "0.12"
 stopwatch = "0.0.7"
 
 
