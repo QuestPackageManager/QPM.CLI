@@ -52,10 +52,6 @@ reqwest = { version = "0.11", features = [
     "rustls-tls"
 ], default-features = false }
 
-# Allow cross compiles
-openssl = { version = "0.10", features = ["vendored"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
-
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -83,3 +79,8 @@ strip = "symbols"
 
 [profile.dev.package.backtrace]
 opt-level = 3
+
+[target.aarch64-apple-darwin.dependencies]
+# Allow cross compiles
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
