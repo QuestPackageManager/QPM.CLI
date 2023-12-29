@@ -3,7 +3,7 @@ use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
 use crate::{
     repository::{local::FileRepository, Repository},
     terminal::colors::QPMColor,
-    utils::cmake::write_cmake,
+    utils::cmake::write_cmake, models::package::SharedPackageConfigExtensions,
 };
 use color_eyre::{
     eyre::{bail, Context},
@@ -164,6 +164,8 @@ pub fn restore<P: AsRef<Path>>(
     FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
 
     write_cmake(shared_package, repository)?;
+    shared_package.try_write_toolchain(repository)?;
+
     Ok(())
 }
 

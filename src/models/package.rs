@@ -6,6 +6,7 @@ use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
     models::{
         dependency::{Dependency, SharedDependency, SharedPackageConfig},
+        extra::CompileOptions,
         package::PackageConfig,
     },
 };
@@ -39,6 +40,8 @@ pub trait SharedPackageConfigExtensions: Sized {
     ) -> Result<(Self, Vec<SharedPackageConfig>)>;
 
     fn to_mod_json(self) -> ModJson;
+
+    fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()>;
 }
 
 impl PackageConfigExtensions for PackageConfig {
@@ -84,7 +87,10 @@ impl PackageConfigExtensions for PackageConfig {
         let default = Self::default();
 
         if self.version.major != default.version.major {
-            eprintln!("Warning: using outdate qpm schema. Current {} Latest: {:?}", self.version, default.version);
+            eprintln!(
+                "Warning: using outdate qpm schema. Current {} Latest: {:?}",
+                self.version, default.version
+            );
         }
 
         Ok(())
@@ -274,5 +280,70 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             library_files: libs,
             ..Default::default()
         }
+    }
+
+    fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()> {
+        let Some(toolchain_path) = self.config.info.additional_data.toolchain_out.as_ref() else {
+            return Ok(());
+        };
+
+        let compile_options = self
+            .restored_dependencies
+            .iter()
+            .filter_map(|s| {
+                let shared_config = repo.get_package(&s.dependency.id, &s.version);
+
+                shared_config
+                    .ok()??
+                    .config
+                    .info
+                    .additional_data
+                    .compile_options
+            })
+            .fold(CompileOptions::default(), |acc, x| {
+                let c_flags: Vec<String> = acc
+                    .c_flags
+                    .unwrap_or_default()
+                    .into_iter()
+                    .chain(x.c_flags.unwrap_or_default())
+                    .collect();
+                let cpp_flags: Vec<String> = acc
+                    .cpp_flags
+                    .unwrap_or_default()
+                    .into_iter()
+                    .chain(x.cpp_flags.unwrap_or_default())
+                    .collect();
+                let include_paths: Vec<String> = acc
+                    .include_paths
+                    .unwrap_or_default()
+                    .into_iter()
+                    .chain(x.include_paths.unwrap_or_default())
+                    .collect();
+                let system_includes: Vec<String> = acc
+                    .system_includes
+                    .unwrap_or_default()
+                    .into_iter()
+                    .chain(x.system_includes.unwrap_or_default())
+                    .collect();
+                let cpp_features: Vec<String> = acc
+                    .cpp_features
+                    .unwrap_or_default()
+                    .into_iter()
+                    .chain(x.cpp_features.unwrap_or_default())
+                    .collect();
+
+                CompileOptions {
+                    c_flags: Some(c_flags),
+                    cpp_flags: Some(cpp_flags),
+                    include_paths: Some(include_paths),
+                    system_includes: Some(system_includes),
+                    cpp_features: Some(cpp_features),
+                }
+            });
+
+            let file = File::create(toolchain_path)?;
+            serde_json::to_writer_pretty(file, &compile_options)?;
+
+        Ok(())
     }
 }
