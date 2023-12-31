@@ -433,7 +433,7 @@ impl FileRepository {
 
             paths.insert(
                 src_binary,
-                extern_binaries.join(shared_dep.config.info.get_so_name()),
+                extern_binaries.join(name.file_name().unwrap().to_str()),
             );
         }
 
