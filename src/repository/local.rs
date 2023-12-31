@@ -15,11 +15,17 @@ use std::{
 
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
-    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
+    models::{
+        backend::PackageVersion, dependency::SharedPackageConfig, extra::DependencyLibType,
+        package::PackageConfig,
+    },
 };
 
 use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
+    models::{
+        config::get_combine_config, package::PackageConfigExtensions,
+        package_dependeny::PackageDependencyExtensions,
+    },
     utils::{fs::copy_things, json},
 };
 
@@ -84,6 +90,7 @@ impl FileRepository {
         project_folder: PathBuf,
         binary_path: Option<PathBuf>,
         debug_binary_path: Option<PathBuf>,
+        static_binary_path: Option<PathBuf>,
         copy: bool,
         overwrite_existing: bool,
     ) -> Result<()> {
@@ -93,6 +100,7 @@ impl FileRepository {
                 project_folder,
                 binary_path,
                 debug_binary_path,
+                static_binary_path,
                 false,
             )?;
         }
@@ -106,6 +114,7 @@ impl FileRepository {
         project_folder: PathBuf,
         binary_path: Option<PathBuf>,
         debug_binary_path: Option<PathBuf>,
+        static_binary_path: Option<PathBuf>,
         validate: bool,
     ) -> Result<()> {
         println!(
@@ -130,9 +139,10 @@ impl FileRepository {
 
         fs::create_dir_all(&src_path).context("Failed to create lib path")?;
 
-        if binary_path.is_some() || debug_binary_path.is_some() {
+        if binary_path.is_some() || debug_binary_path.is_some() || static_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
             let so_path = lib_path.join(package.config.info.get_so_name());
+            let static_path = lib_path.join(package.config.info.get_static_name());
             let debug_so_path = lib_path.join(format!(
                 "debug_{}",
                 package
@@ -150,6 +160,9 @@ impl FileRepository {
 
             if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
                 copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
+            }
+            if let Some(static_binary_path_unwrapped) = &static_binary_path {
+                copy_things(static_binary_path_unwrapped, &static_path)?;
             }
         }
 
@@ -343,6 +356,8 @@ impl FileRepository {
                 .join(shared_dep.config.info.version.to_string());
             let libs_path = dep_cache_path.join("lib");
 
+            let lib_type_opt = referenced_dep.infer_lib_type(&shared_dep.config);
+
             // skip header only deps
             if shared_dep
                 .config
@@ -350,31 +365,58 @@ impl FileRepository {
                 .additional_data
                 .headers_only
                 .unwrap_or(false)
+                // if dependency is requested as header only
+                || lib_type_opt == DependencyLibType::HeaderOnly
             {
+                if referenced_dep
+                    .additional_data
+                    .lib_type
+                    .as_ref()
+                    .is_some_and(|t| *t != DependencyLibType::HeaderOnly)
+                {
+                    eprintln!(
+                        "Header only library {} is requested as {:?}",
+                        shared_dep.config.info.id, lib_type_opt
+                    );
+                }
                 continue;
             }
 
             // Not header only
             let data = &shared_dep.config.info.additional_data;
-            // get so name or release so name
-            let name = match data.debug_so_link.is_none() {
-                true => shared_dep
-                    .config
-                    .info
-                    .get_so_name()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string(),
-                false => format!(
-                    "debug_{}",
-                    shared_dep
-                        .config
-                        .info
-                        .get_so_name()
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
+
+            let name = match lib_type_opt {
+                // if has so link and is not using static_link
+                // use so name
+                DependencyLibType::Shared
+                    if (data.debug_so_link.is_some() || data.so_link.is_some()) =>
+                {
+                    match data.debug_so_link.is_none() {
+                        true => shared_dep.config.info.get_so_name(),
+                        false => format!(
+                            "debug_{}",
+                            shared_dep
+                                .config
+                                .info
+                                .get_so_name()
+                                .file_name()
+                                .unwrap()
+                                .to_string_lossy()
+                        )
+                        .into(),
+                    }
+                }
+                // if dependency is static and has static_linking
+                DependencyLibType::Static
+                    if data.static_linking.unwrap_or(false) && data.so_link.is_some() =>
+                {
+                    shared_dep.config.info.get_so_name().with_extension("a")
+                }
+                DependencyLibType::Static if data.static_link.is_some() => {
+                    shared_dep.config.info.get_static_name()
+                }
+                _ => bail!(
+                    "Attempting to use dependency as {lib_type_opt:?} but failed. Info: {data:?}"
                 ),
             };
 
@@ -382,7 +424,8 @@ impl FileRepository {
 
             if !src_binary.exists() {
                 bail!(
-                    "Missing binary {name} for {}:{}",
+                    "Missing binary {} for {}:{}",
+                    name.file_name().unwrap().to_string_lossy(),
                     referenced_dep.id,
                     shared_dep.config.info.version
                 );
@@ -390,7 +433,7 @@ impl FileRepository {
 
             paths.insert(
                 src_binary,
-                extern_binaries.join(shared_dep.config.info.get_so_name()),
+                extern_binaries.join(name.file_name().unwrap().to_str()),
             );
         }
 

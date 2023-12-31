@@ -5,10 +5,7 @@ use std::{
 };
 
 use color_eyre::{eyre::Context, Result};
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::dependency::SharedPackageConfig,
-};
+use qpm_package::{models::dependency::SharedPackageConfig, extensions::package_metadata::PackageMetadataExtensions};
 
 use crate::repository::Repository;
 use std::fmt::Write as OtherWrite;
