@@ -26,7 +26,7 @@ trycmd = "0.14"
 
 [dependencies]
 #qpm
-qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", tag = "v0.3.0"}
+qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git"}
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
