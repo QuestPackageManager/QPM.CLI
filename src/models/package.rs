@@ -15,6 +15,8 @@ use semver::VersionReq;
 
 use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
 
+use super::toolchain;
+
 pub const PACKAGE_FILE_NAME: &str = "qpm.json";
 pub const SHARED_PACKAGE_FILE_NAME: &str = "qpm.shared.json";
 
@@ -287,62 +289,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             return Ok(());
         };
 
-        let compile_options = self
-            .restored_dependencies
-            .iter()
-            .filter_map(|s| {
-                let shared_config = repo.get_package(&s.dependency.id, &s.version);
-
-                shared_config
-                    .ok()??
-                    .config
-                    .info
-                    .additional_data
-                    .compile_options
-            })
-            .fold(CompileOptions::default(), |acc, x| {
-                let c_flags: Vec<String> = acc
-                    .c_flags
-                    .unwrap_or_default()
-                    .into_iter()
-                    .chain(x.c_flags.unwrap_or_default())
-                    .collect();
-                let cpp_flags: Vec<String> = acc
-                    .cpp_flags
-                    .unwrap_or_default()
-                    .into_iter()
-                    .chain(x.cpp_flags.unwrap_or_default())
-                    .collect();
-                let include_paths: Vec<String> = acc
-                    .include_paths
-                    .unwrap_or_default()
-                    .into_iter()
-                    .chain(x.include_paths.unwrap_or_default())
-                    .collect();
-                let system_includes: Vec<String> = acc
-                    .system_includes
-                    .unwrap_or_default()
-                    .into_iter()
-                    .chain(x.system_includes.unwrap_or_default())
-                    .collect();
-                let cpp_features: Vec<String> = acc
-                    .cpp_features
-                    .unwrap_or_default()
-                    .into_iter()
-                    .chain(x.cpp_features.unwrap_or_default())
-                    .collect();
-
-                CompileOptions {
-                    c_flags: Some(c_flags),
-                    cpp_flags: Some(cpp_flags),
-                    include_paths: Some(include_paths),
-                    system_includes: Some(system_includes),
-                    cpp_features: Some(cpp_features),
-                }
-            });
-
-            let file = File::create(toolchain_path)?;
-            serde_json::to_writer_pretty(file, &compile_options)?;
+        toolchain::write_toolchain_file(self, repo, toolchain_path)?;
 
         Ok(())
     }
