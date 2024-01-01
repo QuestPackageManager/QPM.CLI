@@ -1,16 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::ensure, Result};
-use itertools::Itertools;
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{dependency::SharedPackageConfig, package::PackageConfig},
-};
-use qpm_qmod::models::mod_json::{ModDependency, ModJson};
+
+use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_qmod::models::mod_json::ModJson;
 use semver::{Version, VersionReq};
 
 use crate::models::{
@@ -153,10 +147,23 @@ fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Res
         .headers_only
         .unwrap_or(false);
     let binary = (!is_header_only).then(|| {
-        shared_package
+        let dynamic_lib = shared_package
             .config
             .info
-            .get_so_name()
+            .additional_data
+            .dynamic_lib_out
+            .as_ref();
+
+        let static_lib = shared_package
+            .config
+            .info
+            .additional_data
+            .static_lib_out
+            .as_ref();
+
+        dynamic_lib
+            .or(static_lib)
+            .expect("No static or binary lib out path defined")
             .file_name()
             .unwrap()
             .to_str()

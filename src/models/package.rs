@@ -1,24 +1,23 @@
-use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
+use std::{fs::File, io::BufReader, path::Path};
 
 use color_eyre::{
-    eyre::{bail, Context},
+    eyre::{anyhow, bail, Context},
     Result,
 };
 use itertools::Itertools;
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{
-        dependency::{Dependency, SharedDependency, SharedPackageConfig},
-        extra::CompileOptions,
-        package::PackageConfig,
-    },
+use qpm_package::models::{
+    dependency::{Dependency, SharedDependency, SharedPackageConfig},
+    extra::DependencyLibType,
+    package::PackageConfig,
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
 
-use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
+use crate::{
+    repository::Repository, resolver::dependency::resolve, terminal::colors::QPMColor, utils::json,
+};
 
-use super::toolchain;
+use super::{package_dependeny::PackageDependencyExtensions, toolchain};
 
 pub const PACKAGE_FILE_NAME: &str = "qpm.json";
 pub const SHARED_PACKAGE_FILE_NAME: &str = "qpm.shared.json";
@@ -37,6 +36,9 @@ pub trait PackageConfigExtensions {
     fn matches_version(&self, req: &VersionReq) -> bool;
 
     fn validate(&self) -> color_eyre::Result<()>;
+
+    fn get_static_lib_out(&self) -> Result<&Path>;
+    fn get_dynamic_lib_out(&self) -> Result<&Path>;
 }
 pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
@@ -99,7 +101,55 @@ impl PackageConfigExtensions for PackageConfig {
             );
         }
 
+        let headers_only = self
+            .info
+            .additional_data
+            .headers_only
+            .unwrap_or(false);
+        let dynamic_lib_out = &self.info.additional_data.dynamic_lib_out;
+        let static_lib_out = &self.info.additional_data.static_lib_out;
+
+        if !headers_only && (dynamic_lib_out.is_none() || static_lib_out.is_none()) {
+            bail!(
+                "{} nor {} are defined!",
+                "qpm.shared.json::config::info::additionalData::dynamicLibOut".file_path_color(),
+                "qpm.shared.json::config::info::additionalData::staticLibOut".file_path_color()
+            );
+        }
+
         Ok(())
+    }
+
+    fn get_static_lib_out(&self) -> Result<&Path> {
+        let path = self
+            .info
+            .additional_data
+            .static_lib_out
+            .as_ref()
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} qpm.shared.json::info::additionalData::staticLibOut not defined",
+                    self.info.id.dependency_id_color()
+                )
+            })?;
+
+        Ok(path)
+    }
+
+    fn get_dynamic_lib_out(&self) -> Result<&Path> {
+        let path = self
+            .info
+            .additional_data
+            .dynamic_lib_out
+            .as_ref()
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} qpm.shared.json::info::additionalData::dynamicLibOut not defined",
+                    self.info.id.dependency_id_color()
+                )
+            })?;
+
+        Ok(path)
     }
 }
 impl PackageConfigExtensions for SharedPackageConfig {
@@ -137,6 +187,14 @@ impl PackageConfigExtensions for SharedPackageConfig {
     fn validate(&self) -> color_eyre::Result<()> {
         self.config.validate()
     }
+
+    fn get_static_lib_out(&self) -> Result<&Path> {
+        self.config.get_static_lib_out()
+    }
+
+    fn get_dynamic_lib_out(&self) -> Result<&Path> {
+        self.config.get_dynamic_lib_out()
+    }
 }
 
 impl SharedPackageConfigExtensions for SharedPackageConfig {
@@ -146,24 +204,47 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     ) -> Result<(Self, Vec<SharedPackageConfig>)> {
         let resolved_deps = resolve(&config, repository)?.collect_vec();
 
+        let restored_dependencies = resolved_deps
+            .iter()
+            .map(|shared_dep_config| {
+                let declared_dep = config
+                    .dependencies
+                    .iter()
+                    .find(|declared_dep| declared_dep.id == shared_dep_config.config.info.id);
+
+                (shared_dep_config, declared_dep)
+            })
+            .map(|(shared_dep_config, declared_dep)| {
+                let restored_lib_type = match declared_dep {
+                    // infer the lib type
+                    // if explicitly set, will use that
+                    Some(declared_dep) => {
+                        declared_dep.infer_lib_type(&shared_dep_config.config.info.additional_data)
+                    }
+
+                    // if not declared directly, just restore as header only
+                    None => DependencyLibType::HeaderOnly,
+                };
+                SharedDependency {
+                    dependency: Dependency {
+                        id: shared_dep_config.config.info.id.clone(),
+                        version_range: VersionReq::parse(&format!(
+                            "={}",
+                            shared_dep_config.config.info.version
+                        ))
+                        .expect("Unable to parse version"),
+                        additional_data: shared_dep_config.config.info.additional_data.clone(),
+                    },
+                    version: shared_dep_config.config.info.version.clone(),
+                    restored_lib_type,
+                }
+            })
+            .collect();
+
         Ok((
             SharedPackageConfig {
                 config,
-                restored_dependencies: resolved_deps
-                    .iter()
-                    .map(|d| SharedDependency {
-                        dependency: Dependency {
-                            id: d.config.info.id.clone(),
-                            version_range: VersionReq::parse(&format!(
-                                "={}",
-                                d.config.info.version
-                            ))
-                            .expect("Unable to parse version"),
-                            additional_data: d.config.info.additional_data.clone(),
-                        },
-                        version: d.config.info.version.clone(),
-                    })
-                    .collect(),
+                restored_dependencies,
             },
             resolved_deps,
         ))
@@ -179,95 +260,60 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         let local_deps = &self.config.dependencies;
 
         // Only bundle mods that are not specifically excluded in qpm.json or if they're not header-only
-        let restored_deps: Vec<_> = self
+        let required_deps: Vec<_> = self
             .restored_dependencies
             .iter()
-            .filter(|dep| {
+            .filter(|shared_dep| {
+                // find the actual dependency for the include qmod value
                 let local_dep_opt = local_deps
                     .iter()
-                    .find(|local_dep| local_dep.id == dep.dependency.id);
+                    .find(|local_dep| local_dep.id == shared_dep.dependency.id);
 
-                if let Some(local_dep) = local_dep_opt {
-                    // if force included/excluded, return early
-                    if let Some(force_included) = local_dep.additional_data.include_qmod {
-                        return force_included;
-                    }
-                }
+                // if set, we will include qmod
+                let include_qmod =
+                    local_dep_opt.and_then(|local_dep| local_dep.additional_data.include_qmod);
 
-                // or if header only is false
-                dep.dependency.additional_data.mod_link.is_some()
-                    || !dep.dependency.additional_data.headers_only.unwrap_or(false)
+                // don't include static deps or header only
+                shared_dep.restored_lib_type == DependencyLibType::Shared &&
+
+                // it's marked to be included, defaults to including ( same as dependencies with qmods )
+                include_qmod.unwrap_or(true)
             })
-            .collect();
-
-        // List of dependencies we are directly referencing in qpm.json
-        let direct_dependencies: HashSet<String> = self
-            .config
-            .dependencies
-            .iter()
-            .map(|f| f.id.clone())
             .collect();
 
         // downloadable mods links n stuff
         // mods that are header-only but provide qmods can be added as deps
-        // Must be directly referenced in qpm.json
-        let mods: Vec<ModDependency> = local_deps
+        let mod_dependencies: Vec<ModDependency> = required_deps
             .iter()
             // Removes any dependency without a qmod link
-            .filter_map(|dep| {
-                let shared_dep = restored_deps.iter().find(|d| d.dependency.id == dep.id)?;
-                if shared_dep.dependency.additional_data.mod_link.is_some() {
-                    return Some((shared_dep, dep));
-                }
-
-                None
-            })
-            .map(|(shared_dep, dep)| ModDependency {
-                version_range: dep.version_range.clone(),
-                id: dep.id.clone(),
+            .filter(|&shared_dep| shared_dep.dependency.additional_data.mod_link.is_some())
+            .map(|shared_dep| ModDependency {
+                version_range: shared_dep.dependency.version_range.clone(),
+                id: shared_dep.dependency.id.clone(),
                 mod_link: shared_dep.dependency.additional_data.mod_link.clone(),
             })
             .collect();
 
         // The rest of the mods to handle are not qmods, they are .so or .a mods
         // actual direct lib deps
-        let libs: Vec<String> = self
-            .restored_dependencies
+        let libs: Vec<String> = required_deps
             .iter()
-            // We could just query the bmbf core mods list on GH?
-            // https://github.com/BMBF/resources/blob/master/com.beatgames.beatsaber/core-mods.json
-            // but really the only lib that never is copied over is the modloader, the rest is either a downloaded qmod or just a copied lib
-            // even core mods should technically be added via download
-            .filter(|lib| {
-                // find the actual dependency for the include qmod value
-                let local_dep_opt = local_deps
-                    .iter()
-                    .find(|local_dep| local_dep.id == lib.dependency.id);
-
-                // if set, use it later
-
-                let include_qmod = local_dep_opt
-                    .and_then(|local_dep| local_dep.additional_data.include_qmod.as_ref());
-
-                // Must be directly referenced in qpm.json
-                direct_dependencies.contains(&lib.dependency.id) &&
-
-                // keep if header only is false, or if not defined
-                !lib.dependency.additional_data.headers_only.unwrap_or(false) &&
-
-                // Modloader should never be included
-                lib.dependency.id != "modloader" &&
-
-                // don't include static deps
-                !lib.dependency.additional_data.static_linking.unwrap_or(false) &&
-
-                // it's marked to be included, defaults to including ( same as dependencies with qmods )
-                include_qmod.copied().unwrap_or(true) &&
-
-                // Only keep libs that aren't downloadable
-                !mods.iter().any(|dep| lib.dependency.id == dep.id)
+            // look for mods with no qmods
+            .filter(|dep| dep.dependency.additional_data.mod_link.is_none())
+            .map(|dep| {
+                dep.dependency
+                    .additional_data
+                    .dynamic_lib_out
+                    .as_ref()
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Dependency {} does not define dynamic lib out",
+                            dep.dependency.id.dependency_id_color()
+                        )
+                    })
             })
-            .map(|dep| dep.get_so_name().to_str().unwrap().to_string())
+            // get file name of dep
+            .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
             .collect();
 
         ModJson {
@@ -280,19 +326,14 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             description: None,
             cover_image: None,
             is_library: None,
-            dependencies: mods,
-            // TODO: Change
-            late_mod_files: vec![self.config.info.get_so_name().to_str().unwrap().to_string()],
+            dependencies: mod_dependencies,
             library_files: libs,
             ..Default::default()
         }
     }
 
+    /// check if shared json is valid for publishing
     fn verify(&self) -> color_eyre::Result<()> {
-        if self.config.info.additional_data.static_linking.is_some() {
-            bail!("Using deprecated feature static_linking! Please remove!");
-        }
-
         Ok(())
     }
 

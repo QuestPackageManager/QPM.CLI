@@ -1,13 +1,11 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use color_eyre::eyre::Context;
-use qpm_package::{models::{dependency::SharedPackageConfig, package::PackageConfig}, extensions::package_metadata::PackageMetadataExtensions};
+
+use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
-    models::{
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions}
-    },
+    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
     repository::{local::FileRepository, multi::MultiDependencyRepository},
 };
 
@@ -17,10 +15,6 @@ use super::Command;
 pub struct InstallCommand {
     pub binary_path: Option<PathBuf>,
     pub static_path: Option<PathBuf>,
-    pub debug_binary_path: Option<PathBuf>,
-
-    #[clap(long)]
-    pub cmake_build: Option<bool>,
 
     #[clap(default_value = "false", long, short)]
     pub locked: bool, // pub additional_folders: Vec<String> // todo
@@ -50,9 +44,22 @@ impl Command for InstallCommand {
             println!("Using lock file");
         }
 
-        let mut binary_path = self.binary_path;
-        let mut static_path = self.static_path;
-        let mut debug_binary_path = self.debug_binary_path;
+        let binary_pathbuf = self.binary_path.or_else(|| {
+            shared_package
+                .config
+                .info
+                .additional_data
+                .dynamic_lib_out
+                .clone()
+        });
+        let static_pathbuf = self.static_path.or_else(|| {
+            shared_package
+                .config
+                .info
+                .additional_data
+                .static_lib_out
+                .clone()
+        });
 
         let header_only = shared_package
             .config
@@ -62,57 +69,23 @@ impl Command for InstallCommand {
             .unwrap_or(false);
         #[cfg(debug_assertions)]
         println!("Header only: {header_only}");
-        
-        if !header_only {
-            if binary_path.is_none() && self.cmake_build.unwrap_or(true) {
-                binary_path = Some(
-                    PathBuf::from(format!(
-                        "./build/{}",
-                        shared_package.config.info.get_so_name().file_name().unwrap().to_string_lossy()
-                    ))
-                    .canonicalize().context("Failed to retrieve release binary for publishing since it is not header only")?,
-                );
-            }
-            if static_path.is_none() && self.cmake_build.unwrap_or(true) {
-                static_path = Some(
-                    PathBuf::from(format!(
-                        "./build/{}",
-                        shared_package.config.info.get_static_name().file_name().unwrap().to_string_lossy()
-                    ))
-                    .canonicalize().context("Failed to retrieve release binary for publishing since it is not header only")?,
-                );
-            }
 
-            if debug_binary_path.is_none() && self.cmake_build.unwrap_or(true) {
-                debug_binary_path = Some(
-                    PathBuf::from(format!(
-                        "./build/debug/{}",
-                        shared_package.config.info.get_so_name().file_name().unwrap().to_string_lossy()
-                    ))
-                    .canonicalize().context("Failed to retrieve debug binary for publishing since it is not header only")?,
-                );
-            }
-        }
-
-        if let Some(p) = &debug_binary_path {
-            if !p.exists() {
-                println!("Could not find debug binary {p:?}, skipping")
-            }
-        }
-
-        if let Some(p) = &binary_path {
+        if let Some(p) = &binary_pathbuf {
             if !p.exists() {
                 println!("Could not find binary {p:?}, skipping")
             }
         }
 
         let mut file_repo = FileRepository::read()?;
+
+        let binary_path = binary_pathbuf.as_deref();
+        let static_binary_path = static_pathbuf.as_deref();
+
         file_repo.add_artifact_and_cache(
             shared_package,
-            PathBuf::from(".").canonicalize()?,
+            &PathBuf::from(".").canonicalize()?,
             binary_path,
-            debug_binary_path,
-            static_path,
+            static_binary_path,
             true,
             true,
         )?;

@@ -1,5 +1,5 @@
 use color_eyre::{
-    eyre::{bail, Context},
+    eyre::{anyhow, bail, Context},
     Result,
 };
 use itertools::Itertools;
@@ -17,14 +17,12 @@ use zip::ZipArchive;
 
 use serde::Deserialize;
 
-use qpm_package::{models::{
+use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-}, extensions::package_metadata::PackageMetadataExtensions};
+};
 
 use crate::{
-    models::{
-        config::get_combine_config, package::PackageConfigExtensions,
-    },
+    models::{config::get_combine_config, package::PackageConfigExtensions},
     network::agent::{download_file_report, get_agent},
     terminal::colors::QPMColor,
     utils::git,
@@ -137,10 +135,6 @@ impl QPMRepository {
             return Ok(());
         }
 
-        let so_path = lib_path.join(config.info.get_so_name());
-        let static_path = lib_path.join(config.info.get_static_name());
-        let debug_so_path = lib_path.join(format!("debug_{}", config.info.get_so_name().file_name().unwrap().to_string_lossy()));
-
         // Downloads the repo / zip file into src folder w/ subfolder taken into account
         if !src_path.exists() {
             // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
@@ -248,46 +242,62 @@ impl QPMRepository {
         if !lib_path.exists() {
             fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
             // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
-            let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
-                if !path.exists() || File::open(path).is_err() {
-                    if let Some(url) = url_opt {
-                        println!(
-                            "Downloading {} from {} to {}",
-                            path.file_name()
-                                .unwrap()
-                                .to_string_lossy()
-                                .download_file_name_color(),
-                            url_opt.unwrap().version_id_color(),
-                            path.as_os_str()
-                                .to_string_lossy()
-                                .alternate_dependency_version_color()
-                        );
-                        // so_link existed, download
-                        if url.contains("github.com") {
-                            // github url!
-                            git::get_release(url, path)?;
-                        } else {
-                            let bytes = download_file_report(url, |_, _| {})?;
-
-                            let mut file = File::create(path)?;
-
-                            file.write_all(&bytes)
-                                .context("Failed to write out downloaded bytes")?;
-                        }
-                    }
+            let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<()> {
+                if path.exists() {
+                    return Ok(());
                 }
+
+                let Some(url) = url_opt else {
+                    return Err(anyhow!(
+                        "No url defined for download to {}",
+                        path.display().file_path_color()
+                    ));
+                };
+
+                println!(
+                    "Downloading {} from {} to {}",
+                    path.file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .download_file_name_color(),
+                    url_opt.unwrap().version_id_color(),
+                    path.as_os_str()
+                        .to_string_lossy()
+                        .alternate_dependency_version_color()
+                );
+                // so_link existed, download
+                if url.contains("github.com") {
+                    // github url!
+                    git::get_release(url, path)?;
+                } else {
+                    let bytes = download_file_report(url, |_, _| {})?;
+
+                    let mut file = File::create(path)?;
+
+                    file.write_all(&bytes)
+                        .context("Failed to write out downloaded bytes")?;
+                }
+
                 Ok(())
             };
 
-            download_binary(&static_path, config.info.additional_data.static_link.as_ref())?;
-            download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
-            download_binary(
-                &debug_so_path,
-                config.info.additional_data.debug_so_link.as_ref(),
-            )?;
+            // dynamic
+            if let Some(dynamic_lib_out) = &config.info.additional_data.dynamic_lib_out {
+                let so_path = lib_path.join(dynamic_lib_out.file_name().unwrap().to_str().unwrap());
+                download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
+            }
+
+            // static
+            if let Some(static_lib_out) = &config.info.additional_data.static_lib_out {
+                let static_path =
+                    lib_path.join(static_lib_out.file_name().unwrap().to_str().unwrap());
+                download_binary(
+                    &static_path,
+                    config.info.additional_data.static_link.as_ref(),
+                )?;
+            }
         }
         if config.info.additional_data.so_link.is_none()
-            && config.info.additional_data.debug_so_link.is_none()
             && config.info.additional_data.static_link.is_none()
             && !config.info.additional_data.headers_only.unwrap_or(false)
         {

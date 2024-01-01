@@ -1,9 +1,9 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::Path};
 
 use color_eyre::Result;
 use fs_extra::{dir::copy as copy_directory, file::copy as copy_file};
 
-pub fn copy_things(a: &PathBuf, b: &PathBuf) -> Result<()> {
+pub fn copy_things(a: &Path, b: &Path) -> Result<()> {
     if a.is_dir() {
         fs::create_dir_all(b)?;
     } else {

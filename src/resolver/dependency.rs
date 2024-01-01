@@ -1,9 +1,10 @@
-use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
+use std::{borrow::Borrow, error::Error, fs, path::Path, vec::IntoIter};
 
 use crate::{
+    models::package::SharedPackageConfigExtensions,
     repository::{local::FileRepository, Repository},
     terminal::colors::QPMColor,
-    utils::cmake::write_cmake, models::package::SharedPackageConfigExtensions,
+    utils::cmake::write_cmake,
 };
 use color_eyre::{
     eyre::{bail, Context},
@@ -161,7 +162,18 @@ pub fn restore<P: AsRef<Path>>(
     repository.write_repo()?;
 
     println!("Copying now");
-    FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
+
+    let extern_dir = workspace
+        .as_ref()
+        .join(&shared_package.config.dependencies_dir);
+
+    // delete if needed
+    if extern_dir.exists() {
+        fs::remove_dir_all(&extern_dir)
+            .with_context(|| format!("Unable to delete {extern_dir:?}"))?;
+    }
+
+    FileRepository::copy_from_cache(shared_package, resolved_deps, workspace.as_ref())?;
 
     write_cmake(shared_package, repository)?;
     shared_package.try_write_toolchain(repository)?;
