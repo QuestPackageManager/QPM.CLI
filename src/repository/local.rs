@@ -396,10 +396,10 @@ impl FileRepository {
                 let name = match dependency_lib_type {
                     // if has so link and is not using static_link
                     // use so name
-                    DependencyLibType::Shared if data.so_link.is_some() => {
+                    DependencyLibType::Shared => {
                         shared_dep.dependency.get_dynamic_lib_out()?
                     }
-                    DependencyLibType::Static if data.static_link.is_some() => {
+                    DependencyLibType::Static => {
                         shared_dep.dependency.get_static_lib_out()?
                     }
                     _ => bail!("Attempting to use dependency as {dependency_lib_type:?} but failed. Info: {data:?}"),
