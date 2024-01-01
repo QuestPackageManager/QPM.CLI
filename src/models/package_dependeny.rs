@@ -1,26 +1,29 @@
+use std::path::Path;
+
+use color_eyre::eyre::{anyhow, Result};
 use qpm_package::models::{
-    dependency::{Dependency, SharedDependency},
-    extra::DependencyLibType,
-    package::{PackageConfig, PackageDependency},
+    dependency::Dependency,
+    extra::{AdditionalPackageMetadata, DependencyLibType},
+    package::PackageDependency,
 };
 
-pub trait PackageDependencyExtensions {
-    fn infer_lib_type(&self, package: &PackageConfig) -> DependencyLibType;
+use crate::terminal::colors::QPMColor;
 
-    fn use_as_header_only(&self, package: &PackageConfig) -> bool;
-    fn use_as_static(&self, package: &PackageConfig) -> bool;
-    fn use_as_shared(&self, package: &PackageConfig) -> bool;
+pub trait PackageDependencyExtensions {
+    fn infer_lib_type(&self, additional_data: &AdditionalPackageMetadata) -> DependencyLibType;
+
+    fn usable_as_header_only(&self, additional_data: &AdditionalPackageMetadata) -> bool;
+    fn usable_as_static(&self, additional_data: &AdditionalPackageMetadata) -> bool;
+    fn usable_as_shared(&self, additional_data: &AdditionalPackageMetadata) -> bool;
 }
 
 impl PackageDependencyExtensions for PackageDependency {
-    fn infer_lib_type(&self, package: &PackageConfig) -> DependencyLibType {
+    fn infer_lib_type(&self, additional_data: &AdditionalPackageMetadata) -> DependencyLibType {
         let data = self.additional_data.clone();
 
-        let inferred = if package.info.additional_data.static_linking.is_some()
-            || package.info.additional_data.static_link.is_some()
-        {
+        let inferred = if additional_data.static_link.is_some() {
             DependencyLibType::Static
-        } else if package.info.additional_data.headers_only == Some(true) {
+        } else if additional_data.headers_only == Some(true) {
             DependencyLibType::HeaderOnly
         } else {
             DependencyLibType::Shared
@@ -29,15 +32,52 @@ impl PackageDependencyExtensions for PackageDependency {
         data.lib_type.unwrap_or(inferred)
     }
 
-    fn use_as_header_only(&self, package: &PackageConfig) -> bool {
-        self.infer_lib_type(package) == DependencyLibType::HeaderOnly
+    fn usable_as_header_only(&self, additional_data: &AdditionalPackageMetadata) -> bool {
+        self.infer_lib_type(additional_data) == DependencyLibType::HeaderOnly
     }
 
-    fn use_as_static(&self, package: &PackageConfig) -> bool {
-        self.infer_lib_type(package) == DependencyLibType::Static
+    fn usable_as_static(&self, additional_data: &AdditionalPackageMetadata) -> bool {
+        self.infer_lib_type(additional_data) == DependencyLibType::Static
     }
 
-    fn use_as_shared(&self, package: &PackageConfig) -> bool {
-        self.infer_lib_type(package) == DependencyLibType::Shared
+    fn usable_as_shared(&self, additional_data: &AdditionalPackageMetadata) -> bool {
+        self.infer_lib_type(additional_data) == DependencyLibType::Shared
+    }
+}
+
+pub trait DependencyExtensions {
+    fn get_static_lib_out(&self) -> Result<&Path>;
+    fn get_dynamic_lib_out(&self) -> Result<&Path>;
+}
+
+impl DependencyExtensions for Dependency {
+    fn get_static_lib_out(&self) -> Result<&Path> {
+        let path = self
+            .additional_data
+            .static_lib_out
+            .as_ref()
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} qpm.shared.json::info::additionalData::staticLibOut not defined",
+                    self.id.dependency_id_color()
+                )
+            })?;
+
+        Ok(path)
+    }
+
+    fn get_dynamic_lib_out(&self) -> Result<&Path> {
+        let path = self
+            .additional_data
+            .dynamic_lib_out
+            .as_ref()
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} qpm.shared.json::info::additionalData::dynamicLibOut not defined",
+                    self.id.dependency_id_color()
+                )
+            })?;
+
+        Ok(path)
     }
 }

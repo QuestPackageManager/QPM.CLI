@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use qpm_package::models::extra::DependencyLibType;
 use qpm_package::models::{
     dependency::{Dependency, SharedDependency, SharedPackageConfig},
     extra::AdditionalPackageMetadata,
@@ -65,6 +66,7 @@ pub fn build_artifact_and_depend(
         restored_dependencies: vec![SharedDependency {
             dependency: dep,
             version: shared_dep.config.info.version.clone(),
+            restored_lib_type: DependencyLibType::HeaderOnly,
         }],
     }
 }
@@ -106,6 +108,7 @@ pub fn build_artifact_and_depends(
                     additional_data: shared_config.config.info.additional_data.clone(),
                 },
                 version: shared_config.config.info.version.clone(),
+                restored_lib_type: DependencyLibType::HeaderOnly,
             })
             .collect(),
     }
