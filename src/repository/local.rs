@@ -397,26 +397,26 @@ impl FileRepository {
                     // if has so link and is not using static_link
                     // use so name
                     DependencyLibType::Shared => {
-                        shared_dep.dependency.get_dynamic_lib_out()?
+                        shared_dep.dependency.get_dynamic_lib_out()?.file_name().unwrap().to_str().unwrap()
                     }
                     DependencyLibType::Static => {
-                        shared_dep.dependency.get_static_lib_out()?
+                        shared_dep.dependency.get_static_lib_out()?.file_name().unwrap().to_str().unwrap()
                     }
                     _ => bail!("Attempting to use dependency as {dependency_lib_type:?} but failed. Info: {data:?}"),
                 };
 
                 let src_binary = libs_path.join(name);
+                let dst_binary =
+                    extern_binaries.join(name);
 
                 if !src_binary.exists() {
                     bail!(
                         "Missing binary {} for {}:{}",
-                        name.file_name().unwrap().to_string_lossy(),
+                        name,
                         dep_id,
                         shared_dep.version
                     );
                 }
-                let dst_binary =
-                    extern_binaries.join(name.file_name().unwrap().to_str().unwrap());
 
                 let path = (src_binary, dst_binary);
                 Ok(path)
