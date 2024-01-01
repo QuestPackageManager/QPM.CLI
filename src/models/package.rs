@@ -109,7 +109,7 @@ impl PackageConfigExtensions for PackageConfig {
         let dynamic_lib_out = &self.info.additional_data.dynamic_lib_out;
         let static_lib_out = &self.info.additional_data.static_lib_out;
 
-        if !headers_only && (dynamic_lib_out.is_none() || static_lib_out.is_none()) {
+        if !headers_only && dynamic_lib_out.is_none() && static_lib_out.is_none() {
             bail!(
                 "{} nor {} are defined!",
                 "qpm.shared.json::config::info::additionalData::dynamicLibOut".file_path_color(),
