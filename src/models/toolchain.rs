@@ -1,10 +1,8 @@
 use std::{fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
-use qpm_package::models::{
-    dependency::SharedPackageConfig, extra::CompileOptions, package::PackageConfig,
-};
-use serde::{Serialize, Deserialize};
+use qpm_package::models::{dependency::SharedPackageConfig, extra::CompileOptions};
+use serde::{Deserialize, Serialize};
 
 use crate::repository::Repository;
 
@@ -15,7 +13,7 @@ pub struct ToolchainData {
     pub extern_dir: PathBuf,
 
     pub binary_out: Option<PathBuf>,
-    pub debug_binary_out: Option<PathBuf>,
+    pub static_binary_out: Option<PathBuf>,
 }
 
 pub fn write_toolchain_file(
@@ -88,12 +86,26 @@ pub fn write_toolchain_file(
             }
         });
 
+    let extern_dir = shared_config.config.dependencies_dir.clone();
+
+    let static_binary_out = shared_config
+        .config
+        .info
+        .additional_data
+        .static_lib_out
+        .clone();
+    let binary_out = shared_config
+        .config
+        .info
+        .additional_data
+        .dynamic_lib_out
+        .clone();
+
     let toolchain = ToolchainData {
         compile_options,
-        extern_dir: shared_config.config.dependencies_dir.clone(),
-        // TODO:
-        binary_out: None,
-        debug_binary_out: None,
+        extern_dir,
+        binary_out,
+        static_binary_out,
     };
     let file = File::create(toolchain_path)?;
     serde_json::to_writer_pretty(file, &toolchain)?;
