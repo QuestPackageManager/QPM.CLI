@@ -12,7 +12,7 @@ use semver::VersionReq;
 
 use crate::{
     models::package::PackageConfigExtensions,
-    repository::{multi::MultiDependencyRepository, Repository},
+    repository::{multi::MultiDependencyRepository, Repository, self},
 };
 
 use super::Command;
@@ -68,7 +68,7 @@ fn add_dependency(dependency_args: DependencyOperationAddArgs) -> Result<()> {
         bail!("The dependency was too big to add, we can't add this one!");
     }
 
-    let repo = MultiDependencyRepository::useful_default_new(dependency_args.offline)?;
+    let repo = repository::useful_default_new(dependency_args.offline)?;
 
     let versions = repo
         .get_package_versions(&dependency_args.id)

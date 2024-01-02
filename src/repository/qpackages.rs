@@ -34,11 +34,7 @@ use super::Repository;
 const API_URL: &str = "https://qpackages.com";
 
 #[derive(Default)]
-pub struct QPMRepository {
-    // interior mutability
-    packages_cache: UnsafeCell<HashMap<String, HashMap<Version, SharedPackageConfig>>>,
-    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>,
-}
+pub struct QPMRepository {}
 
 impl QPMRepository {
     fn run_request<T>(path: &str) -> Result<Option<T>>
@@ -48,7 +44,7 @@ impl QPMRepository {
         let url = format!("{API_URL}/{path}");
 
         let response = get_agent()
-            .get(url)
+            .get(&url)
             .send()
             .with_context(|| format!("Unable to make request to qpackages.com {url}"))?;
 
@@ -56,11 +52,11 @@ impl QPMRepository {
             return Ok(None);
         }
 
-        response.error_for_status()?;
+        response.error_for_status_ref()?;
 
         let result: T = response
             .json()
-            .with_context(|| format!("Into json failed for http request {response:?} for {url}"))?;
+            .with_context(|| format!("Into json failed for http request for {url}"))?;
 
         Ok(Some(result))
     }
@@ -95,7 +91,7 @@ impl QPMRepository {
         );
 
         let resp = get_agent()
-            .post(url)
+            .post(&url)
             .header("Authorization", auth)
             .json(&package)
             .send()
@@ -328,12 +324,6 @@ impl Repository for QPMRepository {
     }
 
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
-        let cache = self.versions_cache.get_safe().get(id);
-
-        if let Some(c) = cache {
-            return Ok(Some(c.clone()));
-        }
-
         let versions = Self::get_versions(id)?.map(|versions| {
             versions
                 .into_iter()
@@ -342,37 +332,11 @@ impl Repository for QPMRepository {
                 .collect_vec()
         });
 
-        if let Some(versions) = &versions {
-            self.versions_cache
-                .get_mut_safe()
-                .entry(id.to_string())
-                .insert_entry(versions.clone());
-        }
-
         Ok(versions)
     }
 
     fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
-        let cache = self
-            .packages_cache
-            .get_safe()
-            .get(id)
-            .and_then(|f| f.get(version));
-
-        if let Some(c) = cache {
-            return Ok(Some(c.clone()));
-        }
-
         let config = Self::get_shared_package(id, version)?;
-
-        if let Some(config) = &config {
-            self.packages_cache
-                .get_mut_safe()
-                .entry(config.config.info.id.clone())
-                .or_default()
-                .entry(config.config.info.version.clone())
-                .insert_entry(config.clone());
-        }
 
         Ok(config)
     }
@@ -393,21 +357,5 @@ impl Repository for QPMRepository {
 
     fn is_online(&self) -> bool {
         true
-    }
-}
-trait UnsafeCellExt<T>: Sized {
-    fn get_safe(&self) -> &T;
-
-    #[allow(clippy::mut_from_ref)]
-    fn get_mut_safe(&self) -> &mut T;
-}
-
-impl<T> UnsafeCellExt<T> for UnsafeCell<T> {
-    fn get_safe(&self) -> &T {
-        unsafe { &*self.get() }
-    }
-
-    fn get_mut_safe(&self) -> &mut T {
-        unsafe { &mut *self.get() }
     }
 }

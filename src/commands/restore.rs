@@ -12,7 +12,7 @@ use crate::{
             PackageConfigExtensions, SharedPackageConfigExtensions, SHARED_PACKAGE_FILE_NAME,
         },
     },
-    repository::multi::MultiDependencyRepository,
+    repository::{multi::MultiDependencyRepository, self},
     resolver::dependency,
 };
 
@@ -38,7 +38,7 @@ fn is_ignored() -> bool {
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let mut repo = MultiDependencyRepository::useful_default_new(self.offline)?;
+        let mut repo = repository::useful_default_new(self.offline)?;
 
         let unlocked = self.update || !SharedPackageConfig::exists(".");
         let locked = !unlocked;
