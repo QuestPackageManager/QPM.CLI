@@ -1,32 +1,10 @@
-use color_eyre::{
-    eyre::{bail, Context},
-    Result,
-};
-use itertools::Itertools;
-use owo_colors::OwoColorize;
-use reqwest::StatusCode;
+use color_eyre::Result;
+
 use semver::Version;
-use std::{
-    cell::UnsafeCell,
-    collections::HashMap,
-    fs::{self, File},
-    io::{Cursor, Write},
-    path::Path,
-};
-use zip::ZipArchive;
+use std::{cell::UnsafeCell, collections::HashMap};
 
-use serde::Deserialize;
-
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
-};
-
-use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
-    network::agent::{download_file_report, get_agent},
-    terminal::colors::QPMColor,
-    utils::git,
+use qpm_package::models::{
+    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
 use super::Repository;

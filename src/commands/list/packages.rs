@@ -5,7 +5,7 @@ use owo_colors::OwoColorize;
 
 use crate::{
     commands::Command,
-    repository::{multi::MultiDependencyRepository, Repository, self},
+    repository::{self, Repository},
 };
 
 #[derive(Args, Debug, Clone)]

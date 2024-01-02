@@ -9,7 +9,7 @@ use qpm_package::{
 
 use crate::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-    repository::{local::FileRepository, multi::MultiDependencyRepository, self},
+    repository::{self, local::FileRepository},
 };
 
 use super::Command;

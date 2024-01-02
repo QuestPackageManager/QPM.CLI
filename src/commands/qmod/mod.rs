@@ -1,16 +1,13 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::ensure, Result};
-use itertools::Itertools;
+
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
     models::{dependency::SharedPackageConfig, package::PackageConfig},
 };
-use qpm_qmod::models::mod_json::{ModDependency, ModJson};
+use qpm_qmod::models::mod_json::ModJson;
 use semver::{Version, VersionReq};
 
 use crate::models::{

@@ -7,8 +7,6 @@ use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
 use std::{
-    cell::UnsafeCell,
-    collections::HashMap,
     fs::{self, File},
     io::{Cursor, Write},
     path::Path,

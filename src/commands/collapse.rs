@@ -3,7 +3,8 @@ use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 
 use crate::{
-    models::package::PackageConfigExtensions, repository::{multi::MultiDependencyRepository, self},
+    models::package::PackageConfigExtensions,
+    repository::{self},
     resolver::dependency::resolve,
 };
 

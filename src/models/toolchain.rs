@@ -1,9 +1,7 @@
 use std::{fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
-use qpm_package::models::{
-    dependency::SharedPackageConfig, extra::CompileOptions, package::PackageConfig,
-};
+use qpm_package::models::{dependency::SharedPackageConfig, extra::CompileOptions};
 use serde::{Deserialize, Serialize};
 
 use crate::repository::Repository;

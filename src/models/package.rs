@@ -6,7 +6,6 @@ use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
     models::{
         dependency::{Dependency, SharedDependency, SharedPackageConfig},
-        extra::CompileOptions,
         package::PackageConfig,
     },
 };

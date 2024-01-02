@@ -5,8 +5,7 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
-use super::{local::FileRepository, qpackages::QPMRepository, Repository};
-
+use super::Repository;
 
 pub struct MultiDependencyRepository {
     repositories: Vec<Box<dyn Repository>>,

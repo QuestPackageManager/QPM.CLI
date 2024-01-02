@@ -12,7 +12,7 @@ use crate::{
             PackageConfigExtensions, SharedPackageConfigExtensions, SHARED_PACKAGE_FILE_NAME,
         },
     },
-    repository::{multi::MultiDependencyRepository, self},
+    repository::{self},
     resolver::dependency,
 };
 

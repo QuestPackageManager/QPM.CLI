@@ -12,7 +12,7 @@ use semver::VersionReq;
 
 use crate::{
     models::package::PackageConfigExtensions,
-    repository::{multi::MultiDependencyRepository, Repository, self},
+    repository::{self, Repository},
 };
 
 use super::Command;
