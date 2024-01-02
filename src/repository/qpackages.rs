@@ -1,5 +1,5 @@
 use color_eyre::{
-    eyre::{bail, Context},
+    eyre::{bail, Context, ContextCompat, OptionExt},
     Result,
 };
 use itertools::Itertools;
@@ -50,13 +50,17 @@ impl QPMRepository {
         let response = get_agent()
             .get(url)
             .send()
-            .context("Unable to make request to qpackages.com")?;
+            .with_context(|| format!("Unable to make request to qpackages.com {url}"))?;
 
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
         }
 
-        let result: T = response.json().context("Into json failed")?;
+        response.error_for_status()?;
+
+        let result: T = response
+            .json()
+            .with_context(|| format!("Into json failed for http request {response:?} for {url}"))?;
 
         Ok(Some(result))
     }
@@ -64,14 +68,24 @@ impl QPMRepository {
     /// Requests the appriopriate package info from qpackage.com
     pub fn get_versions(id: &str) -> Result<Option<Vec<PackageVersion>>> {
         Self::run_request(&format!("{id}?limit=0"))
+            .with_context(|| format!("Getting list of versions for {}", id.dependency_id_color()))
     }
 
     pub fn get_shared_package(id: &str, ver: &Version) -> Result<Option<SharedPackageConfig>> {
-        Self::run_request(&format!("{id}/{ver}"))
+        Self::run_request(&format!("{id}/{ver}")).with_context(|| {
+            format!(
+                "Getting shared package config {}:{}",
+                id.dependency_id_color(),
+                ver.version_id_color()
+            )
+        })
     }
 
     pub fn get_packages() -> Result<Vec<String>> {
-        Ok(Self::run_request("")?.unwrap())
+        let vec = Self::run_request("")
+            .context("qpackages.com packages list failed")?
+            .ok_or_eyre("No packages found?")?;
+        Ok(vec)
     }
 
     pub fn publish_package(package: &SharedPackageConfig, auth: &str) -> Result<()> {
@@ -84,7 +98,7 @@ impl QPMRepository {
             .post(url)
             .header("Authorization", auth)
             .json(&package)
-            .send()?;
+            .send().with_context(|| format!("Failed to publish to {url}"))?;
 
         if resp.status() == StatusCode::UNAUTHORIZED {
             bail!(
@@ -110,8 +124,8 @@ impl QPMRepository {
 
         println!(
             "Checking cache for dependency {} {}",
-            config.info.id.bright_red(),
-            config.info.version.bright_green()
+            config.info.id.dependency_id_color(),
+            config.info.version.version_id_color()
         );
         let user_config = get_combine_config();
         let base_path = user_config
@@ -130,7 +144,8 @@ impl QPMRepository {
             SharedPackageConfig::read(src_path).with_context(|| {
                 format!(
                     "Failed to get config {}:{} in cache",
-                    config.info.id, config.info.version
+                    config.info.id.dependency_id_color(),
+                    config.info.version.version_id_color()
                 )
             })?;
             return Ok(());
@@ -230,14 +245,14 @@ impl QPMRepository {
                     if downloaded_package.config.info.version != config.info.version {
                         bail!(
                             "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                            config.info.id.bright_red(),
+                            config.info.id.dependency_id_color(),
                             downloaded_package
                                 .config
                                 .info
                                 .version
                                 .to_string()
-                                .bright_green(),
-                            config.info.version.to_string().bright_green(),
+                                .version_id_color(),
+                            config.info.version.to_string().version_id_color(),
                         )
                     }
                 }
