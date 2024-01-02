@@ -1,6 +1,9 @@
 use std::{sync, time::Duration};
 
-use color_eyre::{eyre::{Context, bail}, Result};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
 use reqwest::StatusCode;
 
 use crate::models::config::get_combine_config;

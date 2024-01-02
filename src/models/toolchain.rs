@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 use qpm_package::models::{
     dependency::SharedPackageConfig, extra::CompileOptions, package::PackageConfig,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::repository::Repository;
 

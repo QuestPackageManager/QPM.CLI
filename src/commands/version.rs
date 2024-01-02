@@ -72,7 +72,6 @@ impl Command for VersionCommand {
                     bail!("Selected an older branch")
                 }
 
-
                 println!(
                     "Current QPM-RS build is behind {} commits",
                     diff.behind_by.version_id_color()

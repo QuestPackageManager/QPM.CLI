@@ -98,7 +98,8 @@ impl QPMRepository {
             .post(url)
             .header("Authorization", auth)
             .json(&package)
-            .send().with_context(|| format!("Failed to publish to {url}"))?;
+            .send()
+            .with_context(|| format!("Failed to publish to {url}"))?;
 
         if resp.status() == StatusCode::UNAUTHORIZED {
             bail!(

@@ -4,7 +4,7 @@ use clap::Args;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     extra::AdditionalPackageMetadata,
-    package::{PackageConfig, PackageMetadata, self},
+    package::{self, PackageConfig, PackageMetadata},
 };
 use semver::Version;
 

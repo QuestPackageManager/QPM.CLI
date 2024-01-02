@@ -1,9 +1,10 @@
 use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
 
 use crate::{
+    models::package::SharedPackageConfigExtensions,
     repository::{local::FileRepository, Repository},
     terminal::colors::QPMColor,
-    utils::cmake::write_cmake, models::package::SharedPackageConfigExtensions,
+    utils::cmake::write_cmake,
 };
 use color_eyre::{
     eyre::{bail, Context},
