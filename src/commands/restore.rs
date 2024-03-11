@@ -38,10 +38,22 @@ fn is_ignored() -> bool {
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
+        // optionally does not exist
+        let mut shared_package_opt = SharedPackageConfig::exists(".")
+            .then(|| SharedPackageConfig::read("."))
+            .transpose()?;
+
         let mut repo = repository::useful_default_new(self.offline)?;
 
-        let unlocked = self.update || !SharedPackageConfig::exists(".");
-        let locked = !unlocked;
+        // only update if:
+        // manually
+        // no shared.qpm.json
+        // dependencies have been updated
+        let unlocked = self.update
+            || shared_package_opt.is_none()
+            || shared_package_opt.as_ref().is_some_and(|shared_package| {
+                shared_package.config.dependencies != package.dependencies
+            });
 
         if !unlocked && is_ignored() {
             eprintln!(
@@ -55,19 +67,15 @@ impl Command for RestoreCommand {
             eprintln!("Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository");
         }
 
-        let temp_shared_package = locked.then(|| SharedPackageConfig::read(".")).transpose()?;
-
-        let (shared_package, resolved_deps) = match temp_shared_package {
-            // only do this if shared and local are the same
-            Some(mut temp_shared_package) if package == temp_shared_package.config => {
+        let resolved_deps = match &mut shared_package_opt {
+            // locked resolve
+            // only if shared_package is Some() and locked
+            Some(shared_package) if !unlocked => {
                 // if the same, restore as usual
                 println!("Using lock file for restoring");
 
-                temp_shared_package.config = package;
-                let dependencies =
-                    dependency::locked_resolve(&temp_shared_package, &repo)?.collect_vec();
-
-                (temp_shared_package, dependencies)
+                shared_package.config = package;
+                dependency::locked_resolve(shared_package, &repo)?.collect_vec()
             }
             // Unlocked resolve
             _ => {
@@ -75,15 +83,20 @@ impl Command for RestoreCommand {
 
                 let (spc_result, restored_deps) =
                     SharedPackageConfig::resolve_from_package(package, &repo)?;
-                (spc_result, restored_deps)
+                // update shared_package
+                shared_package_opt = Some(spc_result);
+
+                restored_deps
             }
         };
 
         // write the ndk path to a file if available
         let _config = get_combine_config();
 
-        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
+        let shared_package = shared_package_opt.expect("SharedPackage is None somehow!");
 
+        // always write to reflect config changes
+        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
         shared_package.write(".")?;
 
         Ok(())
