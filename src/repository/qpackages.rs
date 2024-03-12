@@ -1,6 +1,6 @@
 use color_eyre::{
     eyre::{bail, Context, ContextCompat, OptionExt},
-    Result,
+    Result, Section,
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
@@ -176,14 +176,21 @@ impl QPMRepository {
                     url.clone(),
                     config.info.additional_data.branch_name.as_ref(),
                     &tmp_path,
-                )?;
+                )
+                .context("Clone")?;
             } else {
                 // not a github url, assume it's a zip
-                let response = get_agent().get(url).send()?;
+                let response = get_agent()
+                    .get(url)
+                    .send()
+                    .with_context(|| format!("Failed while downloading {}", url.blue()))?;
 
                 let buffer = Cursor::new(response.bytes()?);
                 // Extract to tmp folder
-                ZipArchive::new(buffer)?.extract(&tmp_path)?;
+                ZipArchive::new(buffer)
+                    .context("Reading zip")?
+                    .extract(&tmp_path)
+                    .context("Zip extraction")?;
             }
             // the only way the above if else would break is if someone put a link to a zip file on github in the url slot
             // if you are reading this and think of doing that so I have to fix this, fuck you
@@ -221,7 +228,14 @@ impl QPMRepository {
                     }
                 }
                 // HACK: renaming seems to work, idk if it works for actual subfolders?
-                fs::rename(&sub_package_path, &src_path).context("Failed to move folder")?;
+                fs::rename(&sub_package_path, &src_path)
+                    .context("Failed to move folder")
+                    .with_suggestion(|| {
+                        format!(
+                            "Check if a process is locking the folder: \n{}",
+                            sub_package_path.display().file_path_color()
+                        )
+                    })?;
             } else {
                 bail!("Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo");
             }
@@ -230,8 +244,7 @@ impl QPMRepository {
             if tmp_path.exists() {
                 std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
             }
-            let package_path = src_path;
-            let downloaded_package = SharedPackageConfig::read(package_path);
+            let downloaded_package = SharedPackageConfig::read(src_path);
 
             match downloaded_package {
                 Ok(downloaded_package) =>
@@ -344,7 +357,13 @@ impl Repository for QPMRepository {
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        self.download_package(config)?;
+        self.download_package(config).with_context(|| {
+            format!(
+                "QPackages {}:{}",
+                config.info.id.dependency_id_color(),
+                config.info.version.version_id_color()
+            )
+        })?;
 
         Ok(true)
     }

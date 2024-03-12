@@ -155,7 +155,13 @@ pub fn restore<P: AsRef<Path>>(
                 .to_string()
                 .dependency_version_color()
         );
-        repository.download_to_cache(&dep.config)?;
+        repository.download_to_cache(&dep.config).with_context(|| {
+            format!(
+                "Requesting {}:{}",
+                dep.config.info.id.dependency_id_color(),
+                dep.config.info.version.version_id_color()
+            )
+        })?;
         repository.add_to_db_cache(dep.clone(), true)?;
     }
 

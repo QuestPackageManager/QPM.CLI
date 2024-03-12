@@ -74,6 +74,7 @@ impl Command for RestoreCommand {
                 // if the same, restore as usual
                 println!("Using lock file for restoring");
 
+                // update config
                 shared_package.config = package;
                 dependency::locked_resolve(shared_package, &repo)?.collect_vec()
             }

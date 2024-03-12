@@ -7,7 +7,7 @@ use std::{
 
 use color_eyre::{
     eyre::{bail, Context},
-    Result,
+    Result, Section,
 };
 use owo_colors::OwoColorize;
 //use duct::cmd;
@@ -145,7 +145,10 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         println!("No branch name found, cloning default branch");
     }
 
-    let mut child = git.spawn()?;
+    let mut child = git
+        .spawn()
+        .context("Git clone package")
+        .with_suggestion(|| format!("File a bug report. Used the following command: {:#?}", git))?;
 
     match child.wait() {
         Ok(e) => {
