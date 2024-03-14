@@ -79,7 +79,9 @@ impl Command for DoctorCommand {
 
             if ndk_path.is_ok() {
                 println!("NDK {} found in path!", ndk_path.unwrap());
-            } else if let Err(err) = ndk_path && File::open("./ndkpath.txt").is_err() {
+            } else if let Err(err) = ndk_path
+                && File::open("./ndkpath.txt").is_err()
+            {
                 return Err(anyhow!(
                     "No ndkpath.txt or ANDROID_NDK_HOME environment variable found!"
                 )
