@@ -26,7 +26,7 @@ impl Command for PackageCommand {
                 self.package.bright_red(),
                 versions
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .version
                     .to_string()

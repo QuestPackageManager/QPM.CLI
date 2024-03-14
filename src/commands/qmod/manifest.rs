@@ -40,9 +40,7 @@ pub struct BuildQmodOperationArgs {
 }
 
 // This will parse the `qmod.template.json` and process it, then finally export a `qmod.json` for packaging and deploying.
-pub(crate) fn execute_qmod_build_operation(
-    build_parameters: BuildQmodOperationArgs,
-) -> Result<()> {
+pub(crate) fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Result<()> {
     ensure!(std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 

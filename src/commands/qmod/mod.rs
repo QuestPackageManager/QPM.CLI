@@ -1,18 +1,5 @@
-use std::path::PathBuf;
-
 use clap::{Args, Subcommand};
-use color_eyre::{eyre::ensure, owo_colors::OwoColorize, Result};
-
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{dependency::SharedPackageConfig, package::PackageConfig},
-};
-use qpm_qmod::models::mod_json::ModJson;
-
-use crate::models::{
-    mod_json::ModJsonExtensions,
-    package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-};
+use color_eyre::{owo_colors::OwoColorize, Result};
 
 use super::Command;
 

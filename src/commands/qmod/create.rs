@@ -9,7 +9,6 @@ use color_eyre::Result;
 
 use crate::models::mod_json::ModJsonExtensions;
 
-
 /// Some properties are not editable through the qmod create command, these properties are either editable through the package, or not at all
 #[derive(Args, Debug, Clone)]
 
