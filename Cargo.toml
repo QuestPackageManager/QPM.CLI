@@ -75,6 +75,10 @@ stopwatch = "0.0.7"
 # Allow cross compiles
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9", features = ["vendored"] }
+[target.x86_64-apple-darwin.dependencies]
+# Statically link openssl
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
 
 [profile.release]
 opt-level = 3
