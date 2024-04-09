@@ -18,9 +18,7 @@ use color_eyre::eyre::ensure;
 use color_eyre::Result;
 
 #[derive(Args, Debug, Clone)]
-pub struct BuildQmodOperationArgs {
-    #[clap(long = "isLibrary")]
-    pub is_library: Option<bool>,
+pub struct ManifestQmodOperationArgs {
 
     ///
     /// Tells QPM to exclude mods from being listed as copied mod or libs dependencies
@@ -40,13 +38,26 @@ pub struct BuildQmodOperationArgs {
 }
 
 // This will parse the `qmod.template.json` and process it, then finally export a `qmod.json` for packaging and deploying.
-pub(crate) fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Result<()> {
-    ensure!(std::path::Path::new("mod.template.json").exists(),
-        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
-
-    println!("Generating mod.json file from template using qpm.shared.json...");
+pub(crate) fn execute_qmod_manifest_operation(
+    build_parameters: ManifestQmodOperationArgs,
+) -> Result<()> {
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
+
+    let new_json = generate_qmod_manifest(&package, shared_package, build_parameters)?;
+    // Write mod.json
+    new_json.write(&PathBuf::from(ModJson::get_result_name()))?;
+    Ok(())
+}
+
+pub(crate) fn generate_qmod_manifest(
+    package: &PackageConfig,
+    shared_package: SharedPackageConfig,
+    build_parameters: ManifestQmodOperationArgs,
+) -> Result<ModJson> {
+    ensure!(std::path::Path::new("mod.template.json").exists(),
+        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
+    println!("Generating mod.json file from template using qpm.shared.json...");
 
     let is_header_only = shared_package
         .config
@@ -65,23 +76,16 @@ pub(crate) fn execute_qmod_build_operation(build_parameters: BuildQmodOperationA
             .unwrap()
             .to_string()
     });
-
-    // Parse template mod.template.json
     let preprocess_data = PreProcessingData {
         version: shared_package.config.info.version.to_string(),
         mod_id: shared_package.config.info.id.clone(),
         mod_name: shared_package.config.info.name.clone(),
         binary,
     };
-
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
-    existing_json.is_library = build_parameters.is_library.or(existing_json.is_library);
-
     let template_mod_json: ModJson = shared_package.to_mod_json();
     let legacy_0_1_0 = package.matches_version(&VersionReq::parse("^0.1.0")?);
-
     existing_json = ModJson::merge_modjson(existing_json, template_mod_json, legacy_0_1_0);
-
     if let Some(excluded) = build_parameters.exclude_libs {
         let exclude_filter = |lib_name: &String| -> bool {
             // returning false means don't include
@@ -102,8 +106,5 @@ pub(crate) fn execute_qmod_build_operation(build_parameters: BuildQmodOperationA
         existing_json.mod_files.retain(include_filter);
         existing_json.library_files.retain(include_filter);
     }
-
-    // Write mod.json
-    existing_json.write(&PathBuf::from(ModJson::get_result_name()))?;
-    Ok(())
+    Ok(existing_json)
 }
