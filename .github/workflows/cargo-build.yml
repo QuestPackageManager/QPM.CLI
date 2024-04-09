@@ -51,6 +51,11 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
           sudo apt-get install -y libdbus-1-dev
+          
+      - name: Get OpenSSL if MacOS
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          brew install openssl@3
 
       - name: Cargo test
         uses: actions-rs/cargo@v1
