@@ -1,12 +1,12 @@
 use clap::{Args, Subcommand};
-use color_eyre::{Result};
+use color_eyre::{owo_colors::OwoColorize, Result};
 
 use super::Command;
 
-mod build;
 mod create;
 mod edit;
 mod manifest;
+mod zip;
 
 #[derive(Args, Debug, Clone)]
 
@@ -25,7 +25,9 @@ pub enum QmodOperation {
     /// This will parse the `mod.template.json` and process it, then finally export a `mod.json` for packaging and deploying.
     Manifest(manifest::ManifestQmodOperationArgs),
     /// Deprecated alias for manifest
-    Build(build::BuildQmodOperationArgs),
+    Build(manifest::ManifestQmodOperationArgs),
+    /// Make a qmod zip
+    Zip(zip::ZipQmodOperationArgs),
     /// Edit your mod.template.json from the command line, mostly intended for edits on github actions
     ///
     /// Some properties are not editable through the qmod edit command, these properties are either editable through the package, or not at all
@@ -36,8 +38,16 @@ impl Command for QmodCommand {
     fn execute(self) -> Result<()> {
         match self.op {
             QmodOperation::Create(q) => create::execute_qmod_create_operation(q),
-            QmodOperation::Build(b) => build::execute_qmod_build_operation(b),
+            QmodOperation::Build(b) => {
+                println!(
+                    "{} is deprecated, switch to {}",
+                    "qpm qmod build".yellow(),
+                    "qpm qmod manifest".green()
+                );
+                manifest::execute_qmod_manifest_operation(b)
+            }
             QmodOperation::Manifest(b) => manifest::execute_qmod_manifest_operation(b),
+            QmodOperation::Zip(b) => zip::execute_qmod_zip_operation(b),
             QmodOperation::Edit(e) => e.execute(),
         }
     }
