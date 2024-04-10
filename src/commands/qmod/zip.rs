@@ -1,6 +1,6 @@
 use std::fs::{read_to_string, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
 use clap::Args;
 use itertools::Itertools;
@@ -21,7 +21,7 @@ use color_eyre::eyre::ensure;
 use color_eyre::Result;
 
 #[derive(Args, Debug, Clone)]
-pub struct BuildQmodOperationArgs {
+pub struct ZipQmodOperationArgs {
     ///
     /// Tells QPM to exclude mods from being listed as copied mod or libs dependencies
     ///
@@ -38,18 +38,19 @@ pub struct BuildQmodOperationArgs {
     ///
     /// Adds directories for qpm to look for files. Not recursive
     ///
-    #[clap(long = "include_libs")]
-    pub include_dirs: Option<Vec<String>>,
+    /// If a file, forces the inclusion of the file
+    ///
+    #[clap(long = "includes")]
+    pub includes: Option<Vec<PathBuf>>,
 
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
 
     #[clap()]
-    pub(crate) out_target: PathBuf,
+    pub(crate) out_target: Option<PathBuf>,
 }
 
-// This will parse the `qmod.template.json` and process it, then finally export a `qmod.json` for packaging and deploying.
-pub(crate) fn execute_qmod_build_operation(build_parameters: BuildQmodOperationArgs) -> Result<()> {
+pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs) -> Result<()> {
     ensure!(std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
 
@@ -67,18 +68,24 @@ pub(crate) fn execute_qmod_build_operation(build_parameters: BuildQmodOperationA
         },
     )?;
 
+    let includes = build_parameters
+        .includes
+        .unwrap_or(package.workspace.qmod_includes);
+    let qmod_out = build_parameters
+        .out_target
+        .or(package.workspace.qmod_output)
+        .expect("No qmod output provided");
+
     let look_for_files = |s: &str| {
-        build_parameters
-            .include_dirs
-            .as_ref()
-            .unwrap_or_else(|| panic!("No include dirs provided for looking for files!"))
+        includes
             .iter()
-            .find(|path| Path::new(path).join(s).exists())
-            .map(|path| PathBuf::from(path.clone()))
+            .filter(|path| path.is_dir())
+            .find(|path| path.join(s).exists())
+            .cloned()
             .unwrap_or_else(|| {
                 panic!(
                     "No file found for {s} in directories {}",
-                    build_parameters.include_dirs.as_ref().unwrap().join(";")
+                    includes.iter().map(|s| s.display()).join(";")
                 )
             })
     };
@@ -93,15 +100,18 @@ pub(crate) fn execute_qmod_build_operation(build_parameters: BuildQmodOperationA
         .map(|c| look_for_files(c));
     let early_mod_list = new_manifest.mod_files.iter().map(|c| look_for_files(c));
     let lib_list = new_manifest.library_files.iter().map(|c| look_for_files(c));
+    let extra_files = includes.iter().filter(|i| i.is_file()).cloned();
 
     let combined_files = file_copies_list
         .chain(late_mod_list)
         .chain(early_mod_list)
         .chain(lib_list)
+        .chain(extra_files)
+        .unique()
         .collect_vec();
 
-    let out_target_qmod = build_parameters.out_target.with_extension("qmod");
-    
+    let out_target_qmod = qmod_out.with_extension("qmod");
+
     println!(
         "Writing qmod zip {}",
         out_target_qmod.to_string_lossy().file_path_color()
