@@ -1,6 +1,6 @@
 use std::fs::{read_to_string, File};
 use std::io::Write;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use clap::Args;
 use itertools::Itertools;
@@ -82,7 +82,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let qmod_out = build_parameters
         .out_target
         .or(package.workspace.qmod_output)
-        .expect("No qmod output provided");
+        .unwrap_or(format!("./{}", package.info.id).into());
 
     let look_for_files = |s: &str| {
         include_dirs
