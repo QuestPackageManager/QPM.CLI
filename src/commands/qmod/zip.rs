@@ -125,13 +125,13 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         out_target_qmod.to_string_lossy().file_path_color()
     );
     println!(
-        "Using files: {}",
+        "Using files: \n\t{}",
         combined_files
             .iter()
             .map(|s| format!("\t{}", s.to_string_lossy().file_path_color()))
             .join("\n")
     );
-    let mut zip_file = File::create(out_target_qmod)?;
+    let mut zip_file = File::create(&out_target_qmod)?;
 
     let mut zip = zip::ZipWriter::new(&mut zip_file);
 
@@ -152,6 +152,11 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     // Apply the changes you've made.
     // Dropping the `ZipWriter` will have the same effect, but may silently fail
     zip.finish()?;
+
+    println!(
+        "Wrote zip file to {}",
+        out_target_qmod.display().file_path_color()
+    );
 
     Ok(())
 }
