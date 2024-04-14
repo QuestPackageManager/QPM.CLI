@@ -87,8 +87,8 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let look_for_files = |s: &str| {
         include_dirs
             .iter()
-            .find(|path| path.join(s).exists())
-            .cloned()
+            .map(|path| path.join(s))
+            .find(|path| path.exists())
             .unwrap_or_else(|| {
                 panic!(
                     "No file found for {s} in directories {}",
