@@ -125,7 +125,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         out_target_qmod.to_string_lossy().file_path_color()
     );
     println!(
-        "Using files: \n\t{}",
+        "Using files: \n{}",
         combined_files
             .iter()
             .map(|s| format!("\t{}", s.to_string_lossy().file_path_color()))
