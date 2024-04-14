@@ -1,5 +1,5 @@
-use std::fs::{read_to_string, File};
-use std::io::Write;
+use std::fs::{self, read_to_string, File};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use clap::Args;
@@ -139,12 +139,12 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
     for file in combined_files {
         println!("Adding file {}", file.to_string_lossy().file_path_color());
+
         // 50kb
-        let contents = String::with_capacity(1024 * 50);
-        read_to_string(&file)?;
+        let contents = fs::read(&file)?;
 
         zip.start_file(file.file_name().unwrap().to_string_lossy(), options)?;
-        zip.write_all(contents.as_bytes())?;
+        zip.write_all(contents.as_slice())?;
     }
 
     zip.start_file(ModJson::get_result_name(), options)?;
