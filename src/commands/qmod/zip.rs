@@ -58,8 +58,6 @@ pub struct ZipQmodOperationArgs {
 pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs) -> Result<()> {
     ensure!(std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
-
-    println!("Generating mod.json file from template using qpm.shared.json...");
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
