@@ -38,10 +38,15 @@ pub struct ZipQmodOperationArgs {
     ///
     /// Adds directories for qpm to look for files. Not recursive
     ///
-    /// If a file, forces the inclusion of the file
     ///
     #[clap(long = "includes")]
-    pub includes: Option<Vec<PathBuf>>,
+    pub include_dirs: Option<Vec<PathBuf>>,
+
+    ///
+    /// Forcefully includes a file in the zip
+    ///
+    #[clap(long = "includes")]
+    pub include_files: Option<Vec<PathBuf>>,
 
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
@@ -68,24 +73,28 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         },
     )?;
 
-    let includes = build_parameters
-        .includes
-        .unwrap_or(package.workspace.qmod_includes);
+    let include_dirs = build_parameters
+        .include_dirs
+        .unwrap_or(package.workspace.qmod_include_dirs);
+
+    let include_files = build_parameters
+        .include_files
+        .unwrap_or(package.workspace.qmod_include_files);
+
     let qmod_out = build_parameters
         .out_target
         .or(package.workspace.qmod_output)
         .expect("No qmod output provided");
 
     let look_for_files = |s: &str| {
-        includes
+        include_dirs
             .iter()
-            .filter(|path| path.is_dir())
             .find(|path| path.join(s).exists())
             .cloned()
             .unwrap_or_else(|| {
                 panic!(
                     "No file found for {s} in directories {}",
-                    includes.iter().map(|s| s.display()).join(";")
+                    include_dirs.iter().map(|s| s.display()).join(";")
                 )
             })
     };
@@ -100,7 +109,8 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         .map(|c| look_for_files(c));
     let early_mod_list = new_manifest.mod_files.iter().map(|c| look_for_files(c));
     let lib_list = new_manifest.library_files.iter().map(|c| look_for_files(c));
-    let extra_files = includes.iter().filter(|i| i.is_file()).cloned();
+
+    let extra_files = include_files.iter().cloned();
 
     let combined_files = file_copies_list
         .chain(late_mod_list)
