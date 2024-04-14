@@ -39,13 +39,13 @@ pub struct ZipQmodOperationArgs {
     /// Adds directories for qpm to look for files. Not recursive
     ///
     ///
-    #[clap(long = "include_dirs")]
+    #[clap(short = 'i', long = "include_dirs")]
     pub include_dirs: Option<Vec<PathBuf>>,
 
     ///
     /// Forcefully includes a file in the zip
     ///
-    #[clap(long = "include_files")]
+    #[clap(short = 'f', long = "include_files")]
     pub include_files: Option<Vec<PathBuf>>,
 
     #[clap(long, default_value = "false")]
