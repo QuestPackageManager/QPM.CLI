@@ -58,6 +58,7 @@ impl Command for ScriptsCommand {
                     formatted_args
                         .split(' ')
                         .map(|s| s.to_string())
+                        .filter(|s| s.trim() != "")
                         .collect_vec()
                 }
                 None => vec![],
