@@ -8,7 +8,7 @@ use reqwest::StatusCode;
 use semver::Version;
 use std::{
     fs::{self, File},
-    io::{BufWriter, Cursor, Write},
+    io::{BufWriter, Cursor},
     path::Path,
 };
 use zip::ZipArchive;

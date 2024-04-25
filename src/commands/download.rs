@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{BufMut, BytesMut};
 use clap::{Args, Subcommand};
 use color_eyre::Result;
 use owo_colors::OwoColorize;

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env, io::Cursor};
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
 use owo_colors::OwoColorize;
 use semver::{BuildMetadata, Prerelease, Version};
