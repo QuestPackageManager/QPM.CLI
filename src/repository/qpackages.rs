@@ -8,7 +8,7 @@ use reqwest::StatusCode;
 use semver::Version;
 use std::{
     fs::{self, File},
-    io::{Cursor, Write},
+    io::{BufWriter, Cursor, Write},
     path::Path,
 };
 use zip::ZipArchive;
@@ -296,11 +296,8 @@ impl QPMRepository {
                             // github url!
                             git::get_release(url, path)?;
                         } else {
-                            let bytes = download_file_report(url, |_, _| {})?;
-
-                            let mut file = File::create(path)?;
-
-                            file.write_all(&bytes)
+                            let mut file = BufWriter::new(File::create(path)?);
+                            download_file_report(url, &mut file, |_, _| {})
                                 .context("Failed to write out downloaded bytes")?;
                         }
                     }

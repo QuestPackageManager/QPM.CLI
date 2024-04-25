@@ -1,3 +1,4 @@
+use bytes::{BufMut, BytesMut};
 use color_eyre::{eyre::OptionExt, Report, Result};
 use itertools::Itertools;
 use qpm_package::models::{
@@ -48,8 +49,12 @@ fn download_package_binary() -> Result<()> {
         .so_link
         .ok_or_eyre("Binary SO not found")?;
 
-    let bytes = download_file_report(&link, |_, _| {})?;
-    let result = String::from_utf8_lossy(bytes.as_slice());
+    let mut pre_bytes = BytesMut::new().writer();
+    download_file_report(&link, &mut pre_bytes, |_, _| {})?;
+    
+    let final_bytes = pre_bytes.into_inner();
+
+    let result = String::from_utf8_lossy(&final_bytes);
     println!("Result {result}");
 
     Ok(())

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use bytes::Bytes;
+use bytes::{BufMut, Bytes, BytesMut};
 use clap::{Args, Subcommand};
 use color_eyre::Result;
 use owo_colors::OwoColorize;
@@ -61,8 +61,10 @@ impl Command for Download {
         let exe = std::env::current_exe()?;
         let final_path = exe.parent().unwrap();
 
-        let bytes: Bytes = download_file_report(url, |_, _| {})?.into();
-        let buffer = Cursor::new(bytes);
+        // allocate 10 MB of RAM
+        let mut bytes = BytesMut::with_capacity(1024 * 1024 * 10).writer();
+        download_file_report(url, &mut bytes, |_, _| {})?;
+        let buffer = Cursor::new(bytes.into_inner());
 
         // Extract to tmp folde
         let mut archive = ZipArchive::new(buffer)?;

@@ -54,7 +54,7 @@ pub fn get_runtime() -> &'static tokio::runtime::Runtime {
     })
 }
 
-pub fn download_file<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
+pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
@@ -74,26 +74,27 @@ where
 
         // TODO: Fix
         let expected_amount = response.content_length().unwrap_or(0) as usize;
-        let mut bytes: Vec<u8> = Vec::with_capacity(expected_amount);
+        let mut written: usize = 0;
 
         while let Some(chunk) = response.chunk().await? {
-            bytes.write_all(&chunk)?;
-            callback(bytes.len(), expected_amount);
+            written += chunk.len();
+            buffer.write_all(&chunk)?;
+            callback(written, expected_amount);
         }
 
-        Ok(bytes)
+        Ok(expected_amount)
     })
 }
 
 #[inline(always)]
-pub fn download_file_report<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
+pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
     let mut progress_bar = ProgressBar::new(0);
     progress_bar.set_units(pbr::Units::Bytes);
 
-    let result = download_file(url, |current, expected| {
+    let result = download_file(url, buffer, |current, expected| {
         progress_bar.total = expected as u64;
         progress_bar.set(current as u64);
 

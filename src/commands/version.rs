@@ -4,6 +4,7 @@ use std::{
     io::{BufWriter, Cursor, Read, Write},
 };
 
+use bytes::{BufMut, BytesMut};
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::bail, Help};
 use itertools::Itertools;
@@ -114,12 +115,14 @@ impl Command for VersionCommand {
 
                 let path = env::current_exe()?;
                 let tmp_path = path.with_extension("tmp");
-                let zip_bytes = download_file_report(
+                let mut bytes = BytesMut::with_capacity(1024 * 1024 * 10).writer();
+                download_file_report(
                     &github::download_github_artifact_url(&input_branch),
+                    &mut bytes,
                     |_, _| {},
                 )?;
 
-                let cursor = Cursor::new(zip_bytes);
+                let cursor = Cursor::new(bytes.into_inner());
                 let mut zip = ZipArchive::new(cursor)?;
                 let bytes = zip.by_index(0)?.bytes();
 
