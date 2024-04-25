@@ -1,4 +1,4 @@
-use std::{io::Write, sync, time::Duration};
+use std::{env, io::Write, sync, time::Duration};
 
 use color_eyre::{
     eyre::{bail, Context},
@@ -93,6 +93,11 @@ where
 {
     let mut progress_bar = ProgressBar::new(0);
     progress_bar.set_units(pbr::Units::Bytes);
+
+    if env::var("CI") == Ok("true".to_string()) {
+        progress_bar.set_max_refresh_rate(Some(Duration::from_millis(500)));
+    }
+
 
     let result = download_file(url, buffer, |current, expected| {
         progress_bar.total = expected as u64;
