@@ -334,6 +334,7 @@ impl Repository for QPMRepository {
         Self::get_packages()
     }
 
+    /// Sorted descending order
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
         let versions = Self::get_versions(id)?.map(|versions| {
             versions
