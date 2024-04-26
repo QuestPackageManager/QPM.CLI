@@ -469,7 +469,7 @@ impl FileRepository {
         if !packages_path.exists() {
             return Ok(());
         }
-        std::fs::remove_dir(packages_path)?;
+        std::fs::remove_dir_all(packages_path)?;
         Ok(())
     }
     pub fn remove_package(&mut self, package: &String, version: &Version) -> Result<()> {
@@ -482,7 +482,7 @@ impl FileRepository {
         if !packages_path.exists() {
             return Ok(());
         }
-        std::fs::remove_dir(packages_path)?;
+        std::fs::remove_dir_all(packages_path)?;
         Ok(())
     }
 }
