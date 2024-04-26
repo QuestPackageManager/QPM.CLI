@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
       - uses: actions/cache@v3
@@ -58,16 +58,12 @@ jobs:
           brew install openssl@3
 
       - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release
+        run: |
+          cargo test
 
       - name: Cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+        run: |
+          cargo build --release
 
       - uses: actions-rs/toolchain@v1
         if: ${{matrix.os == 'macos-latest' }}
@@ -83,10 +79,8 @@ jobs:
 
       - name: Cargo build for aarch64 Mac
         if: ${{matrix.os == 'macos-latest' }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target aarch64-apple-darwin
+        run: |
+          cargo build --release --target aarch64-apple-darwin
 
       - name: Make M1 Universal binary
         if: ${{matrix.os == 'macos-latest' }}

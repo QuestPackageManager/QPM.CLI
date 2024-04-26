@@ -52,16 +52,12 @@ jobs:
           sudo apt-get install -y libdbus-1-dev
 
       - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release
+        run: |
+          cargo test
 
       - name: Cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+        run: |
+          cargo build --release
 
       - name: Upload executable
         uses: actions/upload-artifact@v2
