@@ -17,13 +17,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, windows-latest, macos-13]
         include:
           - os: ubuntu-latest
             file-name: qpm
             prefix: linux
 
-          - os: macOS-latest
+          - os: macos-13
             file-name: qpm
             prefix: macos
 
@@ -56,8 +56,6 @@ jobs:
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
           brew install openssl@3
-
-      - run: cargo test
 
       - name: Cargo test
         uses: actions-rs/cargo@v1
