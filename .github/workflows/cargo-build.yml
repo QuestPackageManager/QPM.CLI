@@ -17,13 +17,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest-large]
         include:
           - os: ubuntu-latest
             file-name: qpm
             prefix: linux
 
-          - os: macos-13
+          - os: macos-latest-large
             file-name: qpm
             prefix: macos
 
@@ -34,9 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
+      #! Windows 2022/Ubutnu 22.04/MacOS 14 include cargo now
+      # - uses: dtolnay/rust-toolchain@master
+      #   with:
+      #     toolchain: nightly
       - uses: actions/cache@v3
         with:
           path: |
