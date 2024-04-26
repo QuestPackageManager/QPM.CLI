@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
       - uses: actions/cache@v3
@@ -52,12 +52,16 @@ jobs:
           sudo apt-get install -y libdbus-1-dev
 
       - name: Cargo test
-        run: |
-          cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release
 
       - name: Cargo build
-        run: |
-          cargo build --release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
 
       - name: Upload executable
         uses: actions/upload-artifact@v2

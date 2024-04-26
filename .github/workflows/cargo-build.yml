@@ -58,12 +58,16 @@ jobs:
           brew install openssl@3
 
       - name: Cargo test
-        run: |
-          cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release
 
       - name: Cargo build
-        run: |
-          cargo build --release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
 
       - uses: actions-rs/toolchain@v1
         if: ${{matrix.os == 'macos-latest' }}
@@ -79,8 +83,10 @@ jobs:
 
       - name: Cargo build for aarch64 Mac
         if: ${{matrix.os == 'macos-latest' }}
-        run: |
-          cargo build --release --target aarch64-apple-darwin
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target aarch64-apple-darwin
 
       - name: Make M1 Universal binary
         if: ${{matrix.os == 'macos-latest' }}
