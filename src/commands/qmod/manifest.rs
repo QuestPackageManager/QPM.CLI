@@ -59,23 +59,13 @@ pub(crate) fn generate_qmod_manifest(
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
     println!("Generating mod.json file from template using qpm.shared.json...");
 
-    let is_header_only = shared_package
+    let binary = shared_package
         .config
         .info
-        .additional_data
-        .headers_only
-        .unwrap_or(false);
-    let binary = (!is_header_only).then(|| {
-        shared_package
-            .config
-            .info
-            .get_so_name()
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string()
-    });
+        .get_so_name()
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string());
+
     let preprocess_data = PreProcessingData {
         version: shared_package.config.info.version.to_string(),
         mod_id: shared_package.config.info.id.clone(),
