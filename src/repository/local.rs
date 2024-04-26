@@ -465,7 +465,7 @@ impl FileRepository {
 
     pub fn remove_package_versions(&mut self, package: &String) -> Result<()> {
         self.artifacts.remove(package);
-        let packages_path = Self::get_package_versions_cache_path(&package);
+        let packages_path = Self::get_package_versions_cache_path(package);
         if !packages_path.exists() {
             return Ok(());
         }
@@ -478,7 +478,7 @@ impl FileRepository {
             .ok_or_eyre(format!("No package found {package}/{version}"))?
             .remove(version);
 
-        let packages_path = Self::get_package_cache_path(&package, version);
+        let packages_path = Self::get_package_cache_path(package, version);
         if !packages_path.exists() {
             return Ok(());
         }

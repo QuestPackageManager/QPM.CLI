@@ -1,5 +1,5 @@
 use color_eyre::{
-    eyre::{bail, Context, ContextCompat, OptionExt},
+    eyre::{bail, Context, OptionExt},
     Result, Section,
 };
 use itertools::Itertools;
