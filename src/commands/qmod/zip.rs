@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use clap::Args;
 use itertools::Itertools;
 
+use owo_colors::OwoColorize;
 use qpm_qmod::models::mod_json::ModJson;
 
 use crate::commands::qmod::manifest::{generate_qmod_manifest, ManifestQmodOperationArgs};
@@ -138,7 +139,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let options =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
     for file in combined_files {
-        println!("Adding file {}", file.to_string_lossy().file_path_color());
+        println!("Adding file {}", file.to_string_lossy().green());
 
         // 50kb
         let contents = fs::read(&file)?;
@@ -155,7 +156,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
 
     println!(
         "Wrote zip file to {}",
-        out_target_qmod.display().file_path_color()
+        out_target_qmod.display().blue()
     );
 
     Ok(())
