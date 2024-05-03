@@ -9,8 +9,6 @@ use qpm_package::models::{
 
 use super::Repository;
 
-const API_URL: &str = "https://qpackages.com";
-
 pub struct MemcachedRepository<R: Repository> {
     // interior mutability
     packages_cache: UnsafeCell<HashMap<String, HashMap<Version, SharedPackageConfig>>>,
