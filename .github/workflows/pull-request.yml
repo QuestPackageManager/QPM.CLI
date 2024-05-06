@@ -16,13 +16,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, windows-latest, macOS-13]
         include:
           - os: ubuntu-latest
             file-name: qpm
             prefix: linux
 
-          - os: macOS-latest
+          - os: macOS-13
             file-name: qpm
             prefix: macos
 

@@ -6,13 +6,13 @@
       "request": "launch",
       "name": "Debug executable 'qpm_cli'",
       "cargo": {
-        "args": ["build", "--bin=qpm_cli", "--package=qpm_cli"],
+        "args": ["build", "--bin=qpm", "--package=qpm_cli"],
         "filter": {
-          "name": "qpm_cli",
+          "name": "qpm",
           "kind": "bin"
         }
       },
-      "args": [],
+      "args": ["download", "adb"],
       "cwd": "${workspaceFolder}"
     },
     {
@@ -20,9 +20,9 @@
       "request": "launch",
       "name": "Debug unit tests in executable 'qpm_cli'",
       "cargo": {
-        "args": ["test", "--no-run", "--bin=qpm_cli", "--package=qpm_cli"],
+        "args": ["test", "--no-run", "--bin=qpm", "--package=qpm_cli"],
         "filter": {
-          "name": "qpm_cli",
+          "name": "qpm",
           "kind": "bin"
         }
       },

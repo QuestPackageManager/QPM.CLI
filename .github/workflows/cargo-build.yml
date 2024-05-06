@@ -55,7 +55,7 @@ jobs:
           sudo apt-get install -y libdbus-1-dev
           
       - name: Get OpenSSL if MacOS
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos-13' }}
         run: |
           brew install openssl@3
 
@@ -72,31 +72,31 @@ jobs:
           args: --release
 
       - uses: actions-rs/toolchain@v1
-        if: ${{matrix.os == 'macos-latest' }}
+        if: ${{matrix.os == 'macos-13' }}
         with:
           toolchain: nightly
           target: aarch64-apple-darwin
 
       - name: Double check
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos-13' }}
         run: |
           rustup target add aarch64-apple-darwin 
           rustup show
 
       - name: Cargo build for aarch64 Mac
-        if: ${{matrix.os == 'macos-latest' }}
+        if: ${{matrix.os == 'macos-13' }}
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target aarch64-apple-darwin
 
       - name: Make M1 Universal binary
-        if: ${{matrix.os == 'macos-latest' }}
+        if: ${{matrix.os == 'macos-13' }}
         run: lipo -create -output qpm-universal target/release/${{matrix.file-name}} target/aarch64-apple-darwin/release/${{matrix.file-name}}
 
       - name: Artifact Upload
         uses: actions/upload-artifact@v2
-        if: ${{matrix.os == 'macos-latest' }}
+        if: ${{matrix.os == 'macos-13' }}
         with:
           name: qpm-universal
           path: qpm-universal
