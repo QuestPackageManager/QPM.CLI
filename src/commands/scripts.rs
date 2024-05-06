@@ -32,47 +32,56 @@ impl Command for ScriptsCommand {
 
         let supplied_args = self.args.unwrap_or_default();
 
-        for command_str in script.unwrap() {
-            let split = command_str.split_once(' ');
-
-            let exec = match split {
-                Some(s) => s.0,
-                None => command_str,
-            };
-
-            let args: Vec<String> = match split {
-                Some(s) => {
-                    let expression = s.1;
-                    let tokenized_args = Expression::parse(expression);
-
-                    let formatted_args = tokenized_args
-                        .replace(
-                            supplied_args
-                                .iter()
-                                .map(|s| s.as_str())
-                                .collect_vec()
-                                .as_slice(),
-                        )
-                        .map_err(|e| anyhow!("{}", e))?;
-
-                    formatted_args
-                        .split(' ')
-                        .map(|s| s.to_string())
-                        .filter(|s| s.trim() != "")
-                        .collect_vec()
-                }
-                None => vec![],
-            };
-
-            let mut c = std::process::Command::new(exec);
-            c.args(args)
-                .stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit());
-
-            c.spawn()?.wait()?.exit_ok()?;
+        if let Some(script) = script {
+            invoke_script(script, &supplied_args)?;
         }
-
         Ok(())
     }
+}
+
+pub fn invoke_script(
+    script: &[String],
+    supplied_args: &[String],
+) -> Result<(), color_eyre::eyre::Error> {
+    for command_str in script {
+        let split = command_str.split_once(' ');
+
+        let exec = match split {
+            Some(s) => s.0,
+            None => command_str,
+        };
+
+        let args: Vec<String> = match split {
+            Some(s) => {
+                let expression = s.1;
+                let tokenized_args = Expression::parse(expression);
+
+                let formatted_args = tokenized_args
+                    .replace(
+                        supplied_args
+                            .iter()
+                            .map(|s| s.as_str())
+                            .collect_vec()
+                            .as_slice(),
+                    )
+                    .map_err(|e| anyhow!("{}", e))?;
+
+                formatted_args
+                    .split(' ')
+                    .map(|s| s.to_string())
+                    .filter(|s| s.trim() != "")
+                    .collect_vec()
+            }
+            None => vec![],
+        };
+
+        let mut c = std::process::Command::new(exec);
+        c.args(args)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+
+        c.spawn()?.wait()?.exit_ok()?;
+    }
+    Ok(())
 }

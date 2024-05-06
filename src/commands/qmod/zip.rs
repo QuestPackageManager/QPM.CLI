@@ -6,9 +6,11 @@ use clap::Args;
 use itertools::Itertools;
 
 use owo_colors::OwoColorize;
+use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
 use qpm_qmod::models::mod_json::ModJson;
 
 use crate::commands::qmod::manifest::{generate_qmod_manifest, ManifestQmodOperationArgs};
+use crate::commands::scripts;
 use crate::models::mod_json::ModJsonExtensions;
 use crate::models::package::PackageConfigExtensions;
 use crate::terminal::colors::QPMColor;
@@ -71,6 +73,13 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
             offline: build_parameters.offline,
         },
     )?;
+
+    // Run build script
+    let build_script = &package.workspace.get_build();
+    if let Some(build_script) = build_script {
+        println!("Running build script");
+        scripts::invoke_script(build_script, &[])?;
+    }
 
     let include_dirs = build_parameters
         .include_dirs
@@ -154,10 +163,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     // Dropping the `ZipWriter` will have the same effect, but may silently fail
     zip.finish()?;
 
-    println!(
-        "Wrote zip file to {}",
-        out_target_qmod.display().blue()
-    );
+    println!("Wrote zip file to {}", out_target_qmod.display().blue());
 
     Ok(())
 }
