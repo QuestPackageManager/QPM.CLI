@@ -34,9 +34,7 @@ fn get_artifact_package_versions() -> Result<()> {
 fn download_package_binary() -> Result<()> {
     let repo = QPMRepository::default();
     let id: &str = "codegen";
-    let versions = repo
-        .get_package_versions(id)?
-        .ok_or_eyre("No versions")?;
+    let versions = repo.get_package_versions(id)?.ok_or_eyre("No versions")?;
     let version = &versions.first().unwrap().version;
     let package = repo
         .get_package(id, version)?
@@ -51,7 +49,7 @@ fn download_package_binary() -> Result<()> {
 
     let mut pre_bytes = BytesMut::new().writer();
     download_file_report(&link, &mut pre_bytes, |_, _| {})?;
-    
+
     let final_bytes = pre_bytes.into_inner();
 
     let result = String::from_utf8_lossy(&final_bytes);

@@ -19,7 +19,6 @@ use color_eyre::Result;
 
 #[derive(Args, Debug, Clone)]
 pub struct ManifestQmodOperationArgs {
-
     ///
     /// Tells QPM to exclude mods from being listed as copied mod or libs dependencies
     ///

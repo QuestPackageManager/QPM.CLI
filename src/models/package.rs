@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{eyre::Context, owo_colors::OwoColorize, Result, Section};
 use itertools::Itertools;
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
@@ -100,7 +100,10 @@ impl PackageConfigExtensions for PackageConfig {
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
-        let file = File::open(&path).with_context(|| format!("{path:?} not found"))?;
+        let file = File::open(&path)
+            .with_context(|| format!("{path:?} not found"))
+            .suggestion(format!("Try running {}", "qpm restore".blue()))?;
+
         json::json_from_reader_fast(BufReader::new(file))
             .with_context(|| format!("Unable to read SharedPackageConfig at {path:?}"))
     }

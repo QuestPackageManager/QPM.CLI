@@ -98,7 +98,6 @@ where
         progress_bar.set_max_refresh_rate(Some(Duration::from_millis(500)));
     }
 
-
     let result = download_file(url, buffer, |current, expected| {
         progress_bar.total = expected as u64;
         progress_bar.set(current as u64);
