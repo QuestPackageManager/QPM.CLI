@@ -6,7 +6,10 @@ use semver::VersionReq;
 use walkdir::WalkDir;
 
 use crate::{
-    models::config::get_combine_config,
+    models::{
+        android_repo::{AndroidRepositoryManifest, RemotePackage},
+        config::get_combine_config,
+    },
     resolver::semver::{req_to_range, VersionWrapper},
     utils::android::{
         download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
@@ -26,6 +29,7 @@ pub enum NdkOperation {
     Download(DownloadArgs),
     List,
     Available(AvailableArgs),
+    Path(PathArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -37,6 +41,42 @@ pub struct DownloadArgs {
 pub struct AvailableArgs {
     page: usize,
 }
+#[derive(Args, Debug, Clone)]
+pub struct PathArgs {
+    version: String,
+}
+
+fn fuzzy_match_ndk<'a>(
+    manifest: &'a AndroidRepositoryManifest,
+    version: &str,
+) -> Result<(String, &'a RemotePackage)> {
+    // Find version matching version
+    let ndks_str = get_ndk_str_versions_str(manifest);
+
+    let ndk = ndks_str.get(version);
+    match ndk {
+        Some(ndk) => Ok((version.to_string(), ndk)),
+        None => {
+            // fuzzy search version using version ranges
+            let fuzzy_version_range = req_to_range(VersionReq::parse(version)?);
+
+            // find version closest to specified
+            let ndks = get_ndk_str_versions(manifest);
+            let ndks_versions = ndks.keys().sorted().rev().collect_vec();
+            let matching_version_opt = ndks_versions
+                .iter()
+                .find(|probe| fuzzy_version_range.contains(&VersionWrapper((**probe).clone())));
+
+            match matching_version_opt {
+                Some(matching_version) => Ok((
+                    matching_version.to_string(),
+                    ndks.get(matching_version).unwrap(),
+                )),
+                None => bail!("Could not find ndk version {}", version),
+            }
+        }
+    }
+}
 
 impl Command for Ndk {
     fn execute(self) -> Result<()> {
@@ -44,31 +84,8 @@ impl Command for Ndk {
             NdkOperation::Download(d) => {
                 let manifest = get_android_manifest()?;
 
-                // Find version matching version
-                let ndks_str = get_ndk_str_versions_str(&manifest);
-
-                let ndk = ndks_str.get(d.version.as_str());
-                match ndk {
-                    Some(ndk) => download_ndk_version(ndk)?,
-                    None => {
-                        // fuzzy search version using version ranges
-                        let fuzzy_version_range = req_to_range(VersionReq::parse(&d.version)?);
-
-                        // find version closest to specified
-                        let ndks = get_ndk_str_versions(&manifest);
-                        let ndks_versions = ndks.keys().sorted().rev().collect_vec();
-                        let matching_version_opt = ndks_versions.iter().find(|probe| {
-                            fuzzy_version_range.contains(&VersionWrapper((**probe).clone()))
-                        });
-
-                        match matching_version_opt {
-                            Some(matching_version) => {
-                                download_ndk_version(ndks.get(matching_version).unwrap())?
-                            }
-                            None => bail!("Could not find ndk version {}", d.version),
-                        }
-                    }
-                }
+                let (_version, ndk) = fuzzy_match_ndk(&manifest, &d.version)?;
+                download_ndk_version(ndk)?
             }
             NdkOperation::Available(a) => {
                 let manifest = get_android_manifest()?;
@@ -106,6 +123,24 @@ impl Command for Ndk {
                             p.path().to_str().unwrap()
                         )
                     })
+            }
+            NdkOperation::Path(p) => {
+                let manifest = get_android_manifest()?;
+
+                let (version, _ndk) = fuzzy_match_ndk(&manifest, &p.version)?;
+
+                let dir = get_combine_config()
+                    .ndk_download_path
+                    .as_ref()
+                    .expect("No NDK download path set");
+
+                let ndk_path = dir.join(version);
+
+                if !ndk_path.exists() {
+                    bail!("Path {} not found!", ndk_path.display().red());
+                }
+
+                println!("{}", ndk_path.display());
             }
         }
 
