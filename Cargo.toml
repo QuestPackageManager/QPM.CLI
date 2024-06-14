@@ -36,13 +36,13 @@ color-eyre = { version = "0.6", default-features = false }
 # progress bar
 pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
-git2 = "0.18"
+git2 = "0.19"
 
 #tokio fix
 tokio = { version = ">=1.33", features = ["io-util", "io-std", "net", "macros"] }
 
 bytes = "*"
-reqwest = { version = "0.11", features = [
+reqwest = { version = "0.12", features = [
     "blocking",
     "json",
     "default-tls",
@@ -64,11 +64,11 @@ pubgrub = "0.2"
 owo-colors = "4"
 dirs = "5.0.0"
 keyring = "2"
-zip = "0.6"
+zip = "2"
 walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
-itertools = "0.12"
+itertools = "0.13"
 stopwatch = "0.0.7"
 
 [target.aarch64-apple-darwin.dependencies]

@@ -8,6 +8,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
 use qpm_qmod::models::mod_json::ModJson;
+use zip::write::FileOptionExtension;
 
 use crate::commands::qmod::manifest::{generate_qmod_manifest, ManifestQmodOperationArgs};
 use crate::commands::scripts;
@@ -146,7 +147,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let mut zip = zip::ZipWriter::new(&mut zip_file);
 
     let options =
-        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
     for file in combined_files {
         println!("Adding file {}", file.to_string_lossy().green());
 
