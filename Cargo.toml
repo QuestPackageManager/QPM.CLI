@@ -12,9 +12,11 @@ name = "qpm"
 path = "src/main.rs"
 
 [features]
-default = ["templatr", "network_test"]
+default = ["templatr", "network_test", "gitoxide"]
 templatr = ["dep:templatr"]
 network_test = []
+gitoxide = ["dep:gix"]
+libgit2 = ["dep:git2"]
 
 [build-dependencies]
 vergen = { version = "8", features = ["build", "git", "gitcl"] }
@@ -36,7 +38,8 @@ color-eyre = { version = "0.6", default-features = false }
 # progress bar
 pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
-git2 = "0.19"
+git2 = {version = "0.19", optional = true }
+gix = {version = "0.63", features = ["command", "attributes"], optional = true }
 
 #tokio fix
 tokio = { version = ">=1.33", features = ["io-util", "io-std", "net", "macros"] }
