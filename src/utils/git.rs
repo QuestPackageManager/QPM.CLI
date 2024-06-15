@@ -196,23 +196,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
     // TODO: Set branch to clone
     // TODO: Clone submodules
 
-    let create_opts = gix::create::Options {
-        fs_capabilities: Some(gix::fs::Capabilities {
-            symlink: true,
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    let open_opts = gix::open::Options::isolated();
-
-    let mut prepare_clone = gix::clone::PrepareFetch::new(
-        gix::url::parse(url.as_str().into())?,
-        out,
-        gix::create::Kind::WithWorktree,
-        create_opts,
-        open_opts,
-    )?
-    .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
+    let mut prepare_clone = gix::prepare_clone(gix::url::parse(url.as_str().into())?, path)?.with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
         NonZero::new(1).unwrap(),
     ));
 
@@ -228,7 +212,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
             .work_dir()
             .context("repo work dir")?
     );
-
+    
     let (repo, _) = prepare_checkout.main_worktree(
         prodash::progress::Log::new("Repo checkout", None),
         &gix::interrupt::IS_INTERRUPTED,
