@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models::config::get_keyring, network::agent::get_agent};
 
+#[cfg(feature = "libgit2")]
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
     git.arg("--version");
@@ -43,6 +44,11 @@ pub fn check_git() -> Result<()> {
             );
         }
     }
+}
+
+#[cfg(feature = "gitoxide")]
+pub fn check_git() -> Result<()> {
+    Ok(())
 }
 
 pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
@@ -114,6 +120,7 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
     Ok(out.exists())
 }
 
+#[cfg(feature = "libgit2")]
 pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
     check_git()?;
     if let Ok(token_unwrapped) = get_keyring().get_password() {
@@ -125,6 +132,127 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
     if url.ends_with('/') {
         url = url[..url.len() - 1].to_string();
     }
+
+    let mut git = Command::new("git");
+    git.arg("clone")
+        .arg(format!("{url}.git"))
+        .arg(out)
+        .arg("--depth")
+        .arg("1")
+        .arg("--recurse-submodules")
+        .arg("--shallow-submodules")
+        .arg("--single-branch")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+
+    if let Some(branch_unwrapped) = branch {
+        git.arg("-b").arg(branch_unwrapped);
+    } else {
+        println!("No branch name found, cloning default branch");
+    }
+
+    let mut child = git
+        .spawn()
+        .context("Git clone package")
+        .with_suggestion(|| format!("File a bug report. Used the following command: {:#?}", git))?;
+
+    match child.wait() {
+        Ok(e) => {
+            if e.code().unwrap_or(-1) != 0 {
+                let stderr = BufReader::new(child.stderr.as_mut().unwrap());
+
+                let mut error_string = std::str::from_utf8(stderr.buffer())?.to_string();
+
+                if let Ok(token_unwrapped) = get_keyring().get_password() {
+                    error_string = error_string.replace(&token_unwrapped, "***");
+                }
+
+                bail!("Exit code {}: {}", e, error_string);
+            }
+        }
+        Err(e) => {
+            let mut error_string = e.to_string();
+
+            if let Ok(token_unwrapped) = get_keyring().get_password() {
+                error_string = error_string.replace(&token_unwrapped, "***");
+            }
+
+            bail!("{}", error_string);
+        }
+    }
+
+    Ok(out.try_exists()?)
+}
+
+#[cfg(feature = "gitoxide")]
+pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
+    use std::num::NonZero;
+
+    use color_eyre::eyre::ContextCompat;
+
+    check_git()?;
+    // TODO: Figure out tokens
+    // TODO: Set branch to clone
+    // TODO: Clone submodules
+
+    let create_opts = gix::create::Options {
+        fs_capabilities: Some(gix::fs::Capabilities {
+            symlink: true,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let open_opts = gix::open::Options::isolated();
+
+    let mut prepare_clone = gix::clone::PrepareFetch::new(
+        gix::url::parse(url.as_str().into())?,
+        out,
+        gix::create::Kind::WithWorktree,
+        create_opts,
+        open_opts,
+    )?
+    .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
+        NonZero::new(1).unwrap(),
+    ));
+
+    let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
+        prodash::progress::Log::new("Fetch", None),
+        &gix::interrupt::IS_INTERRUPTED,
+    )?;
+
+    println!(
+        "Checking out into {:?} ...",
+        prepare_checkout
+            .repo()
+            .work_dir()
+            .context("repo work dir")?
+    );
+
+    let (repo, _) = prepare_checkout.main_worktree(
+        prodash::progress::Log::new("Repo checkout", None),
+        &gix::interrupt::IS_INTERRUPTED,
+    )?;
+    println!(
+        "Repo cloned into {:?}",
+        repo.work_dir().expect("directory pre-created")
+    );
+
+    let remote = repo
+        .find_default_remote(gix::remote::Direction::Fetch)
+        .expect("always present after clone")?;
+
+    println!(
+        "Default remote: {} -> {}",
+        remote
+            .name()
+            .expect("default remote is always named")
+            .as_bstr(),
+        remote
+            .url(gix::remote::Direction::Fetch)
+            .expect("should be the remote URL")
+            .to_bstring(),
+    );
 
     let mut git = Command::new("git");
     git.arg("clone")

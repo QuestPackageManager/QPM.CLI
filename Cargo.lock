@@ -1205,6 +1205,7 @@ dependencies = [
  "gix-path",
  "gix-pathspec",
  "gix-prompt",
+ "gix-protocol",
  "gix-ref",
  "gix-refspec",
  "gix-revision",
@@ -1223,6 +1224,7 @@ dependencies = [
  "gix-worktree-stream",
  "once_cell",
  "parking_lot",
+ "prodash",
  "regex",
  "signal-hook",
  "smallvec",
@@ -1677,6 +1679,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gix-packetline"
+version = "0.17.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b70486beda0903b6d5b65dfa6e40585098cdf4e6365ca2dff4f74c387354a515"
+dependencies = [
+ "bstr",
+ "faster-hex",
+ "gix-trace",
+ "thiserror",
+]
+
+[[package]]
 name = "gix-packetline-blocking"
 version = "0.17.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1727,6 +1741,24 @@ dependencies = [
  "parking_lot",
  "rustix 0.38.34",
  "thiserror",
+]
+
+[[package]]
+name = "gix-protocol"
+version = "0.45.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c140d4c6d209048826bad78f021a01b612830f89da356efeb31afe8957f8bee"
+dependencies = [
+ "bstr",
+ "gix-credentials",
+ "gix-date",
+ "gix-features",
+ "gix-hash",
+ "gix-transport",
+ "gix-utils",
+ "maybe-async",
+ "thiserror",
+ "winnow 0.6.13",
 ]
 
 [[package]]
@@ -1877,6 +1909,22 @@ name = "gix-trace"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f924267408915fddcd558e3f37295cc7d6a3e50f8bd8b606cee0808c3915157e"
+
+[[package]]
+name = "gix-transport"
+version = "0.42.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb0ffa5f869977f5b9566399154055902f05d7e85c787d5eacf551acdd0c4adf"
+dependencies = [
+ "bstr",
+ "gix-command",
+ "gix-features",
+ "gix-packetline",
+ "gix-quote",
+ "gix-sec",
+ "gix-url",
+ "thiserror",
+]
 
 [[package]]
 name = "gix-traverse"
@@ -2608,6 +2656,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "maybe-async"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5cf92c10c7e361d6b99666ec1c6f9805b0bea2c3bd8c78dc6fe98ac5bd78db11"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.66",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3129,6 +3188,8 @@ checksum = "744a264d26b88a6a7e37cbad97953fa233b94d585236310bcbc88474b4092d79"
 dependencies = [
  "bytesize",
  "human_format",
+ "log",
+ "parking_lot",
 ]
 
 [[package]]
@@ -3169,6 +3230,7 @@ dependencies = [
  "openssl-sys",
  "owo-colors 4.0.0",
  "pbr",
+ "prodash",
  "pubgrub",
  "qpm_arg_tokenizer",
  "qpm_package",

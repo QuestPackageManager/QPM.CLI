@@ -15,7 +15,7 @@ path = "src/main.rs"
 default = ["templatr", "network_test", "gitoxide"]
 templatr = ["dep:templatr"]
 network_test = []
-gitoxide = ["dep:gix"]
+gitoxide = ["dep:gix", "dep:prodash"]
 libgit2 = ["dep:git2"]
 
 [build-dependencies]
@@ -39,7 +39,10 @@ color-eyre = { version = "0.6", default-features = false }
 pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
 git2 = {version = "0.19", optional = true }
-gix = {version = "0.63", features = ["command", "attributes"], optional = true }
+
+#gitoxide
+gix = {version = "0.63", features = ["command", "attributes", "progress-tree", "worktree-mutation", "blocking-network-client"], optional = true }
+prodash = {version = "*", features = ["progress-log"], optional = true}
 
 #tokio fix
 tokio = { version = ">=1.33", features = ["io-util", "io-std", "net", "macros"] }
