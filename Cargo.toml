@@ -41,7 +41,7 @@ pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 git2 = {version = "0.19", optional = true }
 
 #gitoxide
-gix = {git = "https://github.com/Fernthedev/gitoxide.git", branch = "feat/checkout-other-refs", features = ["command", "attributes", "progress-tree", "worktree-mutation", "blocking-network-client"], optional = true }
+gix = {git = "https://github.com/Fernthedev/gitoxide.git", branch = "feat/checkout-other-refs", features = ["command", "attributes", "progress-tree", "worktree-mutation", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls"], optional = true }
 prodash = {version = "*", features = ["progress-log"], optional = true}
 
 #tokio fix

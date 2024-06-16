@@ -227,11 +227,21 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     //     }
     // });
 
-    let (repo, _) = prepare_checkout.worktree(
-        prodash::progress::Log::new("Repo checkout", None),
-        &gix::interrupt::IS_INTERRUPTED,
-        branch,
-    )?;
+    let remote = prepare_checkout
+        .repo()
+        .remote_default_name(gix::remote::Direction::Fetch)
+        .expect("remote")
+        .to_string();
+
+    let full_branch_name = branch.map(|b| format!("{remote}/{b}"));
+
+    let (repo, _) = prepare_checkout
+        .worktree(
+            prodash::progress::Log::new("Repo checkout", None),
+            &gix::interrupt::IS_INTERRUPTED,
+            full_branch_name.as_deref(),
+        )
+        .with_context(|| format!("Checkout {full_branch_name:?}"))?;
     println!(
         "Repo cloned into {:?}",
         repo.work_dir().expect("directory pre-created")
