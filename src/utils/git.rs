@@ -121,7 +121,7 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
 }
 
 #[cfg(feature = "libgit2")]
-pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
+pub fn clone(mut url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     check_git()?;
     if let Ok(token_unwrapped) = get_keyring().get_password() {
         if let Some(gitidx) = url.find("github.com") {
@@ -186,19 +186,21 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
 }
 
 #[cfg(feature = "gitoxide")]
-pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
+pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     use std::num::NonZero;
 
     use color_eyre::eyre::ContextCompat;
+    use gix::{Reference, Repository};
 
     check_git()?;
     // TODO: Figure out tokens
     // TODO: Set branch to clone
     // TODO: Clone submodules
 
-    let mut prepare_clone = gix::prepare_clone(gix::url::parse(url.as_str().into())?, path)?.with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
-        NonZero::new(1).unwrap(),
-    ));
+    let mut prepare_clone = gix::prepare_clone(gix::url::parse(url.as_str().into())?, out)?
+        .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
+            NonZero::new(1).unwrap(),
+        ));
 
     let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
         prodash::progress::Log::new("Fetch", None),
@@ -212,10 +214,23 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
             .work_dir()
             .context("repo work dir")?
     );
-    
-    let (repo, _) = prepare_checkout.main_worktree(
+
+    // let branch_ref = branch
+    //     .map(|b| prepare_checkout.repo().find_reference(b))
+    //     .transpose()?;
+
+    // let branch_fn = branch.map(|b| {
+    //     let str = b.to_string();
+    //     move |r: &'a Repository| -> Reference<'a> {
+    //         r.find_reference(str.as_str())
+    //             .expect("remote branch not found")
+    //     }
+    // });
+
+    let (repo, _) = prepare_checkout.worktree(
         prodash::progress::Log::new("Repo checkout", None),
         &gix::interrupt::IS_INTERRUPTED,
+        branch,
     )?;
     println!(
         "Repo cloned into {:?}",
@@ -237,55 +252,6 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
             .expect("should be the remote URL")
             .to_bstring(),
     );
-
-    let mut git = Command::new("git");
-    git.arg("clone")
-        .arg(format!("{url}.git"))
-        .arg(out)
-        .arg("--depth")
-        .arg("1")
-        .arg("--recurse-submodules")
-        .arg("--shallow-submodules")
-        .arg("--single-branch")
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit());
-
-    if let Some(branch_unwrapped) = branch {
-        git.arg("-b").arg(branch_unwrapped);
-    } else {
-        println!("No branch name found, cloning default branch");
-    }
-
-    let mut child = git
-        .spawn()
-        .context("Git clone package")
-        .with_suggestion(|| format!("File a bug report. Used the following command: {:#?}", git))?;
-
-    match child.wait() {
-        Ok(e) => {
-            if e.code().unwrap_or(-1) != 0 {
-                let stderr = BufReader::new(child.stderr.as_mut().unwrap());
-
-                let mut error_string = std::str::from_utf8(stderr.buffer())?.to_string();
-
-                if let Ok(token_unwrapped) = get_keyring().get_password() {
-                    error_string = error_string.replace(&token_unwrapped, "***");
-                }
-
-                bail!("Exit code {}: {}", e, error_string);
-            }
-        }
-        Err(e) => {
-            let mut error_string = e.to_string();
-
-            if let Ok(token_unwrapped) = get_keyring().get_password() {
-                error_string = error_string.replace(&token_unwrapped, "***");
-            }
-
-            bail!("{}", error_string);
-        }
-    }
 
     Ok(out.try_exists()?)
 }
