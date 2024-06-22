@@ -1,15 +1,12 @@
 use std::{
     fs::File,
-    io::BufReader,
     path::Path,
-    process::{Command, Stdio},
 };
 
 use color_eyre::{
     eyre::{bail, Context},
-    Result, Section,
+    Result,
 };
-use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
 
@@ -190,17 +187,21 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     use std::num::NonZero;
 
     use color_eyre::eyre::ContextCompat;
-    use gix::{Reference, Repository};
+    use gix::refs::PartialName;
 
     check_git()?;
-    // TODO: Figure out tokens
-    // TODO: Set branch to clone
+    // TODO: Figure out tokens\
     // TODO: Clone submodules
+
+    let branch_ref: Option<PartialName> = branch
+        .map(PartialName::try_from)
+        .transpose()?;
 
     let mut prepare_clone = gix::prepare_clone(gix::url::parse(url.as_str().into())?, out)?
         .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
             NonZero::new(1).unwrap(),
-        ));
+        ))
+        .with_ref_name(branch_ref.as_ref())?;
 
     let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
         prodash::progress::Log::new("Fetch", None),
@@ -227,21 +228,13 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     //     }
     // });
 
-    let remote = prepare_checkout
-        .repo()
-        .remote_default_name(gix::remote::Direction::Fetch)
-        .expect("remote")
-        .to_string();
-
-    let full_branch_name = branch.map(|b| format!("{remote}/{b}"));
 
     let (repo, _) = prepare_checkout
-        .worktree(
+        .main_worktree(
             prodash::progress::Log::new("Repo checkout", None),
-            &gix::interrupt::IS_INTERRUPTED,
-            full_branch_name.as_deref(),
+            &gix::interrupt::IS_INTERRUPTED
         )
-        .with_context(|| format!("Checkout {full_branch_name:?}"))?;
+        .with_context(|| format!("Checkout {branch:?}"))?;
     println!(
         "Repo cloned into {:?}",
         repo.work_dir().expect("directory pre-created")
