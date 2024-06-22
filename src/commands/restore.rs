@@ -27,11 +27,27 @@ pub struct RestoreCommand {
     offline: bool,
 }
 
-fn is_ignored() -> bool {
+#[cfg(feature = "libgit2")]
+pub(crate) fn is_ignored() -> bool {
     git2::Repository::open(".").is_ok_and(|r| {
         r.is_path_ignored(SHARED_PACKAGE_FILE_NAME) == Ok(true)
             || r.status_file(Path::new(SHARED_PACKAGE_FILE_NAME))
                 .is_ok_and(|s| s.is_ignored())
+    })
+}
+
+#[cfg(feature = "gitoxide")]
+pub(crate) fn is_ignored() -> bool {
+    gix::open(".").is_ok_and(|r| {
+        let Ok(index) = r.index() else {return false};
+
+        let excludes = r.excludes(&index, None, Default::default());
+
+        excludes.is_ok_and(|mut attribute| {
+            attribute
+                .at_path(SHARED_PACKAGE_FILE_NAME, Some(gix::index::entry::Mode::FILE))
+                .is_ok_and(|e| e.is_excluded())
+        })
     })
 }
 

@@ -174,7 +174,7 @@ impl QPMRepository {
                 // github url!
                 git::clone(
                     url.clone(),
-                    config.info.additional_data.branch_name.as_ref(),
+                    config.info.additional_data.branch_name.as_deref(),
                     &tmp_path,
                 )
                 .context("Clone")?;

@@ -1,20 +1,18 @@
 use std::{
     fs::File,
-    io::BufReader,
     path::Path,
-    process::{Command, Stdio},
 };
 
 use color_eyre::{
     eyre::{bail, Context},
-    Result, Section,
+    Result,
 };
-use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
 
 use crate::{models::config::get_keyring, network::agent::get_agent};
 
+#[cfg(feature = "libgit2")]
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
     git.arg("--version");
@@ -43,6 +41,11 @@ pub fn check_git() -> Result<()> {
             );
         }
     }
+}
+
+#[cfg(feature = "gitoxide")]
+pub fn check_git() -> Result<()> {
+    Ok(())
 }
 
 pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
@@ -114,7 +117,8 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
     Ok(out.exists())
 }
 
-pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
+#[cfg(feature = "libgit2")]
+pub fn clone(mut url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     check_git()?;
     if let Ok(token_unwrapped) = get_keyring().get_password() {
         if let Some(gitidx) = url.find("github.com") {
@@ -174,6 +178,83 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
             bail!("{}", error_string);
         }
     }
+
+    Ok(out.try_exists()?)
+}
+
+#[cfg(feature = "gitoxide")]
+pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
+    use std::num::NonZero;
+
+    use color_eyre::eyre::ContextCompat;
+    use gix::refs::PartialName;
+
+    check_git()?;
+    // TODO: Figure out tokens\
+    // TODO: Clone submodules
+
+    let branch_ref: Option<PartialName> = branch
+        .map(PartialName::try_from)
+        .transpose()?;
+
+    let mut prepare_clone = gix::prepare_clone(gix::url::parse(url.as_str().into())?, out)?
+        .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
+            NonZero::new(1).unwrap(),
+        ))
+        .with_ref_name(branch_ref.as_ref())?;
+
+    let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
+        prodash::progress::Log::new("Fetch", None),
+        &gix::interrupt::IS_INTERRUPTED,
+    )?;
+
+    println!(
+        "Checking out into {:?} ...",
+        prepare_checkout
+            .repo()
+            .work_dir()
+            .context("repo work dir")?
+    );
+
+    // let branch_ref = branch
+    //     .map(|b| prepare_checkout.repo().find_reference(b))
+    //     .transpose()?;
+
+    // let branch_fn = branch.map(|b| {
+    //     let str = b.to_string();
+    //     move |r: &'a Repository| -> Reference<'a> {
+    //         r.find_reference(str.as_str())
+    //             .expect("remote branch not found")
+    //     }
+    // });
+
+
+    let (repo, _) = prepare_checkout
+        .main_worktree(
+            prodash::progress::Log::new("Repo checkout", None),
+            &gix::interrupt::IS_INTERRUPTED
+        )
+        .with_context(|| format!("Checkout {branch:?}"))?;
+    println!(
+        "Repo cloned into {:?}",
+        repo.work_dir().expect("directory pre-created")
+    );
+
+    let remote = repo
+        .find_default_remote(gix::remote::Direction::Fetch)
+        .expect("always present after clone")?;
+
+    println!(
+        "Default remote: {} -> {}",
+        remote
+            .name()
+            .expect("default remote is always named")
+            .as_bstr(),
+        remote
+            .url(gix::remote::Direction::Fetch)
+            .expect("should be the remote URL")
+            .to_bstring(),
+    );
 
     Ok(out.try_exists()?)
 }
