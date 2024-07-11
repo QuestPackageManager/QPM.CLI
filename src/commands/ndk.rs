@@ -58,6 +58,13 @@ pub struct PathArgs {
 #[derive(Args, Debug, Clone)]
 pub struct UseArgs {
     version: String,
+
+    /// Use strict = for version constraint
+    #[clap(long, default_value = "false")]
+    strict: bool,
+
+    #[clap(long, default_value = "false")]
+    installed_only: bool,
 }
 #[derive(Args, Debug, Clone)]
 pub struct ResolveArgs {}
@@ -178,11 +185,38 @@ impl Command for Ndk {
                 apply_ndk(ndk_installed_path.path())?;
             }
             NdkOperation::Use(u) => {
-                let manifest = get_android_manifest()?;
-                let (version, ndk) = fuzzy_match_ndk(&manifest, &u.version)?;
+                let version = match u.installed_only {
+                    true => {
+                        let version_req = VersionReq::parse(&u.version)?;
+                        // find latest NDK that satisfies requirement
+                        let ndk_installed_path = get_combine_config()
+                            .get_ndk_installed()
+                            .into_iter()
+                            .flatten()
+                            .sorted_by(|a, b| a.file_name().cmp(b.file_name()))
+                            .rev()
+                            .find(|n| {
+                                Version::parse(n.file_name().to_str().unwrap())
+                                    .is_ok_and(|v| version_req.matches(&v))
+                            })
+                            .ok_or_else(|| {
+                                eyre!("No NDK version instaleled that satisfies {version_req}")
+                            })?;
+
+                        ndk_installed_path.file_name().to_str().unwrap().to_string()
+                    }
+                    // allow any NDK version online
+                    false => {
+                        let manifest = get_android_manifest()?;
+                        fuzzy_match_ndk(&manifest, &u.version)?.0
+                    }
+                };
 
                 let mut package = PackageConfig::read(".")?;
-                let req = format!("^{version}");
+                let req = match u.strict {
+                    true => format!("={version}"),
+                    false => format!("^{version}"),
+                };
                 package.workspace.ndk = Some(VersionReq::parse(&req)?);
 
                 let ndk_path = format!(
@@ -203,6 +237,7 @@ impl Command for Ndk {
     }
 }
 
+// apply NDK to project and write
 fn apply_ndk(ndk_installed_path: &Path) -> Result<(), color_eyre::eyre::Error> {
     let mut ndk_file = File::create("./ndkpath.txt").context("Unable to open ndkpath.txt")?;
     writeln!(ndk_file, "{}", ndk_installed_path.to_str().unwrap())?;
