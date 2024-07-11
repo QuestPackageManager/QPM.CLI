@@ -15,7 +15,7 @@ impl Command for TokenCommand {
     fn execute(self) -> color_eyre::Result<()> {
         if self.delete && get_keyring().get_password().is_ok() {
             get_keyring()
-                .delete_password()
+                .delete_credential()
                 .context("Removing password failed")?;
             println!("Deleted github token from config, it will no longer be used");
             return Ok(());

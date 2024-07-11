@@ -63,7 +63,7 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
 pubgrub = "0.2"
 owo-colors = "4"
 dirs = "5.0.0"
-keyring = "2"
+keyring = "3"
 zip = "2"
 walkdir = "2"
 symlink = "0.1.0"
