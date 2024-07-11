@@ -1,16 +1,24 @@
+use std::{fs::File, path::Path};
+
 use clap::{Args, Subcommand};
-use color_eyre::{eyre::bail, Result};
+use color_eyre::{
+    eyre::{bail, eyre, Context},
+    Result,
+};
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use semver::VersionReq;
-use walkdir::WalkDir;
+use qpm_package::models::package::PackageConfig;
+use semver::{Version, VersionReq};
+use std::io::Write;
 
 use crate::{
     models::{
         android_repo::{AndroidRepositoryManifest, RemotePackage},
         config::get_combine_config,
+        package::PackageConfigExtensions,
     },
     resolver::semver::{req_to_range, VersionWrapper},
+    terminal::colors::QPMColor,
     utils::android::{
         download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
     },
@@ -30,6 +38,8 @@ pub enum NdkOperation {
     List,
     Available(AvailableArgs),
     Path(PathArgs),
+    Resolve(ResolveArgs),
+    Use(UseArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -45,6 +55,12 @@ pub struct AvailableArgs {
 pub struct PathArgs {
     version: String,
 }
+#[derive(Args, Debug, Clone)]
+pub struct UseArgs {
+    version: String,
+}
+#[derive(Args, Debug, Clone)]
+pub struct ResolveArgs {}
 
 fn fuzzy_match_ndk<'a>(
     manifest: &'a AndroidRepositoryManifest,
@@ -105,14 +121,9 @@ impl Command for Ndk {
                     .for_each(|(v, p)| println!("{} -> {}", v.blue(), p.display_name.purple()))
             }
             NdkOperation::List => {
-                let dir = get_combine_config()
-                    .ndk_download_path
-                    .as_ref()
-                    .expect("No NDK download path set");
+                let dir = get_combine_config().get_ndk_installed();
 
-                WalkDir::new(dir)
-                    .max_depth(1)
-                    .into_iter()
+                dir.into_iter()
                     .try_collect::<_, Vec<_>, _>()?
                     .into_iter()
                     .filter(|p| p.path().is_dir())
@@ -142,8 +153,59 @@ impl Command for Ndk {
 
                 println!("{}", ndk_path.display());
             }
+            NdkOperation::Resolve(r) => {
+                let package = PackageConfig::read(".")?;
+                let ndk_requirement = package.workspace.ndk.as_ref();
+
+                let Some(ndk_requirement) = ndk_requirement else {
+                    bail!("No NDK requirement set in project")
+                };
+                // find latest NDK that satisfies requirement
+                let ndk_installed_path = get_combine_config()
+                    .get_ndk_installed()
+                    .into_iter()
+                    .flatten()
+                    .sorted_by(|a, b| a.file_name().cmp(b.file_name()))
+                    .rev() // descending
+                    .find(|s| {
+                        Version::parse(s.file_name().to_str().unwrap())
+                            .is_ok_and(|version| ndk_requirement.matches(&version))
+                    })
+                    .ok_or_else(|| {
+                        eyre!("No NDK version found that satisfies {ndk_requirement}")
+                    })?;
+
+                apply_ndk(ndk_installed_path.path())?;
+            }
+            NdkOperation::Use(u) => {
+                let manifest = get_android_manifest()?;
+                let (version, ndk) = fuzzy_match_ndk(&manifest, &u.version)?;
+
+                let mut package = PackageConfig::read(".")?;
+                let req = format!("^{version}");
+                package.workspace.ndk = Some(VersionReq::parse(&req)?);
+
+                let ndk_path = format!(
+                    "{}/{version}",
+                    get_combine_config()
+                        .ndk_download_path
+                        .as_ref()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                );
+
+                apply_ndk(Path::new(&ndk_path))?;
+            }
         }
 
         Ok(())
     }
+}
+
+fn apply_ndk(ndk_installed_path: &Path) -> Result<(), color_eyre::eyre::Error> {
+    let mut ndk_file = File::create("./ndkpath.txt").context("Unable to open ndkpath.txt")?;
+    writeln!(ndk_file, "{}", ndk_installed_path.to_str().unwrap())?;
+    println!("{}", ndk_installed_path.to_str().unwrap());
+    Ok(())
 }
