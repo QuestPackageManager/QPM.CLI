@@ -1,3 +1,4 @@
+use bytes::{BufMut, BytesMut};
 use color_eyre::{
     eyre::{bail, Context, OptionExt},
     Result, Section,
@@ -180,12 +181,13 @@ impl QPMRepository {
                 .context("Clone")?;
             } else {
                 // not a github url, assume it's a zip
-                let response = get_agent()
-                    .get(url)
-                    .send()
+                let mut bytes = BytesMut::new().writer();
+
+                download_file_report(url, &mut bytes, |_, _| {})
                     .with_context(|| format!("Failed while downloading {}", url.blue()))?;
 
-                let buffer = Cursor::new(response.bytes()?);
+                let buffer = Cursor::new(bytes.get_ref());
+
                 // Extract to tmp folder
                 ZipArchive::new(buffer)
                     .context("Reading zip")?

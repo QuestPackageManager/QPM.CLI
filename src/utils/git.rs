@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::BufReader,
+    io::{BufReader, BufWriter},
     path::Path,
     process::{Command, Stdio},
 };
@@ -13,7 +13,11 @@ use owo_colors::OwoColorize;
 //use duct::cmd;
 use serde::{Deserialize, Serialize};
 
-use crate::{models::config::get_keyring, network::agent::get_agent};
+use crate::{
+    models::config::get_keyring,
+    network::agent::{download_file_report, get_agent},
+    terminal::colors::QPMColor,
+};
 
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
@@ -55,12 +59,16 @@ pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
 }
 
 pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<bool> {
-    let mut file = File::create(out).context("create so file failed")?;
-    get_agent()
-        .get(url)
-        .send()?
-        .copy_to(&mut file)
-        .context("Failed to write to file")?;
+    let file = File::create(out).context("create so file failed")?;
+    let mut buf = BufWriter::new(file);
+
+    download_file_report(url, &mut buf, |_, _| {}).with_context(|| {
+        format!(
+            "Failed while downloading {} to {}",
+            url.blue(),
+            out.display().file_path_color()
+        )
+    })?;
 
     Ok(out.exists())
 }
@@ -100,13 +108,16 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
                 .url
                 .replace("api.github.com", &format!("{token}@api.github.com"));
 
-            let mut file = File::create(out).context("create so file failed")?;
+            let file = File::create(out).context("create so file failed")?;
+            let mut buf = BufWriter::new(file);
 
-            get_agent()
-                .get(download)
-                .send()?
-                .copy_to(&mut file)
-                .context("Failed to write out downloaded bytes")?;
+            download_file_report(&download, &mut buf, |_, _| {}).with_context(|| {
+                format!(
+                    "Failed while downloading {} to {}",
+                    download.replace(token, "{token}").blue(),
+                    out.display().file_path_color()
+                )
+            })?;
             break;
         }
     }
