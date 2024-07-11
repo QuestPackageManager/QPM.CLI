@@ -5,7 +5,7 @@ use owo_colors::OwoColorize;
 
 use crate::{
     commands::Command,
-    repository::{multi::MultiDependencyRepository, Repository},
+    repository::{self, Repository},
 };
 
 #[derive(Args, Debug, Clone)]
@@ -16,7 +16,7 @@ pub struct PackageListCommand {
 
 impl Command for PackageListCommand {
     fn execute(self) -> Result<()> {
-        let ids = MultiDependencyRepository::useful_default_new(self.offline)?
+        let ids = repository::useful_default_new(self.offline)?
             .get_package_names()?
             .into_iter()
             .sorted()

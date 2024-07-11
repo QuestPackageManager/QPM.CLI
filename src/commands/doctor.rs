@@ -42,7 +42,7 @@ impl Command for DoctorCommand {
         let ninja = look_path("ninja")?;
         let adb = look_path("adb")?;
 
-        let qpm_rust = look_path("qpm-rs")?;
+        let qpm = look_path("qpm")?;
 
         if !cmake {
             eprintln!("CMake is not installed in path! Use winget or your OS package manager to install CMake.")
@@ -59,7 +59,7 @@ impl Command for DoctorCommand {
             println!("Ninja found!");
         }
 
-        if !qpm_rust {
+        if !qpm {
             eprintln!("Qpm not found in path!")
         } else {
             println!("Qpm found!");
@@ -79,7 +79,9 @@ impl Command for DoctorCommand {
 
             if ndk_path.is_ok() {
                 println!("NDK {} found in path!", ndk_path.unwrap());
-            } else if let Err(err) = ndk_path && File::open("./ndkpath.txt").is_err() {
+            } else if let Err(err) = ndk_path
+                && File::open("./ndkpath.txt").is_err()
+            {
                 return Err(anyhow!(
                     "No ndkpath.txt or ANDROID_NDK_HOME environment variable found!"
                 )
@@ -87,7 +89,7 @@ impl Command for DoctorCommand {
             }
         };
 
-        if cmake && adb && qpm_rust && ninja {
+        if cmake && adb && qpm && ninja {
             println!("{}", "Everything looks good!".green());
         } else {
             bail!("Some functionality is missing")

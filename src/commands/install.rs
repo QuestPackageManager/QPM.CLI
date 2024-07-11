@@ -9,7 +9,7 @@ use qpm_package::{
 
 use crate::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-    repository::{local::FileRepository, multi::MultiDependencyRepository},
+    repository::{self, local::FileRepository},
 };
 
 use super::Command;
@@ -37,7 +37,7 @@ impl Command for InstallCommand {
         println!("Publishing package to local file repository");
 
         let package = PackageConfig::read(".")?;
-        let repo = MultiDependencyRepository::useful_default_new(self.offline)?;
+        let repo = repository::useful_default_new(self.offline)?;
         let shared_package = match !self.update {
             true => SharedPackageConfig::read(".")?,
             false => SharedPackageConfig::resolve_from_package(package, &repo)?.0,

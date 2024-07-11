@@ -5,7 +5,7 @@ use semver::Version;
 use crate::{
     commands::Command,
     models::package::PackageConfigExtensions,
-    repository::multi::MultiDependencyRepository,
+    repository::{self},
     utils::cmake::{write_define_cmake, write_extern_cmake},
 };
 
@@ -60,7 +60,7 @@ impl Command for EditArgs {
             write_define_cmake(&shared_package)?;
             write_extern_cmake(
                 &shared_package,
-                &MultiDependencyRepository::useful_default_new(self.offline)?,
+                &repository::useful_default_new(self.offline)?,
             )?;
         }
         Ok(())

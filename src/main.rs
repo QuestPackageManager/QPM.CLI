@@ -3,6 +3,7 @@
 #![feature(iterator_try_collect)]
 #![feature(let_chains)]
 #![feature(exit_status_error)]
+#![feature(if_let_guard)]
 
 use clap::Parser;
 use color_eyre::Result;

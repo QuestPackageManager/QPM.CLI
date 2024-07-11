@@ -1,4 +1,5 @@
-use color_eyre::{Report, Result};
+use bytes::{BufMut, BytesMut};
+use color_eyre::{eyre::OptionExt, Report, Result};
 use itertools::Itertools;
 use qpm_package::models::{
     dependency::SharedPackageConfig,
@@ -8,6 +9,7 @@ use qpm_package::models::{
 use semver::{Version, VersionReq};
 
 use crate::{
+    network::agent::download_file_report,
     repository::{qpackages::QPMRepository, Repository},
     resolver::dependency,
 };
@@ -26,6 +28,33 @@ fn get_artifact_package_versions() -> Result<()> {
     let versions = repo.get_package_versions("beatsaber-hook")?;
 
     assert_ne!(versions, None);
+    Ok(())
+}
+#[test]
+fn download_package_binary() -> Result<()> {
+    let repo = QPMRepository::default();
+    let id: &str = "codegen";
+    let versions = repo.get_package_versions(id)?.ok_or_eyre("No versions")?;
+    let version = &versions.first().unwrap().version;
+    let package = repo
+        .get_package(id, version)?
+        .ok_or_eyre(format!("No package found for {id}/{version:?}"))?;
+
+    let link = package
+        .config
+        .info
+        .additional_data
+        .so_link
+        .ok_or_eyre("Binary SO not found")?;
+
+    let mut pre_bytes = BytesMut::new().writer();
+    download_file_report(&link, &mut pre_bytes, |_, _| {})?;
+
+    let final_bytes = pre_bytes.into_inner();
+
+    let result = String::from_utf8_lossy(&final_bytes);
+    println!("Result {result}");
+
     Ok(())
 }
 
@@ -87,6 +116,8 @@ fn resolve_fail() -> Result<()> {
     let repo = QPMRepository::default();
     let p = SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
+
             shared_dir: Default::default(),
             dependencies_dir: Default::default(),
             info: PackageMetadata {
@@ -108,7 +139,8 @@ fn resolve_fail() -> Result<()> {
                     additional_data: PackageDependencyModifier::default(),
                 },
             ],
-            workspace: None,
+            workspace: Default::default(),
+            ..Default::default()
         },
         restored_dependencies: vec![],
     };

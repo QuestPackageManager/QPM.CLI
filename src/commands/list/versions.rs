@@ -3,7 +3,7 @@ use owo_colors::OwoColorize;
 
 use crate::{
     commands::Command,
-    repository::{multi::MultiDependencyRepository, Repository},
+    repository::{self, Repository},
 };
 
 #[derive(Args, Debug, Clone)]
@@ -18,15 +18,15 @@ pub struct PackageCommand {
 
 impl Command for PackageCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        let versions = MultiDependencyRepository::useful_default_new(self.offline)?
-            .get_package_versions(&self.package)?;
+        let versions =
+            repository::useful_default_new(self.offline)?.get_package_versions(&self.package)?;
         if self.latest {
             println!(
                 "The latest version for package {} is {}",
                 self.package.bright_red(),
                 versions
                     .unwrap()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .version
                     .to_string()

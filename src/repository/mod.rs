@@ -1,11 +1,18 @@
 use color_eyre::Result;
+use itertools::Itertools;
 use semver::Version;
 
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
+use self::{
+    local::FileRepository, memcached::MemcachedRepository, multi::MultiDependencyRepository,
+    qpackages::QPMRepository,
+};
+
 pub mod local;
+pub mod memcached;
 pub mod multi;
 pub mod qpackages;
 
@@ -27,4 +34,27 @@ pub trait Repository {
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool>;
 
     fn write_repo(&self) -> Result<()>;
+}
+
+pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
+    // TODO: Make file repository cached
+    let file_repository = Box::new(FileRepository::read()?);
+    let qpm_repository = Box::<QPMRepository>::default();
+    Ok(vec![file_repository, qpm_repository])
+}
+
+pub fn useful_default_new(offline: bool) -> Result<MemcachedRepository<MultiDependencyRepository>> {
+    let repos: Vec<Box<dyn Repository>> = match offline {
+        // offline
+        true => default_repositories()?
+            .into_iter()
+            .filter(|r| !r.is_online())
+            .collect_vec(),
+        // online
+        false => default_repositories()?,
+    };
+
+    let multi_dependency_repository = MultiDependencyRepository::new(repos);
+    let memcached = MemcachedRepository::new(multi_dependency_repository);
+    Ok(memcached)
 }

@@ -1,44 +1,38 @@
 # Runs on push to main, basically the "release" version since we don't really do releases (that's bad right)
-name: Cargo Build
+name: Cargo Release
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "README.md"
-      - "**.json"
-      - "**.yml"
-      - "LICENSE"
-      - "!.github/workflows/cargo-build.yml"
-      - "installer/**"
+  release:
+    types: published
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macOS-13]
         include:
           - os: ubuntu-latest
             file-name: qpm
-            prefix: linux
+            prefix: linux-x64
+            arch: x64
 
-          - os: macos-13
+          - os: macOS-13
             file-name: qpm
-            prefix: macos
+            prefix: macos-x64
+            arch: x64
 
           - os: windows-latest
             file-name: qpm.exe
-            prefix: windows
+            prefix: windows-x64
+            arch: x64
 
     steps:
       - uses: actions/checkout@v2
 
-      #! Windows 2022/Ubutnu 22.04/MacOS 14 include cargo now
-      # - uses: dtolnay/rust-toolchain@master
-      #   with:
-      #     toolchain: nightly
-      
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
       - uses: actions/cache@v3
         with:
           path: |
@@ -53,11 +47,6 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
           sudo apt-get install -y libdbus-1-dev
-          
-      - name: Get OpenSSL if MacOS
-        if: ${{ matrix.os == 'macos-13' }}
-        run: |
-          brew install openssl@3
 
       - name: Cargo test
         uses: actions-rs/cargo@v1
@@ -70,6 +59,18 @@ jobs:
         with:
           command: build
           args: --release
+
+      - name: Compress build
+        run: |
+          pwsh -Command Compress-Archive ./target/release/${{matrix.file-name}} -DestinationPath qpm-${{matrix.prefix}}.zip
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            qpm-${{matrix.prefix}}.zip
+
+            # MacOS Universal binaries
 
       - uses: actions-rs/toolchain@v1
         if: ${{matrix.os == 'macos-13' }}
@@ -92,19 +93,20 @@ jobs:
 
       - name: Make M1 Universal binary
         if: ${{matrix.os == 'macos-13' }}
-        run: lipo -create -output qpm-universal target/release/${{matrix.file-name}} target/aarch64-apple-darwin/release/${{matrix.file-name}}
+        run: |
+          lipo -create -output qpm target/release/${{matrix.file-name}} target/aarch64-apple-darwin/release/${{matrix.file-name}}
+          pwsh -Command Compress-Archive qpm -DestinationPath qpm-macos-universal.zip 
 
       - name: Artifact Upload
-        uses: actions/upload-artifact@v2
         if: ${{matrix.os == 'macos-13' }}
+        uses: softprops/action-gh-release@v1
         with:
-          name: qpm-universal
-          path: qpm-universal
-          if-no-files-found: error
+          files: qpm-macos-universal.zip
 
+      # TODO: Move to somewhere else
       - name: Download Inno Setup
-        if: ${{matrix.os == 'windows-latest' }}
         uses: suisei-cn/actions-download-file@v1
+        if: ${{matrix.os == 'windows-latest' }}
         with:
           url: https://jrsoftware.org/download.php/is.exe
           target: ../
@@ -117,17 +119,8 @@ jobs:
         if: ${{matrix.os == 'windows-latest' }}
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /f installer/installer.iss'
 
-      - name: Artifact Upload
-        uses: actions/upload-artifact@v2
+      - name: Upload Installer Assets
         if: ${{matrix.os == 'windows-latest' }}
+        uses: softprops/action-gh-release@v1
         with:
-          name: qpm-installer.exe
-          path: ./installer/qpm-installer.exe
-          if-no-files-found: error
-
-      - name: Upload executable
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.prefix }}-${{ matrix.file-name }}
-          path: ./target/release/${{ matrix.file-name }}
-          if-no-files-found: error
+          files: ./installer/qpm-installer.exe

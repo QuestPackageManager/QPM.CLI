@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{eyre::Context, owo_colors::OwoColorize, Result, Section};
 use itertools::Itertools;
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
@@ -14,6 +14,8 @@ use semver::VersionReq;
 
 use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
 
+use super::toolchain;
+
 pub const PACKAGE_FILE_NAME: &str = "qpm.json";
 pub const SHARED_PACKAGE_FILE_NAME: &str = "qpm.shared.json";
 
@@ -23,6 +25,14 @@ pub trait PackageConfigExtensions {
     where
         Self: std::marker::Sized;
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()>;
+    fn run_if_version(
+        &self,
+        req: &VersionReq,
+        func: impl FnOnce() -> color_eyre::Result<()>,
+    ) -> color_eyre::Result<()>;
+    fn matches_version(&self, req: &VersionReq) -> bool;
+
+    fn validate(&self) -> color_eyre::Result<()>;
 }
 pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
@@ -31,41 +41,99 @@ pub trait SharedPackageConfigExtensions: Sized {
     ) -> Result<(Self, Vec<SharedPackageConfig>)>;
 
     fn to_mod_json(self) -> ModJson;
+
+    fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()>;
 }
 
 impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let path = dir.as_ref().join(PACKAGE_FILE_NAME);
         let file = File::open(&path).with_context(|| format!("{path:?} does not exist"))?;
-        json::json_from_reader_fast(BufReader::new(file))
+        let res = json::json_from_reader_fast::<_, Self>(BufReader::new(file))
+            .with_context(|| format!("Unable to read PackageConfig at {path:?}"))?;
+        res.validate()?;
+
+        Ok(res)
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join(PACKAGE_FILE_NAME))?;
+        let path = dir.as_ref().join(PACKAGE_FILE_NAME);
+        let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
-        serde_json::to_writer_pretty(file, self)?;
+        serde_json::to_writer_pretty(file, self)
+            .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
         Ok(())
     }
 
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
         dir.as_ref().with_file_name(PACKAGE_FILE_NAME).exists()
     }
+
+    fn run_if_version(
+        &self,
+        req: &VersionReq,
+        func: impl FnOnce() -> color_eyre::Result<()>,
+    ) -> color_eyre::Result<()> {
+        if req.matches(&self.version) {
+            return func();
+        }
+
+        Ok(())
+    }
+    fn matches_version(&self, req: &VersionReq) -> bool {
+        req.matches(&self.version)
+    }
+
+    fn validate(&self) -> color_eyre::Result<()> {
+        let default = Self::default();
+
+        if self.version.major != default.version.major {
+            eprintln!(
+                "Warning: using outdate qpm schema. Current {} Latest: {:?}",
+                self.version, default.version
+            );
+        }
+
+        Ok(())
+    }
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
-        let file = File::open(&path).with_context(|| format!("{path:?} not found"))?;
+        let file = File::open(&path)
+            .with_context(|| format!("{path:?} not found"))
+            .suggestion(format!("Try running {}", "qpm restore".blue()))?;
+
         json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to read SharedPackageConfig at {path:?}"))
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let file = File::create(dir.as_ref().join(SHARED_PACKAGE_FILE_NAME))?;
+        let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
+        let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
-        serde_json::to_writer_pretty(file, self)?;
+        serde_json::to_writer_pretty(file, self)
+            .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
         Ok(())
     }
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
         dir.as_ref().join(SHARED_PACKAGE_FILE_NAME).exists()
+    }
+
+    fn run_if_version(
+        &self,
+        req: &VersionReq,
+        func: impl FnOnce() -> color_eyre::Result<()>,
+    ) -> color_eyre::Result<()> {
+        self.config.run_if_version(req, func)
+    }
+
+    fn matches_version(&self, req: &VersionReq) -> bool {
+        self.config.matches_version(req)
+    }
+
+    fn validate(&self) -> color_eyre::Result<()> {
+        self.config.validate()
     }
 }
 
@@ -216,5 +284,15 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             library_files: libs,
             ..Default::default()
         }
+    }
+
+    fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()> {
+        let Some(toolchain_path) = self.config.info.additional_data.toolchain_out.as_ref() else {
+            return Ok(());
+        };
+
+        toolchain::write_toolchain_file(self, repo, toolchain_path)?;
+
+        Ok(())
     }
 }

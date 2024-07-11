@@ -26,7 +26,7 @@ trycmd = "0.14"
 
 [dependencies]
 #qpm
-qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
+qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git"}
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
@@ -36,20 +36,22 @@ color-eyre = { version = "0.6", default-features = false }
 # progress bar
 pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
-git2 = "0.18"
+git2 = "0.19"
 
 #tokio fix
-tokio = { version = ">=1.33", features = ["io-util", "io-std", "net"] }
+tokio = { version = ">=1.33", features = ["io-util", "io-std", "net", "macros"] }
 
 bytes = "*"
-reqwest = { version = "0.11", features = [
+reqwest = { version = "0.12", features = [
     "blocking",
     "json",
     "default-tls",
     "gzip",
     "deflate",
     "brotli",
+    "rustls-tls",
 ], default-features = false }
+
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -59,21 +61,30 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
     "serde",
 ] }
 pubgrub = "0.2"
-owo-colors = "3"
+owo-colors = "4"
 dirs = "5.0.0"
-keyring = "2"
-zip = "0.6"
+keyring = "3"
+zip = "2"
 walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
-itertools = "0.11"
+itertools = "0.13"
 stopwatch = "0.0.7"
 
+[target.aarch64-apple-darwin.dependencies]
+# Allow cross compiles
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
+[target.x86_64-apple-darwin.dependencies]
+# Statically link openssl
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
 
 [profile.release]
 opt-level = 3
 lto = true
 strip = "symbols"
+
 
 [profile.dev.package.backtrace]
 opt-level = 3

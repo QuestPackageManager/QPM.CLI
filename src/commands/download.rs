@@ -1,11 +1,8 @@
-use std::{
-    fs::File,
-    io::{copy, Cursor},
-};
+use std::io::Cursor;
 
-use bytes::Bytes;
+use bytes::{BufMut, BytesMut};
 use clap::{Args, Subcommand};
-use color_eyre::{eyre::bail, Result};
+use color_eyre::Result;
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
@@ -64,8 +61,10 @@ impl Command for Download {
         let exe = std::env::current_exe()?;
         let final_path = exe.parent().unwrap();
 
-        let bytes: Bytes = download_file_report(url, |_, _| {})?.into();
-        let buffer = Cursor::new(bytes);
+        // allocate 10 MB of RAM
+        let mut bytes = BytesMut::with_capacity(1024 * 1024 * 10).writer();
+        download_file_report(url, &mut bytes, |_, _| {})?;
+        let buffer = Cursor::new(bytes.into_inner());
 
         // Extract to tmp folde
         let mut archive = ZipArchive::new(buffer)?;
@@ -86,30 +85,13 @@ impl Command for Download {
         match download {
             DownloadOperation::Ninja => archive.extract(final_path)?,
             DownloadOperation::ADB => {
-                let mut file = File::create(if cfg!(windows) {
-                    final_path.join("adb").with_extension("exe")
-                } else {
-                    final_path.join("adb")
-                })?;
-
-                let name = archive
-                    .file_names()
-                    .find(|i| {
-                        if cfg!(windows) {
-                            i.ends_with("adb.exe")
-                        } else {
-                            i.ends_with("adb")
-                        }
-                    })
-                    .map(|s| s.to_string());
-
-                if name.is_none() {
-                    bail!("Unable to find cmake binary in archive");
-                }
-
-                let mut adb_bin = archive.by_name(name.unwrap().as_str())?; // 2nd file /cmake-wehauehw/bin/cmake.exe
-
-                copy(&mut adb_bin, &mut file)?;
+                archive.extract(final_path)?;
+                // add symlink from platform-tools/adb to adb
+                let adb_name = if cfg!(windows) { "adb.exe" } else { "adb" };
+                symlink::symlink_file(
+                    final_path.join("platform-tools").join(adb_name),
+                    final_path.join(adb_name),
+                )?;
             }
         }
 

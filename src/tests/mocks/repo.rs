@@ -12,6 +12,7 @@ use crate::repository::local::FileRepository;
 pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
     SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
             shared_dir: "shared".into(),
             workspace: Default::default(),
             dependencies_dir: "extern".into(),
@@ -23,6 +24,7 @@ pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
                 additional_data: Default::default(),
             },
             dependencies: vec![],
+            ..Default::default()
         },
         restored_dependencies: vec![],
     }
@@ -45,6 +47,7 @@ pub fn build_artifact_and_depend(
     };
     SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
             workspace: Default::default(),
             shared_dir: "shared".into(),
 
@@ -57,6 +60,7 @@ pub fn build_artifact_and_depend(
                 additional_data: Default::default(),
             },
             dependencies: vec![p_dep],
+            ..Default::default()
         },
         restored_dependencies: vec![SharedDependency {
             dependency: dep,
@@ -71,6 +75,7 @@ pub fn build_artifact_and_depends(
 ) -> SharedPackageConfig {
     SharedPackageConfig {
         config: PackageConfig {
+            version: PackageConfig::default().version,
             workspace: Default::default(),
             shared_dir: "shared".into(),
 
@@ -90,6 +95,7 @@ pub fn build_artifact_and_depends(
                     additional_data: Default::default(),
                 })
                 .collect(),
+            ..Default::default()
         },
         restored_dependencies: deps
             .iter()

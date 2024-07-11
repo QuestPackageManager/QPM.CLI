@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env, io::Cursor};
 
-use bytes::Bytes;
+use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
 use owo_colors::OwoColorize;
 use semver::{BuildMetadata, Prerelease, Version};
@@ -112,10 +112,11 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<()> {
         .expect("No NDK download path set");
     let _name = &archive.complete.url;
 
-    let bytes: Bytes = download_file_report(&archive_url, |_, _| {})?.into();
+    let mut bytes = BytesMut::new().writer();
+    download_file_report(&archive_url, &mut bytes, |_, _| {})?;
 
     println!("Extracting ndk");
-    let buffer = Cursor::new(bytes);
+    let buffer = Cursor::new(bytes.into_inner());
 
     // Extract to tmp folde
     let mut archive = ZipArchive::new(buffer)?;

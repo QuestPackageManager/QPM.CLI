@@ -4,6 +4,7 @@ use std::{
     io::{BufWriter, Cursor, Read, Write},
 };
 
+use bytes::{BufMut, BytesMut};
 use clap::{Args, Subcommand};
 use color_eyre::{eyre::bail, Help};
 use itertools::Itertools;
@@ -25,7 +26,8 @@ pub struct VersionCommand {
 
 #[derive(Subcommand, Debug, Clone, PartialEq, PartialOrd)]
 enum VersionOperation {
-    Latest(LatestOperationArgs),
+    #[clap(alias("latest"))]
+    Check(LatestOperationArgs),
     Current,
     Update(LatestOperationArgs),
 }
@@ -39,7 +41,7 @@ struct LatestOperationArgs {
 impl Command for VersionCommand {
     fn execute(self) -> color_eyre::Result<()> {
         match self.op {
-            VersionOperation::Latest(b) => {
+            VersionOperation::Check(b) => {
                 let base_branch = env!("VERGEN_GIT_BRANCH");
                 let base_commit = env!("VERGEN_GIT_SHA");
 
@@ -59,22 +61,26 @@ impl Command for VersionCommand {
                         .alternate_dependency_version_color()
                 );
 
-                let diff = github::get_github_commit_diff(base_commit, &input_branch)?;
+                if latest_branch.commit.sha == base_commit {
+                    println!("Using the latest version");
+                    return Ok(());
+                }
 
-                if diff.ahead_by > 0 {
+                let diff: github::GithubCommitDiffResponse =
+                    github::get_github_commit_diff(base_commit, &input_branch)?;
+
+                if diff.behind_by > 0 {
                     bail!("Selected an older branch")
                 }
 
                 println!(
                     "Current QPM-RS build is behind {} commits",
-                    diff.ahead_by.version_id_color()
+                    diff.behind_by.version_id_color()
                 );
-                if diff.ahead_by > 0 {
-                    println!("Changelog:");
+                println!("Changelog:");
 
-                    for commit in diff.commits {
-                        println!("- {}", commit.commit.message);
-                    }
+                for commit in diff.commits {
+                    println!("- {}", commit.commit.message);
                 }
             }
 
@@ -93,6 +99,12 @@ impl Command for VersionCommand {
                     base_branch.dependency_version_color(),
                     base_commit.version_id_color()
                 );
+
+                if base_commit == latest_branch.commit.sha {
+                    println!("Already running commit");
+                    return Ok(());
+                }
+
                 println!(
                     "Downloading {}",
                     latest_branch
@@ -103,12 +115,14 @@ impl Command for VersionCommand {
 
                 let path = env::current_exe()?;
                 let tmp_path = path.with_extension("tmp");
-                let zip_bytes = download_file_report(
+                let mut bytes = BytesMut::with_capacity(1024 * 1024 * 10).writer();
+                download_file_report(
                     &github::download_github_artifact_url(&input_branch),
+                    &mut bytes,
                     |_, _| {},
                 )?;
 
-                let cursor = Cursor::new(zip_bytes);
+                let cursor = Cursor::new(bytes.into_inner());
                 let mut zip = ZipArchive::new(cursor)?;
                 let bytes = zip.by_index(0)?.bytes();
 

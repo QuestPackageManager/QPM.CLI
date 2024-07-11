@@ -5,14 +5,7 @@ use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
 
-use super::{local::FileRepository, qpackages::QPMRepository, Repository};
-
-pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
-    // TODO: Make file repository cached
-    let file_repository = Box::new(FileRepository::read()?);
-    let qpm_repository = Box::<QPMRepository>::default();
-    Ok(vec![file_repository, qpm_repository])
-}
+use super::Repository;
 
 pub struct MultiDependencyRepository {
     repositories: Vec<Box<dyn Repository>>,
@@ -22,19 +15,6 @@ impl MultiDependencyRepository {
     // Repositories sorted in order
     pub fn new(repositories: Vec<Box<dyn Repository>>) -> Self {
         Self { repositories }
-    }
-
-    pub fn useful_default_new(offline: bool) -> Result<Self> {
-        let repos: Vec<Box<dyn Repository>> = if !offline {
-            default_repositories()?
-        } else {
-            default_repositories()?
-                .into_iter()
-                .filter(|r| !r.is_online())
-                .collect_vec()
-        };
-
-        Ok(MultiDependencyRepository::new(repos))
     }
 }
 

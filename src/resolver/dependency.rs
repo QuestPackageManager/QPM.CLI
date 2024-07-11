@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
 
 use crate::{
+    models::package::SharedPackageConfigExtensions,
     repository::{local::FileRepository, Repository},
     terminal::colors::QPMColor,
     utils::cmake::write_cmake,
@@ -131,7 +132,7 @@ pub fn resolve<'a>(
             bail!("failed to resolve dependencies: \n{}", report)
         }
         Err(err) => {
-            bail!("{}", err)
+            bail!("pubgrub: {err}\n{err:?}");
         }
     };
     println!("Took {}ms to dependency resolve", sw.elapsed_ms());
@@ -154,7 +155,13 @@ pub fn restore<P: AsRef<Path>>(
                 .to_string()
                 .dependency_version_color()
         );
-        repository.download_to_cache(&dep.config)?;
+        repository.download_to_cache(&dep.config).with_context(|| {
+            format!(
+                "Requesting {}:{}",
+                dep.config.info.id.dependency_id_color(),
+                dep.config.info.version.version_id_color()
+            )
+        })?;
         repository.add_to_db_cache(dep.clone(), true)?;
     }
 
@@ -164,6 +171,8 @@ pub fn restore<P: AsRef<Path>>(
     FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
 
     write_cmake(shared_package, repository)?;
+    shared_package.try_write_toolchain(repository)?;
+
     Ok(())
 }
 

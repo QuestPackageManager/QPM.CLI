@@ -1,5 +1,5 @@
 use color_eyre::{
-    eyre::{bail, Context},
+    eyre::{bail, Context, OptionExt},
     Result,
 };
 use itertools::Itertools;
@@ -29,6 +29,7 @@ use super::Repository;
 // like resolver
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct FileRepository {
+    #[serde(default)]
     pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
 }
 
@@ -200,6 +201,7 @@ impl FileRepository {
 
         if let Ok(file) = std::fs::File::open(path) {
             json::json_from_reader_fast(BufReader::new(file))
+                .context("Unable to read local repository config")
         } else {
             // didn't exist
             Ok(Self::default())
@@ -291,6 +293,21 @@ impl FileRepository {
         Ok(())
     }
 
+    #[inline]
+    pub fn get_package_versions_cache_path(id: &str) -> PathBuf {
+        let user_config = get_combine_config();
+        let base_path = user_config.cache.as_ref().unwrap();
+
+        // cache/{id}
+        base_path.join(id)
+    }
+
+    #[inline]
+    pub fn get_package_cache_path(id: &str, version: &Version) -> PathBuf {
+        // cache/{id}/{version}
+        Self::get_package_versions_cache_path(id).join(version.to_string())
+    }
+
     pub fn collect_deps(
         package: &PackageConfig,
         restored_deps: &[SharedPackageConfig],
@@ -302,17 +319,11 @@ impl FileRepository {
             .map(|p| (&p.config.info.id, p))
             .collect();
 
-        let user_config = get_combine_config();
-        let base_path = user_config.cache.as_ref().unwrap();
-
         // validate exists dependencies
         let missing_dependencies: Vec<_> = restored_dependencies_map
             .iter()
             .filter(|(_, r)| {
-                !base_path
-                    .join(&r.config.info.id)
-                    .join(r.config.info.version.to_string())
-                    .exists()
+                !Self::get_package_cache_path(&r.config.info.id, &r.config.info.version).exists()
             })
             .map(|(_, r)| format!("{}:{}", r.config.info.id, r.config.info.version))
             .collect();
@@ -336,9 +347,8 @@ impl FileRepository {
         // direct deps (binaries)
         for referenced_dep in &package.dependencies {
             let shared_dep = restored_dependencies_map.get(&referenced_dep.id).unwrap();
-            let dep_cache_path = base_path
-                .join(&referenced_dep.id)
-                .join(shared_dep.config.info.version.to_string());
+            let dep_cache_path =
+                Self::get_package_cache_path(&referenced_dep.id, &shared_dep.config.info.version);
             let libs_path = dep_cache_path.join("lib");
 
             // skip header only deps
@@ -394,9 +404,8 @@ impl FileRepository {
 
         // Get headers of all dependencies restored
         for (restored_id, restored_dep) in &restored_dependencies_map {
-            let dep_cache_path = base_path
-                .join(restored_id)
-                .join(restored_dep.config.info.version.to_string());
+            let dep_cache_path =
+                Self::get_package_cache_path(restored_id, &restored_dep.config.info.version);
             let src_path = dep_cache_path.join("src");
 
             if !src_path.exists() {
@@ -424,9 +433,10 @@ impl FileRepository {
                 .get(&referenced_dependency.id)
                 .unwrap();
 
-            let dep_cache_path = base_path
-                .join(&referenced_dependency.id)
-                .join(shared_dep.config.info.version.to_string());
+            let dep_cache_path = Self::get_package_cache_path(
+                &referenced_dependency.id,
+                &shared_dep.config.info.version,
+            );
             let src_path = dep_cache_path.join("src");
 
             let extern_headers_dep = extern_headers.join(&referenced_dependency.id);
@@ -451,6 +461,29 @@ impl FileRepository {
         paths.retain(|src, _| src.exists());
 
         Ok(paths)
+    }
+
+    pub fn remove_package_versions(&mut self, package: &String) -> Result<()> {
+        self.artifacts.remove(package);
+        let packages_path = Self::get_package_versions_cache_path(package);
+        if !packages_path.exists() {
+            return Ok(());
+        }
+        std::fs::remove_dir_all(packages_path)?;
+        Ok(())
+    }
+    pub fn remove_package(&mut self, package: &String, version: &Version) -> Result<()> {
+        self.artifacts
+            .get_mut(package)
+            .ok_or_eyre(format!("No package found {package}/{version}"))?
+            .remove(version);
+
+        let packages_path = Self::get_package_cache_path(package, version);
+        if !packages_path.exists() {
+            return Ok(());
+        }
+        std::fs::remove_dir_all(packages_path)?;
+        Ok(())
     }
 }
 

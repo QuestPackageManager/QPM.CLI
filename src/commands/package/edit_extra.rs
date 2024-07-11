@@ -4,7 +4,7 @@ use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfi
 use crate::{
     commands::Command,
     models::package::PackageConfigExtensions,
-    repository::multi::MultiDependencyRepository,
+    repository::{self},
     utils::{
         cmake::{write_define_cmake, write_extern_cmake},
         toggle::Toggle,
@@ -128,7 +128,7 @@ impl Command for EditExtraArgs {
             write_define_cmake(&shared_package)?;
             write_extern_cmake(
                 &shared_package,
-                &MultiDependencyRepository::useful_default_new(self.offline)?,
+                &repository::useful_default_new(self.offline)?,
             )?;
         }
         Ok(())
