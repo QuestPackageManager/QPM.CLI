@@ -179,7 +179,7 @@ impl Command for Ndk {
                             .is_ok_and(|version| ndk_requirement.matches(&version))
                     })
                     .ok_or_else(|| {
-                        eyre!("No NDK version found that satisfies {ndk_requirement}")
+                        eyre!("No NDK version installed that satisfies {ndk_requirement}")
                     })?;
 
                 apply_ndk(ndk_installed_path.path())?;
