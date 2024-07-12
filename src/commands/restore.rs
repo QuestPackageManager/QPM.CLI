@@ -105,6 +105,8 @@ impl Command for RestoreCommand {
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
         shared_package.write(".")?;
 
+        validate_ndk(&shared_package.config)?;
+
         Ok(())
     }
 }
