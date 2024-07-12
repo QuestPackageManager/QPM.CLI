@@ -3,7 +3,7 @@ use std::{fs::File, path::Path};
 use clap::{Args, Subcommand};
 use color_eyre::{
     eyre::{bail, eyre, Context},
-    Result,
+    Result, Section,
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
@@ -81,23 +81,30 @@ fn fuzzy_match_ndk<'a>(
         Some(ndk) => Ok((version.to_string(), ndk)),
         None => {
             // fuzzy search version using version ranges
-            let fuzzy_version_range = req_to_range(VersionReq::parse(version)?);
+            let fuzzy_version_range = VersionReq::parse(version)?;
 
-            // find version closest to specified
-            let ndks = get_ndk_str_versions(manifest);
-            let ndks_versions = ndks.keys().sorted().rev().collect_vec();
-            let matching_version_opt = ndks_versions
-                .iter()
-                .find(|probe| fuzzy_version_range.contains(&VersionWrapper((**probe).clone())));
-
-            match matching_version_opt {
-                Some(matching_version) => Ok((
-                    matching_version.to_string(),
-                    ndks.get(matching_version).unwrap(),
-                )),
-                None => bail!("Could not find ndk version {}", version),
-            }
+            range_match_ndk(manifest, &fuzzy_version_range)
         }
+    }
+}
+
+fn range_match_ndk<'a>(
+    manifest: &'a AndroidRepositoryManifest,
+    fuzzy_version_range: &VersionReq,
+) -> Result<(String, &'a RemotePackage)> {
+    // find version closest to specified
+    let ndks = get_ndk_str_versions(manifest);
+    let ndks_versions = ndks.keys().sorted().rev().collect_vec();
+    let matching_version_opt = ndks_versions
+        .iter()
+        .find(|probe| fuzzy_version_range.matches(probe));
+
+    match matching_version_opt {
+        Some(matching_version) => Ok((
+            matching_version.to_string(),
+            ndks.get(matching_version).unwrap(),
+        )),
+        None => bail!("Could not find any ndk version matching requirement {fuzzy_version_range}"),
     }
 }
 
@@ -179,7 +186,22 @@ impl Command for Ndk {
                             .is_ok_and(|version| ndk_requirement.matches(&version))
                     })
                     .ok_or_else(|| {
-                        eyre!("No NDK version installed that satisfies {ndk_requirement}")
+                        let report =
+                            eyre!("No NDK version installed that satisfies {ndk_requirement}");
+
+                        // look up a version suitable to work with
+                        // allow this to work offline by handling safely
+                        let manifest = get_android_manifest().ok();
+                        let suggested_version = manifest
+                            .as_ref()
+                            .and_then(|manifest| range_match_ndk(manifest, ndk_requirement).ok());
+
+                        match suggested_version {
+                            Some((suggested_version, _)) => {
+                                report.suggestion(format!("qpm ndk download {suggested_version}"))
+                            }
+                            None => report,
+                        }
                     })?;
 
                 apply_ndk(ndk_installed_path.path())?;
