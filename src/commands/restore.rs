@@ -1,9 +1,14 @@
-use std::{env, path::Path};
+use std::{env, fs::File, io::Read, path::Path};
 
 use clap::Args;
 
+use color_eyre::{
+    eyre::{bail, eyre, Result},
+    Section,
+};
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use semver::Version;
 
 use crate::{
     models::{
@@ -16,7 +21,7 @@ use crate::{
     resolver::dependency,
 };
 
-use super::Command;
+use super::{package, Command};
 
 #[derive(Args)]
 pub struct RestoreCommand {
@@ -102,4 +107,35 @@ impl Command for RestoreCommand {
 
         Ok(())
     }
+}
+
+pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
+    let Some(ndk_req) = package.workspace.ndk.as_ref() else {
+        return Ok(());
+    };
+
+    let mut ndk_file = File::open("./ndkpath.txt")?;
+
+    let mut ndk_path_str = String::new();
+    ndk_file.read_to_string(&mut ndk_path_str)?;
+
+    let ndk_path = Path::new(&ndk_path_str);
+    if !ndk_path.exists() {
+        bail!("NDK Path {} does not exist!", ndk_path.display());
+    }
+
+    let ndk_version_str = ndk_path.file_name().unwrap().to_str().unwrap();
+    let Ok(ndk_version) = Version::parse(ndk_version_str) else {
+        println!("Unable to validate {ndk_version_str} is a valid NDK version, skipping");
+        return Ok(());
+    };
+
+    if !ndk_req.matches(&ndk_version) {
+        return Err(
+            eyre!("NDK Version {ndk_version} does not satisfy {ndk_req}")
+                .suggestion("qpm ndk resolve".to_string()),
+        );
+    }
+
+    Ok(())
 }
