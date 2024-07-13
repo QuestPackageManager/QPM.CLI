@@ -121,7 +121,7 @@ pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
     let mut ndk_path_str = String::new();
     ndk_file.read_to_string(&mut ndk_path_str)?;
 
-    let ndk_path = Path::new(&ndk_path_str);
+    let ndk_path = Path::new(ndk_path_str.trim());
     if !ndk_path.exists() {
         bail!("NDK Path {} does not exist!", ndk_path.display());
     }
