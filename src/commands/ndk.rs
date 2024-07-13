@@ -123,7 +123,8 @@ impl Command for Ndk {
                 let manifest = get_android_manifest()?;
 
                 let (_version, ndk) = fuzzy_match_ndk(&manifest, &d.version)?;
-                download_ndk_version(ndk)?;
+                let path = download_ndk_version(ndk)?;
+                println!("{}", path.display());
                 return Ok(());
             }
             NdkOperation::Available(a) => {
