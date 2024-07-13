@@ -41,7 +41,9 @@ pub enum NdkOperation {
     List,
     Available(AvailableArgs),
     Path(PathArgs),
+    ///  Apply the current NDK requirements (installed only, highest version that is valid). Download if necessary
     Resolve(ResolveArgs),
+    /// Set the current NDK requirements (highest installed NDK version, allow non-installed versions if desired)
     Use(UseArgs),
 }
 
@@ -60,6 +62,7 @@ pub struct PathArgs {
 }
 #[derive(Args, Debug, Clone)]
 pub struct UseArgs {
+    /// NDK Version that should be required
     version: String,
 
     /// Use strict = for version constraint
@@ -69,8 +72,10 @@ pub struct UseArgs {
     #[clap(long, default_value = "true")]
     installed_only: bool,
 }
+
 #[derive(Args, Debug, Clone)]
 pub struct ResolveArgs {
+    /// Download package if necessary
     #[clap(short, long, default_value = "false")]
     download: bool,
 }
