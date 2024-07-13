@@ -15,16 +15,13 @@ use semver::{Version, VersionReq};
 use std::io::Write;
 
 use crate::{
-    models::{
+    commands::ndk, models::{
         android_repo::{AndroidRepositoryManifest, RemotePackage},
         config::get_combine_config,
         package::PackageConfigExtensions,
-    },
-    resolver::semver::{req_to_range, VersionWrapper},
-    terminal::colors::QPMColor,
-    utils::android::{
+    }, resolver::semver::{req_to_range, VersionWrapper}, terminal::colors::QPMColor, utils::android::{
         download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
-    },
+    }
 };
 
 use super::Command;
@@ -290,7 +287,8 @@ fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
 // apply NDK to project and write
 fn apply_ndk(ndk_installed_path: &Path) -> Result<(), color_eyre::eyre::Error> {
     let mut ndk_file = File::create("./ndkpath.txt").context("Unable to open ndkpath.txt")?;
-    writeln!(ndk_file, "{}", ndk_installed_path.to_str().unwrap())?;
+    write!(ndk_file, "{}", ndk_installed_path.to_str().unwrap())?;
+    ndk_file.flush()?;
     println!("{}", ndk_installed_path.to_str().unwrap());
     Ok(())
 }
