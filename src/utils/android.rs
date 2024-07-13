@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, io::Cursor};
+use std::{collections::HashMap, env, io::Cursor, path::PathBuf};
 
 use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
@@ -95,7 +95,7 @@ pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
     })
 }
 
-pub fn download_ndk_version(ndk: &RemotePackage) -> Result<()> {
+pub fn download_ndk_version(ndk: &RemotePackage) -> Result<PathBuf> {
     let archive = get_host_archive(ndk).expect("Could not find ndk for current os and arch");
 
     let archive_url = format!("{ANDROID_DL_URL}/{}", archive.complete.url);
@@ -108,7 +108,7 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<()> {
 
     let dir = get_combine_config()
         .ndk_download_path
-        .as_ref()
+        .clone()
         .expect("No NDK download path set");
     let _name = &archive.complete.url;
 
@@ -122,12 +122,12 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<()> {
     let mut archive = ZipArchive::new(buffer)?;
     let final_path = dir.join(archive.by_index(0)?.name());
 
-    archive.extract(dir)?;
+    archive.extract(&dir)?;
 
     println!(
         "Downloaded {} to {}",
         get_ndk_version(ndk).green(),
         final_path.to_str().unwrap().file_path_color()
     );
-    Ok(())
+    Ok(dir)
 }

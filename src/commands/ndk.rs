@@ -121,7 +121,8 @@ impl Command for Ndk {
                 let manifest = get_android_manifest()?;
 
                 let (_version, ndk) = fuzzy_match_ndk(&manifest, &d.version)?;
-                download_ndk_version(ndk)?
+                download_ndk_version(ndk)?;
+                return Ok(());
             }
             NdkOperation::Available(a) => {
                 let manifest = get_android_manifest()?;
@@ -250,19 +251,9 @@ fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
         // download
         None if r.download => {
             let manifest = get_android_manifest()?;
-            let (version, _package) = range_match_ndk(&manifest, ndk_requirement)?;
+            let (_version, ndk) = range_match_ndk(&manifest, ndk_requirement)?;
 
-            let ndk_path = format!(
-                "{}/{version}",
-                get_combine_config()
-                    .ndk_download_path
-                    .as_ref()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-            );
-
-            ndk_path.into()
+            download_ndk_version(ndk)?
         }
         // error
         _ => {
