@@ -240,6 +240,7 @@ impl Command for Ndk {
                     false => format!("^{version}"),
                 };
                 package.workspace.ndk = Some(VersionReq::parse(&req)?);
+                package.write(".")?;
 
                 let ndk_path = format!(
                     "{}/{version}",
