@@ -131,7 +131,7 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<PathBuf> {
     );
 
     // Rename to use friendly NDK version name
-    let final_path = extract_path.with_file_name(get_ndk_version(ndk).to_string());
+    let final_path = dir.join(get_ndk_version(ndk).to_string());
 
     fs::rename(&extract_path, &final_path)?;
 
