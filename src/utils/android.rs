@@ -34,12 +34,18 @@ pub fn get_ndk_packages(manifest: &AndroidRepositoryManifest) -> Vec<&RemotePack
 }
 
 pub fn get_ndk_version(ndk: &RemotePackage) -> Version {
+    let build = BuildMetadata::new(&format!(
+        "preview-{}",
+        &ndk.revision.preview.unwrap_or(0).to_string()
+    ))
+    .unwrap();
+
     Version {
         major: ndk.revision.major.unwrap_or(0),
         minor: ndk.revision.minor.unwrap_or(0),
         patch: ndk.revision.micro.unwrap_or(0),
-        pre: Prerelease::new(&ndk.revision.preview.unwrap_or(0).to_string()).unwrap(),
-        build: BuildMetadata::default(),
+        pre: Prerelease::EMPTY,
+        build,
     }
 }
 
