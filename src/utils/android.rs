@@ -120,18 +120,20 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<PathBuf> {
 
     // Extract to tmp folde
     let mut archive = ZipArchive::new(buffer)?;
-    let final_path = dir.join(archive.by_index(0)?.name());
+    let extract_path = dir.join(archive.by_index(0)?.name());
 
     archive.extract(&dir)?;
 
     println!(
         "Downloaded {} to {}",
         get_ndk_version(ndk).green(),
-        final_path.to_str().unwrap().file_path_color()
+        extract_path.to_str().unwrap().file_path_color()
     );
 
     // Rename to use friendly NDK version name
-    fs::rename(&final_path, final_path.with_file_name(get_ndk_version(ndk).to_string()))?;
+    let final_path = extract_path.with_file_name(get_ndk_version(ndk).to_string());
+
+    fs::rename(&extract_path, &final_path)?;
 
     Ok(final_path)
 }
