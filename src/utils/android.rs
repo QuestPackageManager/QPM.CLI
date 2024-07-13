@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, io::Cursor, path::PathBuf};
+use std::{collections::HashMap, env, fs, io::Cursor, path::PathBuf};
 
 use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
@@ -129,5 +129,9 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<PathBuf> {
         get_ndk_version(ndk).green(),
         final_path.to_str().unwrap().file_path_color()
     );
-    Ok(dir)
+
+    // Rename to use friendly NDK version name
+    fs::rename(&final_path, final_path.with_file_name(get_ndk_version(ndk).to_string()))?;
+
+    Ok(final_path)
 }
