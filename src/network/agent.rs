@@ -105,6 +105,7 @@ where
     });
 
     progress_bar.finish_println("Finished download!");
+    println!();
 
     result
 }
