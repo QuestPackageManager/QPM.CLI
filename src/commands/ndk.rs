@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::{Args, Subcommand};
+use clap::{ArgAction, Args, Subcommand};
 use color_eyre::{
     eyre::{bail, eyre, Context},
     Result, Section,
@@ -15,13 +15,17 @@ use semver::{Version, VersionReq};
 use std::io::Write;
 
 use crate::{
-    commands::ndk, models::{
+    commands::ndk,
+    models::{
         android_repo::{AndroidRepositoryManifest, RemotePackage},
         config::get_combine_config,
         package::PackageConfigExtensions,
-    }, resolver::semver::{req_to_range, VersionWrapper}, terminal::colors::QPMColor, utils::android::{
+    },
+    resolver::semver::{req_to_range, VersionWrapper},
+    terminal::colors::QPMColor,
+    utils::android::{
         download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
-    }
+    },
 };
 
 use super::Command;
@@ -66,8 +70,9 @@ pub struct UseArgs {
     #[clap(long, default_value = "false")]
     strict: bool,
 
-    #[clap(long, default_value = "true")]
-    installed_only: bool,
+    /// If true, allows versions that are not installed
+    #[clap(long, default_value = "false")]
+    online: bool,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -186,8 +191,8 @@ impl Command for Ndk {
 }
 
 fn do_use(u: UseArgs) -> Result<(), color_eyre::eyre::Error> {
-    let version = match u.installed_only {
-        true => {
+    let version = match u.online {
+        false => {
             let version_req = VersionReq::parse(&u.version)?;
             // find latest NDK that satisfies requirement
             let ndk_installed_path = get_combine_config()
@@ -200,14 +205,12 @@ fn do_use(u: UseArgs) -> Result<(), color_eyre::eyre::Error> {
                     Version::parse(n.file_name().to_str().unwrap())
                         .is_ok_and(|v| version_req.matches(&v))
                 })
-                .ok_or_else(|| {
-                    eyre!("No NDK version installed that satisfies {version_req}")
-                })?;
+                .ok_or_else(|| eyre!("No NDK version installed that satisfies {version_req}"))?;
 
             ndk_installed_path.file_name().to_str().unwrap().to_string()
         }
         // allow any NDK version online
-        false => {
+        true => {
             let manifest = get_android_manifest()?;
             fuzzy_match_ndk(&manifest, &u.version)?.0
         }
@@ -219,15 +222,13 @@ fn do_use(u: UseArgs) -> Result<(), color_eyre::eyre::Error> {
     };
     package.workspace.ndk = Some(VersionReq::parse(&req)?);
     package.write(".")?;
-    let ndk_path = format!(
-        "{}/{version}",
-        get_combine_config()
-            .ndk_download_path
-            .as_ref()
-            .unwrap()
-            .to_str()
-            .unwrap()
-    );
+
+    let ndk_path = get_combine_config()
+        .ndk_download_path
+        .as_ref()
+        .unwrap()
+        .join(version);
+    
     apply_ndk(Path::new(&ndk_path))?;
     Ok(())
 }
@@ -260,9 +261,8 @@ fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
         }
         // error
         _ => {
-            let mut report =
-                eyre!("No NDK version installed that satisfies {ndk_requirement}")
-                    .note("-d/--download not set, not downloading!");
+            let mut report = eyre!("No NDK version installed that satisfies {ndk_requirement}")
+                .note("-d/--download not set, not downloading!");
 
             // look up a version suitable to work with
             // allow this to work offline by handling safely
@@ -272,8 +272,7 @@ fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
                 .and_then(|manifest| range_match_ndk(manifest, ndk_requirement).ok());
 
             if let Some((suggested_version, _)) = &mut suggested_version {
-                report =
-                    report.suggestion(format!("qpm ndk download {suggested_version}"));
+                report = report.suggestion(format!("qpm ndk download {suggested_version}"));
             }
 
             return Err(report);
