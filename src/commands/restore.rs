@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::Read, path::Path};
+use std::{env, fs::File, io::Read, path::{Path, PathBuf}};
 
 use clap::Args;
 
@@ -116,7 +116,13 @@ pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
         return Ok(());
     };
 
-    let mut ndk_file = File::open("./ndkpath.txt")?;
+    // early return, the file doesn't exist nothing to validate
+    let ndk_file_path = Path::new("./ndkpath.txt");
+    if !ndk_file_path.exists() {
+        return Ok(());
+    }
+
+    let mut ndk_file = File::open(ndk_file_path)?;
 
     let mut ndk_path_str = String::new();
     ndk_file.read_to_string(&mut ndk_path_str)?;
