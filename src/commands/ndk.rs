@@ -45,7 +45,7 @@ pub enum NdkOperation {
     ///  Apply the current NDK requirements (installed only, highest version that is valid). Download if necessary
     Resolve(ResolveArgs),
     /// Set the current NDK requirements (highest installed NDK version, allow non-installed versions if desired)
-    Use(UseArgs),
+    Pin(PinArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -62,7 +62,7 @@ pub struct PathArgs {
     version: String,
 }
 #[derive(Args, Debug, Clone)]
-pub struct UseArgs {
+pub struct PinArgs {
     /// NDK Version that should be required
     version: String,
 
@@ -183,14 +183,14 @@ impl Command for Ndk {
                 println!("{}", ndk_path.display());
             }
             NdkOperation::Resolve(r) => do_resolve(r)?,
-            NdkOperation::Use(u) => do_use(u)?,
+            NdkOperation::Pin(u) => do_use(u)?,
         }
 
         Ok(())
     }
 }
 
-fn do_use(u: UseArgs) -> Result<(), color_eyre::eyre::Error> {
+fn do_use(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
     let version = match u.online {
         false => {
             let version_req = VersionReq::parse(&u.version)?;
