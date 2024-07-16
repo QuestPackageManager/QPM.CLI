@@ -1,4 +1,9 @@
-use std::{env, fs::File, io::Read, path::{Path, PathBuf}};
+use std::{
+    env,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use clap::Args;
 
@@ -116,16 +121,20 @@ pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
         return Ok(());
     };
 
-    // early return, the file doesn't exist nothing to validate
-    let ndk_file_path = Path::new("./ndkpath.txt");
-    if !ndk_file_path.exists() {
-        return Ok(());
-    }
-
-    let mut ndk_file = File::open(ndk_file_path)?;
-
     let mut ndk_path_str = String::new();
-    ndk_file.read_to_string(&mut ndk_path_str)?;
+
+    // early return, the file doesn't exist nothing to validate
+    let ndk_path = Path::new("./ndkpath.txt");
+    if ndk_path.exists() {
+        let mut ndk_file = File::open(ndk_path)?;
+
+        ndk_file.read_to_string(&mut ndk_path_str)?;
+        // validate environment variable if possible
+    } else if let Some(ndk_path_env) =
+        std::env::var_os("ANDROID_NDK_HOME").or_else(|| std::env::var_os("ANDROID_NDK_LATEST_HOME"))
+    {
+        ndk_path_str = ndk_path_env.to_str().unwrap().to_string();
+    }
 
     let ndk_path = Path::new(ndk_path_str.trim());
     if !ndk_path.exists() {
