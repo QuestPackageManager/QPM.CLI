@@ -8,7 +8,7 @@ use std::{
 use clap::Args;
 
 use color_eyre::{
-    eyre::{bail, eyre, Result},
+    eyre::{bail, eyre, Context, ContextCompat, Result},
     Section,
 };
 use itertools::Itertools;
@@ -22,8 +22,9 @@ use crate::{
             PackageConfigExtensions, SharedPackageConfigExtensions, SHARED_PACKAGE_FILE_NAME,
         },
     },
-    repository::{self},
+    repository::{self, Repository},
     resolver::dependency,
+    terminal::colors::QPMColor,
 };
 
 use super::{package, Command};
@@ -86,6 +87,25 @@ impl Command for RestoreCommand {
 
                 // update config
                 shared_package.config = package;
+                // make additional data use cached data
+                shared_package
+                    .restored_dependencies
+                    .iter_mut()
+                    .try_for_each(|d| -> color_eyre::Result<()> {
+                        let package = repo
+                            .get_package(&d.dependency.id, &d.version)
+                            .ok()
+                            .flatten()
+                            .with_context(|| {
+                                format!(
+                                    "Unable to fetch {}:{}",
+                                    d.dependency.id.dependency_id_color(),
+                                    d.version.version_id_color()
+                                )
+                            })?;
+                        d.dependency.additional_data = package.config.info.additional_data;
+                        Ok(())
+                    })?;
                 dependency::locked_resolve(shared_package, &repo)?.collect_vec()
             }
             // Unlocked resolve
