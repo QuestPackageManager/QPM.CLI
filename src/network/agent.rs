@@ -19,7 +19,6 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
     AGENT.get_or_init(|| {
         reqwest::blocking::ClientBuilder::new()
             .connect_timeout(Duration::from_millis(timeout.into()))
-            .timeout(Duration::from_millis(timeout.into()))
             .tcp_keepalive(Duration::from_secs(5))
             .tcp_nodelay(false)
             .https_only(true)
@@ -35,7 +34,7 @@ pub fn get_async_agent() -> &'static reqwest::Client {
     ASYNC_AGENT.get_or_init(|| {
         reqwest::ClientBuilder::new()
             .connect_timeout(Duration::from_millis(timeout.into()))
-            .timeout(Duration::from_millis(timeout.into()))
+            .read_timeout(Duration::from_millis(timeout.into()))
             .tcp_keepalive(Duration::from_secs(5))
             .tcp_nodelay(false)
             .https_only(true)
@@ -106,6 +105,7 @@ where
     });
 
     progress_bar.finish_println("Finished download!");
+    println!();
 
     result
 }

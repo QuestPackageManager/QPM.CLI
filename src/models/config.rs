@@ -7,6 +7,7 @@ use std::{
 
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
 
 use crate::utils::json;
 
@@ -41,7 +42,7 @@ impl UserConfig {
     }
 
     pub fn global_config_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-Rs")
+        dirs::config_dir().unwrap().join("QPM-RS")
     }
 
     pub fn read_global() -> Result<Self> {
@@ -106,6 +107,14 @@ impl UserConfig {
             },
             None => global,
         })
+    }
+
+    pub fn get_ndk_installed(&self) -> WalkDir {
+        let dir = get_combine_config()
+            .ndk_download_path
+            .as_ref()
+            .expect("No NDK download path set");
+        WalkDir::new(dir).max_depth(1)
     }
 }
 

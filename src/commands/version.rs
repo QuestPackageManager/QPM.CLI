@@ -110,6 +110,8 @@ impl Command for VersionCommand {
                     latest_branch
                         .commit
                         .sha
+                        .split_at(8)
+                        .0
                         .alternate_dependency_version_color()
                 );
 

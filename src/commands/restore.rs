@@ -1,9 +1,19 @@
-use std::{env, path::Path};
+use std::{
+    env,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use clap::Args;
 
+use color_eyre::{
+    eyre::{bail, eyre, Context, ContextCompat, Result},
+    Section,
+};
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use semver::Version;
 
 use crate::{
     models::{
@@ -12,11 +22,12 @@ use crate::{
             PackageConfigExtensions, SharedPackageConfigExtensions, SHARED_PACKAGE_FILE_NAME,
         },
     },
-    repository::{self},
+    repository::{self, Repository},
     resolver::dependency,
+    terminal::colors::QPMColor,
 };
 
-use super::Command;
+use super::{package, Command};
 
 #[derive(Args)]
 pub struct RestoreCommand {
@@ -92,6 +103,25 @@ impl Command for RestoreCommand {
 
                 // update config
                 shared_package.config = package;
+                // make additional data use cached data
+                shared_package
+                    .restored_dependencies
+                    .iter_mut()
+                    .try_for_each(|d| -> color_eyre::Result<()> {
+                        let package = repo
+                            .get_package(&d.dependency.id, &d.version)
+                            .ok()
+                            .flatten()
+                            .with_context(|| {
+                                format!(
+                                    "Unable to fetch {}:{}",
+                                    d.dependency.id.dependency_id_color(),
+                                    d.version.version_id_color()
+                                )
+                            })?;
+                        d.dependency.additional_data = package.config.info.additional_data;
+                        Ok(())
+                    })?;
                 dependency::locked_resolve(shared_package, &repo)?.collect_vec()
             }
             // Unlocked resolve
@@ -116,6 +146,49 @@ impl Command for RestoreCommand {
         dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
         shared_package.write(".")?;
 
+        validate_ndk(&shared_package.config)?;
+
         Ok(())
     }
+}
+
+pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
+    let Some(ndk_req) = package.workspace.ndk.as_ref() else {
+        return Ok(());
+    };
+
+    let mut ndk_path_str = String::new();
+
+    // early return, the file doesn't exist nothing to validate
+    let ndk_path = Path::new("./ndkpath.txt");
+    if ndk_path.exists() {
+        let mut ndk_file = File::open(ndk_path)?;
+
+        ndk_file.read_to_string(&mut ndk_path_str)?;
+        // validate environment variable if possible
+    } else if let Some(ndk_path_env) =
+        std::env::var_os("ANDROID_NDK_HOME").or_else(|| std::env::var_os("ANDROID_NDK_LATEST_HOME"))
+    {
+        ndk_path_str = ndk_path_env.to_str().unwrap().to_string();
+    }
+
+    let ndk_path = Path::new(ndk_path_str.trim());
+    if !ndk_path.exists() {
+        bail!("NDK Path {} does not exist!", ndk_path.display());
+    }
+
+    let ndk_version_str = ndk_path.file_name().unwrap().to_str().unwrap();
+    let Ok(ndk_version) = Version::parse(ndk_version_str) else {
+        println!("Unable to validate {ndk_version_str} is a valid NDK version, skipping");
+        return Ok(());
+    };
+
+    if !ndk_req.matches(&ndk_version) {
+        return Err(
+            eyre!("NDK Version {ndk_version} does not satisfy {ndk_req}")
+                .suggestion("qpm ndk resolve".to_string()),
+        );
+    }
+
+    Ok(())
 }
