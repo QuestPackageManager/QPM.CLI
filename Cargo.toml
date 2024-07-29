@@ -43,6 +43,8 @@ git2 = {version = "0.19", optional = true }
 #gitoxide
 gix = {git = "https://github.com/Byron/gitoxide.git", features = ["command", "attributes", "progress-tree", "worktree-mutation", "blocking-network-client", "blocking-http-transport-reqwest-rust-tls"], optional = true }
 prodash = {version = "*", features = ["progress-log"], optional = true}
+pretty_env_logger = "0.5"
+log = "0.4"
 
 #tokio fix
 tokio = { version = ">=1.33", features = ["io-util", "io-std", "net", "macros"] }
