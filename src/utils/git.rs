@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    path::Path,
-};
+use std::{fs::File, path::Path};
 
 use color_eyre::{
     eyre::{bail, Context},
@@ -186,16 +183,16 @@ pub fn clone(mut url: String, branch: Option<&str>, out: &Path) -> Result<bool> 
 pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     use std::num::NonZero;
 
-    use color_eyre::eyre::ContextCompat;
+    use color_eyre::eyre::{ContextCompat, OptionExt};
     use gix::refs::PartialName;
+
+    use crate::terminal::colors::QPMColor;
 
     check_git()?;
     // TODO: Figure out tokens\
     // TODO: Clone submodules
 
-    let branch_ref: Option<PartialName> = branch
-        .map(PartialName::try_from)
-        .transpose()?;
+    let branch_ref: Option<PartialName> = branch.map(PartialName::try_from).transpose()?;
 
     let mut prepare_clone = gix::prepare_clone(gix::url::parse(url.as_str().into())?, out)?
         .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
@@ -228,13 +225,36 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     //     }
     // });
 
-
     let (repo, _) = prepare_checkout
         .main_worktree(
             prodash::progress::Log::new("Repo checkout", None),
-            &gix::interrupt::IS_INTERRUPTED
+            &gix::interrupt::IS_INTERRUPTED,
         )
         .with_context(|| format!("Checkout {branch:?}"))?;
+
+    fn recursive_update(repo: &gix::Repository) -> color_eyre::Result<()> {
+        let Some(mut submodules) = repo.submodules()? else {
+            return Ok(());
+        };
+
+        println!(
+            "Recursive cloning submodules for {}",
+            repo.path().display().file_path_color()
+        );
+
+        submodules.try_for_each(|submodule| -> color_eyre::Result<()> {
+            println!("Cloning submodule {} {}", submodule.name().download_file_name_color(), submodule.path()?.file_path_color());
+
+            submodule.update()?.ok_or_eyre("Submodule update failed")?;
+
+            let sub_repo = gix::open(submodule.git_dir())?;
+            recursive_update(&sub_repo)
+        })?;
+
+        Ok(())
+    }
+    recursive_update(&repo)?;
+
     println!(
         "Repo cloned into {:?}",
         repo.work_dir().expect("directory pre-created")
