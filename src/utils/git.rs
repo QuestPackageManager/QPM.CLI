@@ -198,7 +198,7 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     use color_eyre::eyre::{ContextCompat, OptionExt};
     use gix::{refs::PartialName, submodule::config::Update, trace::warn};
 
-    use crate::terminal::colors::QPMColor;
+    use crate::{terminal::colors::QPMColor, utils::progress::PbrProgress};
 
     check_git()?;
     // TODO: Figure out tokens\
@@ -213,7 +213,8 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
         .with_ref_name(branch_ref.as_ref())?;
 
     let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
-        prodash::progress::Log::new("Fetch", None),
+        // prodash::progress::Log::new("Fetch", None),
+        PbrProgress::default(),
         &gix::interrupt::IS_INTERRUPTED,
     )?;
 
