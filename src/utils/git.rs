@@ -196,7 +196,7 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     use std::num::NonZero;
 
     use color_eyre::eyre::{ContextCompat, OptionExt};
-    use gix::refs::PartialName;
+    use gix::{refs::PartialName, submodule::config::Update, trace::warn};
 
     use crate::terminal::colors::QPMColor;
 
@@ -244,8 +244,9 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
         )
         .with_context(|| format!("Checkout {branch:?}"))?;
 
+    // https://github.com/rust-lang/cargo/blob/7da3c360bc82021e0daf93dba092628165375456/src/cargo/sources/git/utils.rs#L346
     fn recursive_update(repo: &gix::Repository) -> color_eyre::Result<()> {
-        let Some(mut submodules) = repo.submodules()? else {
+        let Some(mut submodules) = repo.submodules().context("Submodules listing")? else {
             return Ok(());
         };
 
@@ -255,11 +256,24 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
         );
 
         submodules.try_for_each(|submodule| -> color_eyre::Result<()> {
-            println!("Cloning submodule {} {}", submodule.name().download_file_name_color(), submodule.path()?.file_path_color());
+            println!(
+                "Cloning submodule {} {}",
+                submodule.name().download_file_name_color(),
+                submodule.path()?.file_path_color()
+            );
 
-            submodule.update()?.ok_or_eyre("Submodule update failed")?;
+            let update = submodule.update()?.unwrap_or(Default::default());
 
-            let sub_repo = gix::open(submodule.git_dir())?;
+            if update == Update::None {
+                return Ok(());
+            }
+
+            let Some(sub_repo) = submodule.open()? else {
+                // TODO: Not skip
+                
+                warn!("Submodule at {} not initialized, skipping", submodule.path().file_path_color());
+                return Ok(());
+            };
             recursive_update(&sub_repo)
         })?;
 
