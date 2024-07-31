@@ -191,12 +191,97 @@ pub fn clone(mut url: String, branch: Option<&str>, out: &Path) -> Result<bool> 
     Ok(out.try_exists()?)
 }
 
+// https://github.com/rust-lang/cargo/blob/7da3c360bc82021e0daf93dba092628165375456/src/cargo/sources/git/utils.rs#L346
+#[cfg(feature = "gitoxide")]
+fn recursive_update(repo: &gix::Repository, main_out: &Path) -> color_eyre::Result<()> {
+    use std::num::NonZero;
+
+    use prodash::progress::Log;
+
+    use color_eyre::eyre::ContextCompat;
+    use gix::{
+        bstr::BStr,
+        clone::{PrepareCheckout, PrepareFetch},
+        command::Prepare,
+        submodule::config::Update,
+    };
+    use log::warn;
+
+    use crate::utils::progress::PbrProgress;
+
+    let Some(mut submodules) = repo.submodules().context("Submodules listing")? else {
+        return Ok(());
+    };
+
+    println!(
+        "Recursive cloning submodules for {}",
+        repo.path().display().file_path_color()
+    );
+
+    submodules.try_for_each(|submodule| -> color_eyre::Result<()> {
+        println!(
+            "Cloning submodule {} {}",
+            submodule.name().download_file_name_color(),
+            submodule.path()?.file_path_color()
+        );
+
+        let update = submodule.update()?.unwrap_or(Default::default());
+
+        if update == Update::None {
+            return Ok(());
+        }
+
+        let sub_url = submodule.url()?;
+        let sub_path = main_out.join(submodule.path()?.to_string());
+
+        let mut prepare_clone = gix::prepare_clone(sub_url, sub_path)?.with_shallow(
+            gix::remote::fetch::Shallow::DepthAtRemote(NonZero::new(1).unwrap()),
+        );
+
+        // if let Some(head_id) = submodule.head_id()? {
+        //     let head_str = head_id.to_string();
+        //     prepare_clone = prepare_clone.with_ref_name(Some(BStr::new(head_str.as_str())))?;
+        // }
+
+        let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
+            // prodash::progress::Log::new("Fetch", None),
+            PbrProgress::default(),
+            &gix::interrupt::IS_INTERRUPTED,
+        )?;
+
+        println!(
+            "Checking out submodule {} into {:?} ...",
+            submodule.name(),
+            prepare_checkout
+                .repo()
+                .work_dir()
+                .context("repo work dir")?
+        );
+
+        // This is such a dirty workaround
+        // for prepare_clone not supporting explicit object ids
+        if let Some(head_id) = submodule.head_id()? {
+            let head_str = head_id.to_string();
+            prepare_checkout =
+                prepare_checkout.with_ref_name(Some(BStr::new(head_str.as_str())))?;
+        }
+
+        let (sub_repo, _) = prepare_checkout
+            .main_worktree(PbrProgress::default(), &gix::interrupt::IS_INTERRUPTED)
+            .with_context(|| format!("Submodule worktree {}", submodule.name()))?;
+
+        recursive_update(&sub_repo, main_out)
+    })?;
+
+    Ok(())
+}
+
 #[cfg(feature = "gitoxide")]
 pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     use std::num::NonZero;
 
     use color_eyre::eyre::{ContextCompat, OptionExt};
-    use gix::{refs::PartialName, submodule::config::Update, trace::warn};
+    use gix::{bstr::BStr, head, refs::PartialName, submodule::config::Update, trace::warn};
 
     use crate::{terminal::colors::QPMColor, utils::progress::PbrProgress};
 
@@ -239,48 +324,10 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     // });
 
     let (repo, _) = prepare_checkout
-        .main_worktree(
-            prodash::progress::Log::new("Repo checkout", None),
-            &gix::interrupt::IS_INTERRUPTED,
-        )
+        .main_worktree(PbrProgress::default(), &gix::interrupt::IS_INTERRUPTED)
         .with_context(|| format!("Checkout {branch:?}"))?;
 
-    // https://github.com/rust-lang/cargo/blob/7da3c360bc82021e0daf93dba092628165375456/src/cargo/sources/git/utils.rs#L346
-    fn recursive_update(repo: &gix::Repository) -> color_eyre::Result<()> {
-        let Some(mut submodules) = repo.submodules().context("Submodules listing")? else {
-            return Ok(());
-        };
-
-        println!(
-            "Recursive cloning submodules for {}",
-            repo.path().display().file_path_color()
-        );
-
-        submodules.try_for_each(|submodule| -> color_eyre::Result<()> {
-            println!(
-                "Cloning submodule {} {}",
-                submodule.name().download_file_name_color(),
-                submodule.path()?.file_path_color()
-            );
-
-            let update = submodule.update()?.unwrap_or(Default::default());
-
-            if update == Update::None {
-                return Ok(());
-            }
-
-            let Some(sub_repo) = submodule.open()? else {
-                // TODO: Not skip
-                
-                warn!("Submodule at {} not initialized, skipping", submodule.path().file_path_color());
-                return Ok(());
-            };
-            recursive_update(&sub_repo)
-        })?;
-
-        Ok(())
-    }
-    recursive_update(&repo)?;
+    recursive_update(&repo, out)?;
 
     println!(
         "Repo cloned into {:?}",

@@ -546,11 +546,12 @@ dependencies = [
 
 [[package]]
 name = "dashmap"
-version = "5.5.3"
+version = "6.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
+checksum = "804c8821570c3f8b70230c2ba75ffa5c0f9a4189b9a432b6656c536712acae28"
 dependencies = [
  "cfg-if",
+ "crossbeam-utils",
  "hashbrown",
  "lock_api",
  "once_cell",
@@ -857,7 +858,7 @@ dependencies = [
 [[package]]
 name = "gix"
 version = "0.64.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "gix-actor",
  "gix-archive",
@@ -908,7 +909,7 @@ dependencies = [
  "gix-worktree-stream",
  "once_cell",
  "parking_lot",
- "prodash",
+ "prodash 29.0.0",
  "regex",
  "signal-hook",
  "smallvec",
@@ -918,7 +919,7 @@ dependencies = [
 [[package]]
 name = "gix-actor"
 version = "0.31.5"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-date",
@@ -931,19 +932,20 @@ dependencies = [
 [[package]]
 name = "gix-archive"
 version = "0.13.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-date",
  "gix-object",
  "gix-worktree-stream",
+ "jiff",
  "thiserror",
 ]
 
 [[package]]
 name = "gix-attributes"
 version = "0.22.3"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-glob",
@@ -959,7 +961,7 @@ dependencies = [
 [[package]]
 name = "gix-bitmap"
 version = "0.2.11"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "thiserror",
 ]
@@ -967,7 +969,7 @@ dependencies = [
 [[package]]
 name = "gix-chunk"
 version = "0.4.8"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "thiserror",
 ]
@@ -975,7 +977,7 @@ dependencies = [
 [[package]]
 name = "gix-command"
 version = "0.3.8"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-path",
@@ -986,7 +988,7 @@ dependencies = [
 [[package]]
 name = "gix-commitgraph"
 version = "0.24.3"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-chunk",
@@ -999,7 +1001,7 @@ dependencies = [
 [[package]]
 name = "gix-config"
 version = "0.38.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-config-value",
@@ -1019,7 +1021,7 @@ dependencies = [
 [[package]]
 name = "gix-config-value"
 version = "0.14.7"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bitflags 2.6.0",
  "bstr",
@@ -1031,7 +1033,7 @@ dependencies = [
 [[package]]
 name = "gix-credentials"
 version = "0.24.4"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-command",
@@ -1046,19 +1048,19 @@ dependencies = [
 
 [[package]]
 name = "gix-date"
-version = "0.8.7"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+version = "0.9.0"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "itoa",
+ "jiff",
  "thiserror",
- "time",
 ]
 
 [[package]]
 name = "gix-diff"
 version = "0.44.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-command",
@@ -1077,7 +1079,7 @@ dependencies = [
 [[package]]
 name = "gix-dir"
 version = "0.6.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-discover",
@@ -1096,7 +1098,7 @@ dependencies = [
 [[package]]
 name = "gix-discover"
 version = "0.33.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "dunce",
@@ -1111,7 +1113,7 @@ dependencies = [
 [[package]]
 name = "gix-features"
 version = "0.38.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bytes",
  "bytesize",
@@ -1125,7 +1127,7 @@ dependencies = [
  "libc",
  "once_cell",
  "parking_lot",
- "prodash",
+ "prodash 29.0.0",
  "sha1_smol",
  "thiserror",
  "walkdir",
@@ -1134,7 +1136,7 @@ dependencies = [
 [[package]]
 name = "gix-filter"
 version = "0.11.3"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "encoding_rs",
@@ -1154,7 +1156,7 @@ dependencies = [
 [[package]]
 name = "gix-fs"
 version = "0.11.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "fastrand",
  "gix-features",
@@ -1164,7 +1166,7 @@ dependencies = [
 [[package]]
 name = "gix-glob"
 version = "0.16.4"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bitflags 2.6.0",
  "bstr",
@@ -1175,7 +1177,7 @@ dependencies = [
 [[package]]
 name = "gix-hash"
 version = "0.14.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "faster-hex",
  "thiserror",
@@ -1184,7 +1186,7 @@ dependencies = [
 [[package]]
 name = "gix-hashtable"
 version = "0.5.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "gix-hash",
  "hashbrown",
@@ -1194,7 +1196,7 @@ dependencies = [
 [[package]]
 name = "gix-ignore"
 version = "0.11.3"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-glob",
@@ -1206,7 +1208,7 @@ dependencies = [
 [[package]]
 name = "gix-index"
 version = "0.33.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bitflags 2.6.0",
  "bstr",
@@ -1233,7 +1235,7 @@ dependencies = [
 [[package]]
 name = "gix-lock"
 version = "14.0.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "gix-tempfile",
  "gix-utils",
@@ -1243,7 +1245,7 @@ dependencies = [
 [[package]]
 name = "gix-macros"
 version = "0.1.5"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1253,7 +1255,7 @@ dependencies = [
 [[package]]
 name = "gix-mailmap"
 version = "0.23.5"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-actor",
@@ -1264,7 +1266,7 @@ dependencies = [
 [[package]]
 name = "gix-negotiate"
 version = "0.13.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bitflags 2.6.0",
  "gix-commitgraph",
@@ -1279,7 +1281,7 @@ dependencies = [
 [[package]]
 name = "gix-object"
 version = "0.42.3"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-actor",
@@ -1297,7 +1299,7 @@ dependencies = [
 [[package]]
 name = "gix-odb"
 version = "0.61.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "arc-swap",
  "gix-date",
@@ -1316,7 +1318,7 @@ dependencies = [
 [[package]]
 name = "gix-pack"
 version = "0.51.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "clru",
  "gix-chunk",
@@ -1336,7 +1338,7 @@ dependencies = [
 [[package]]
 name = "gix-packetline"
 version = "0.17.5"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "faster-hex",
@@ -1347,7 +1349,7 @@ dependencies = [
 [[package]]
 name = "gix-packetline-blocking"
 version = "0.17.4"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "faster-hex",
@@ -1358,7 +1360,7 @@ dependencies = [
 [[package]]
 name = "gix-path"
 version = "0.10.9"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-trace",
@@ -1370,7 +1372,7 @@ dependencies = [
 [[package]]
 name = "gix-pathspec"
 version = "0.7.6"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bitflags 2.6.0",
  "bstr",
@@ -1384,7 +1386,7 @@ dependencies = [
 [[package]]
 name = "gix-prompt"
 version = "0.8.6"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "gix-command",
  "gix-config-value",
@@ -1396,7 +1398,7 @@ dependencies = [
 [[package]]
 name = "gix-protocol"
 version = "0.45.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-credentials",
@@ -1413,7 +1415,7 @@ dependencies = [
 [[package]]
 name = "gix-quote"
 version = "0.4.12"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-utils",
@@ -1423,7 +1425,7 @@ dependencies = [
 [[package]]
 name = "gix-ref"
 version = "0.45.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "gix-actor",
  "gix-features",
@@ -1443,7 +1445,7 @@ dependencies = [
 [[package]]
 name = "gix-refspec"
 version = "0.23.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-hash",
@@ -1456,7 +1458,7 @@ dependencies = [
 [[package]]
 name = "gix-revision"
 version = "0.27.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-date",
@@ -1471,7 +1473,7 @@ dependencies = [
 [[package]]
 name = "gix-revwalk"
 version = "0.13.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "gix-commitgraph",
  "gix-date",
@@ -1485,7 +1487,7 @@ dependencies = [
 [[package]]
 name = "gix-sec"
 version = "0.10.7"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bitflags 2.6.0",
  "gix-path",
@@ -1496,7 +1498,7 @@ dependencies = [
 [[package]]
 name = "gix-status"
 version = "0.11.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "filetime",
@@ -1518,7 +1520,7 @@ dependencies = [
 [[package]]
 name = "gix-submodule"
 version = "0.12.0"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-config",
@@ -1532,7 +1534,7 @@ dependencies = [
 [[package]]
 name = "gix-tempfile"
 version = "14.0.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "dashmap",
  "gix-fs",
@@ -1547,12 +1549,12 @@ dependencies = [
 [[package]]
 name = "gix-trace"
 version = "0.1.9"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 
 [[package]]
 name = "gix-transport"
 version = "0.42.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "base64",
  "bstr",
@@ -1570,7 +1572,7 @@ dependencies = [
 [[package]]
 name = "gix-traverse"
 version = "0.39.2"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bitflags 2.6.0",
  "gix-commitgraph",
@@ -1586,7 +1588,7 @@ dependencies = [
 [[package]]
 name = "gix-url"
 version = "0.27.4"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-features",
@@ -1599,7 +1601,7 @@ dependencies = [
 [[package]]
 name = "gix-utils"
 version = "0.1.12"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "fastrand",
@@ -1609,7 +1611,7 @@ dependencies = [
 [[package]]
 name = "gix-validate"
 version = "0.8.5"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "thiserror",
@@ -1618,7 +1620,7 @@ dependencies = [
 [[package]]
 name = "gix-worktree"
 version = "0.34.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-attributes",
@@ -1636,7 +1638,7 @@ dependencies = [
 [[package]]
 name = "gix-worktree-state"
 version = "0.11.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "bstr",
  "gix-features",
@@ -1655,7 +1657,7 @@ dependencies = [
 [[package]]
 name = "gix-worktree-stream"
 version = "0.13.1"
-source = "git+https://github.com/Byron/gitoxide.git#55cffe4ecf78bfea76059b742fafaebe964a725f"
+source = "git+https://github.com/Fernthedev/gitoxide.git?branch=feat/checkout-with-ref-name#2aa20d19638559c1cc0c800c069e08e48c102a64"
 dependencies = [
  "gix-attributes",
  "gix-features",
@@ -1962,6 +1964,31 @@ name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
+
+[[package]]
+name = "jiff"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6eca28ccff1a040c4f83c56e153630c8337a8522b1e0a8618b89eace45d5df70"
+dependencies = [
+ "jiff-tzdb-platform",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "jiff-tzdb"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05fac328b3df1c0f18a3c2ab6cb7e06e4e549f366017d796e3e66b6d6889abe6"
+
+[[package]]
+name = "jiff-tzdb-platform"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8da387d5feaf355954c2c122c194d6df9c57d865125a67984bb453db5336940"
+dependencies = [
+ "jiff-tzdb",
+]
 
 [[package]]
 name = "jobserver"
@@ -2525,9 +2552,18 @@ version = "28.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "744a264d26b88a6a7e37cbad97953fa233b94d585236310bcbc88474b4092d79"
 dependencies = [
+ "log",
+ "parking_lot",
+]
+
+[[package]]
+name = "prodash"
+version = "29.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a266d8d6020c61a437be704c5e618037588e1985c7dbb7bf8d265db84cffe325"
+dependencies = [
  "bytesize",
  "human_format",
- "log",
  "parking_lot",
 ]
 
@@ -2571,7 +2607,7 @@ dependencies = [
  "owo-colors 4.0.0",
  "pbr",
  "pretty_env_logger",
- "prodash",
+ "prodash 28.0.0",
  "pubgrub",
  "qpm_arg_tokenizer",
  "qpm_package",
