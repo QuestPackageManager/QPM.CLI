@@ -1,12 +1,10 @@
 use std::{
-    cell::Cell,
-    default,
     io::Stdout,
     sync::{atomic::AtomicUsize, Arc, RwLock},
 };
 
 use gix::{Count, NestedProgress, Progress};
-use log::info;
+use log::{debug, error};
 use pbr::ProgressBar;
 
 pub struct PbrProgress {
@@ -41,13 +39,13 @@ impl Count for PbrProgress {
 }
 
 impl Progress for PbrProgress {
-    fn init(&mut self, max: Option<prodash::progress::Step>, unit: Option<prodash::Unit>) {
+    fn init(&mut self, max: Option<prodash::progress::Step>, _unit: Option<gix::progress::Unit>) {
         if let Some(max) = max {
             self.pbr.write().unwrap().total = max.try_into().unwrap();
         }
     }
 
-    fn set_name(&mut self, name: String) {}
+    fn set_name(&mut self, _name: String) {}
 
     fn name(&self) -> Option<String> {
         None
@@ -59,11 +57,12 @@ impl Progress for PbrProgress {
 
     fn message(&self, level: gix::progress::MessageLevel, message: String) {
         match level {
-            gix::progress::MessageLevel::Info => info!("Progressing: {}", message),
-            gix::progress::MessageLevel::Failure => info!("Failure: {}", message),
-            gix::progress::MessageLevel::Success => {
-                self.pbr.write().unwrap().finish_println(&message);
+            gix::progress::MessageLevel::Info => debug!("Progressing: {}", message),
+            gix::progress::MessageLevel::Failure => error!("Failure: {}", message),
+            gix::progress::MessageLevel::Success => {                
+                self.pbr.write().unwrap().finish_println("");
                 println!();
+                println!("{}", message);
             }
         }
     }
@@ -71,14 +70,17 @@ impl Progress for PbrProgress {
 
 // I genuinely don't care
 impl NestedProgress for PbrProgress {
-    type SubProgress =  PbrProgress;
+    type SubProgress = PbrProgress;
 
-    fn add_child(&mut self, name: impl Into<String>) -> Self::SubProgress {
+    fn add_child(&mut self, _name: impl Into<String>) -> Self::SubProgress {
         PbrProgress::default()
     }
 
-    fn add_child_with_id(&mut self, name: impl Into<String>, id: gix::progress::Id) -> Self::SubProgress {
+    fn add_child_with_id(
+        &mut self,
+        _name: impl Into<String>,
+        _id: gix::progress::Id,
+    ) -> Self::SubProgress {
         PbrProgress::default()
-
     }
 }
