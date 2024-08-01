@@ -193,7 +193,7 @@ pub fn clone(mut url: String, branch: Option<&str>, out: &Path) -> Result<bool> 
 
 // https://github.com/rust-lang/cargo/blob/7da3c360bc82021e0daf93dba092628165375456/src/cargo/sources/git/utils.rs#L346
 #[cfg(feature = "gitoxide")]
-fn recursive_update(repo: &gix::Repository, main_out: &Path) -> color_eyre::Result<()> {
+fn recursive_update(repo: &gix::Repository) -> color_eyre::Result<()> {
     use std::num::NonZero;
 
     use prodash::progress::Log;
@@ -202,10 +202,8 @@ fn recursive_update(repo: &gix::Repository, main_out: &Path) -> color_eyre::Resu
     use gix::{
         bstr::BStr,
         clone::{PrepareCheckout, PrepareFetch},
-        command::Prepare,
         submodule::config::Update,
     };
-    use log::warn;
 
     use crate::utils::progress::PbrProgress;
 
@@ -232,22 +230,21 @@ fn recursive_update(repo: &gix::Repository, main_out: &Path) -> color_eyre::Resu
         }
 
         let sub_url = submodule.url()?;
-        let sub_path = main_out.join(submodule.path()?.to_string());
+        let sub_path = submodule.work_dir()?;
 
-        let mut prepare_clone = gix::prepare_clone(sub_url, sub_path)?.with_shallow(
-            gix::remote::fetch::Shallow::DepthAtRemote(NonZero::new(1).unwrap()),
-        );
+        let mut prepare_clone = gix::prepare_clone(sub_url, &sub_path)
+            .with_context(|| format!("Preparing submodule clone {sub_path:?}"))?
+            .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
+                NonZero::new(1).unwrap(),
+            ));
 
-        // if let Some(head_id) = submodule.head_id()? {
-        //     let head_str = head_id.to_string();
-        //     prepare_clone = prepare_clone.with_ref_name(Some(BStr::new(head_str.as_str())))?;
-        // }
-
-        let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
-            // prodash::progress::Log::new("Fetch", None),
-            PbrProgress::default(),
-            &gix::interrupt::IS_INTERRUPTED,
-        )?;
+        let (mut prepare_checkout, _) = prepare_clone
+            .fetch_then_checkout(
+                // prodash::progress::Log::new("Fetch", None),
+                PbrProgress::default(),
+                &gix::interrupt::IS_INTERRUPTED,
+            )
+            .with_context(|| format!("Fetching and checking out submodule {sub_path:?}"))?;
 
         println!(
             "Checking out submodule {} into {:?} ...",
@@ -258,19 +255,16 @@ fn recursive_update(repo: &gix::Repository, main_out: &Path) -> color_eyre::Resu
                 .context("repo work dir")?
         );
 
-        // This is such a dirty workaround
-        // for prepare_clone not supporting explicit object ids
-        if let Some(head_id) = submodule.head_id()? {
-            let head_str = head_id.to_string();
-            prepare_checkout =
-                prepare_checkout.with_ref_name(Some(BStr::new(head_str.as_str())))?;
+        if let Some(index_id) = submodule.index_id()? {
+            prepare_checkout = prepare_checkout.with_object_id(Some(index_id));
         }
 
         let (sub_repo, _) = prepare_checkout
             .main_worktree(PbrProgress::default(), &gix::interrupt::IS_INTERRUPTED)
             .with_context(|| format!("Submodule worktree {}", submodule.name()))?;
 
-        recursive_update(&sub_repo, main_out)
+        recursive_update(&sub_repo)
+            .with_context(|| format!("Cloning submodules of {sub_path:?}"))
     })?;
 
     Ok(())
@@ -327,7 +321,7 @@ pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
         .main_worktree(PbrProgress::default(), &gix::interrupt::IS_INTERRUPTED)
         .with_context(|| format!("Checkout {branch:?}"))?;
 
-    recursive_update(&repo, out)?;
+    recursive_update(&repo).with_context(|| format!("Cloning submodules of root repo"))?;
 
     println!(
         "Repo cloned into {:?}",
