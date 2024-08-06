@@ -1,5 +1,7 @@
 bin.name = "qpm"
 args = "dependency add beatsaber-hook"
+
+fs.sandbox = true
 # status.code = 0
 # stdin = ""
 # # stdout doesn't have stable order
