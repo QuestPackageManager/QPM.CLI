@@ -59,16 +59,16 @@ jobs:
         run: |
           brew install openssl@3
 
-      - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release
-
       - name: Cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --release
+
+      - name: Cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
           args: --release
 
       - uses: actions-rs/toolchain@v1
