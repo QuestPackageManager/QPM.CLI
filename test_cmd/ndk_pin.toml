@@ -1,0 +1,3 @@
+bin.name = "qpm"
+args = "ndk pin 27 --online"
+fs.sandbox = true
