@@ -1,4 +1,3 @@
 bin.name = "qpm"
 args = "restore"
 fs.sandbox = true
-binary = false

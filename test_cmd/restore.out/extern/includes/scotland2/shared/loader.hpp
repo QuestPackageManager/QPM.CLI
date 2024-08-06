@@ -166,10 +166,10 @@ struct ModInfo {
     // TODO: Error handle here
     auto* copy_id = new (std::nothrow) char[id.size() + 1];
     id.copy(copy_id, id.size());
-    copy_id[id.size()] = '\0';
+    copy_id[id.size()] = '/0';
     auto* copy_version = new (std::nothrow) char[version.size() + 1];
     version.copy(copy_version, version.size());
-    copy_version[version.size()] = '\0';
+    copy_version[version.size()] = '/0';
     return CModInfo{
       .id = copy_id,
       .version = copy_version,
@@ -329,7 +329,7 @@ struct MODLOADER_EXPORT ModData {
     auto path_str = this->path.string();
     auto* copy_path = new (std::nothrow) char[path_str.size() + 1];
     path_str.copy(copy_path, path_str.size());
-    copy_path[path_str.size()] = '\0';
+    copy_path[path_str.size()] = '/0';
 
     return CModResult{
       .info = info.to_c(),
