@@ -1,3 +1,3 @@
 bin.name = "qpm"
-args = ["dependency", "add", "beatsaber-hook"]
+args = "dependency add beatsaber-hook"
 fs.sandbox = true

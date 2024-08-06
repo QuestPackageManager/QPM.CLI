@@ -15,5 +15,11 @@
     "qmodIncludeFiles": [],
     "qmodOutput": null
   },
-  "dependencies": []
+  "dependencies": [
+    {
+      "id": "beatsaber-hook",
+      "versionRange": "^5.1.9",
+      "additionalData": {}
+    }
+  ]
 }

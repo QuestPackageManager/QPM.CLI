@@ -1,2 +1,3 @@
 $ENV:TRYCMD="overwrite"
-& cargo test
+& cargo test --test tests::commands::trycmd
+$ENV:TRYCMD=""
