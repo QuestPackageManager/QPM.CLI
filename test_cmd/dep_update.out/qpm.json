@@ -1,0 +1,25 @@
+{
+  "version": "0.4.0",
+  "sharedDir": "shared",
+  "dependenciesDir": "extern",
+  "info": {
+    "name": "package1",
+    "id": "package1",
+    "version": "0.1.0",
+    "url": null,
+    "additionalData": {}
+  },
+  "workspace": {
+    "scripts": {},
+    "qmodIncludeDirs": [],
+    "qmodIncludeFiles": [],
+    "qmodOutput": null
+  },
+  "dependencies": [
+    {
+      "id": "beatsaber-hook",
+      "versionRange": "^5.1.9",
+      "additionalData": {}
+    }
+  ]
+}

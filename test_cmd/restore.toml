@@ -1,0 +1,4 @@
+bin.name = "qpm"
+args = ["restore"]
+fs.sandbox = true
+status.code = 101

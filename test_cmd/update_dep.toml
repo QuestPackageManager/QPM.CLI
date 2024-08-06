@@ -1,3 +1,0 @@
-bin.name = "qpm"
-args = "dependency add beatsaber-hook"
-
