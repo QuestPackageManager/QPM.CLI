@@ -1,6 +1,8 @@
 bin.name = "qpm"
 args = "dependency remove beatsaber-hook"
 fs.sandbox = true
+binary = true
+
 # status.code = 0
 # stdin = ""
 # # stdout doesn't have stable order

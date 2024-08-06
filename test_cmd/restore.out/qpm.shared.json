@@ -12,43 +12,20 @@
     },
     "workspace": {
       "scripts": {},
+      "ndk": "^27.0.11902837",
       "qmodIncludeDirs": [],
       "qmodIncludeFiles": [],
       "qmodOutput": null
     },
     "dependencies": [
       {
-        "id": "beatsaber-hook",
-        "versionRange": "=5.0.9",
+        "id": "scotland2",
+        "versionRange": "^0.1.4",
         "additionalData": {}
       }
     ]
   },
   "restoredDependencies": [
-    {
-      "dependency": {
-        "id": "libil2cpp",
-        "versionRange": "=0.3.2",
-        "additionalData": {
-          "headersOnly": true,
-          "cmake": false
-        }
-      },
-      "version": "0.3.2"
-    },
-    {
-      "dependency": {
-        "id": "beatsaber-hook",
-        "versionRange": "=5.0.9",
-        "additionalData": {
-          "soLink": "https://github.com/QuestPackageManager/beatsaber-hook/releases/download/v5.0.9/libbeatsaber-hook_5_0_9.so",
-          "debugSoLink": "https://github.com/QuestPackageManager/beatsaber-hook/releases/download/v5.0.9/debug_libbeatsaber-hook_5_0_9.so",
-          "branchName": "version/v5_0_9",
-          "cmake": true
-        }
-      },
-      "version": "5.0.9"
-    },
     {
       "dependency": {
         "id": "scotland2",
