@@ -48,16 +48,16 @@ jobs:
         run: |
           sudo apt-get install -y libdbus-1-dev
 
-      - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release
-
       - name: Cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --release
+
+      - name: Cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
           args: --release
 
       - name: Compress build
