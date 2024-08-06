@@ -18,8 +18,8 @@
   },
   "dependencies": [
     {
-      "id": "beatsaber-hook",
-      "versionRange": "=5.0.9",
+      "id": "scotland2",
+      "versionRange": "^0.1.4",
       "additionalData": {}
     }
   ]

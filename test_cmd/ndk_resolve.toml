@@ -1,3 +1,4 @@
 bin.name = "qpm"
 args = "ndk download 27"
 fs.sandbox = true
+binary = true
