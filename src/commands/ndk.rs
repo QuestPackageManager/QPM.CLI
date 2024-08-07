@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::{ArgAction, Args, Subcommand};
+use clap::{Args, Subcommand};
 use color_eyre::{
     eyre::{bail, eyre, Context},
     Result, Section,
@@ -15,14 +15,11 @@ use semver::{Version, VersionReq};
 use std::io::Write;
 
 use crate::{
-    commands::ndk,
     models::{
         android_repo::{AndroidRepositoryManifest, RemotePackage},
         config::get_combine_config,
         package::PackageConfigExtensions,
     },
-    resolver::semver::{req_to_range, VersionWrapper},
-    terminal::colors::QPMColor,
     utils::android::{
         download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
     },

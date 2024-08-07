@@ -2,7 +2,7 @@ use std::{
     env,
     fs::File,
     io::Read,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use clap::Args;
@@ -27,7 +27,7 @@ use crate::{
     terminal::colors::QPMColor,
 };
 
-use super::{package, Command};
+use super::Command;
 
 #[derive(Args)]
 pub struct RestoreCommand {

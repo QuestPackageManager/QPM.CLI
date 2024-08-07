@@ -169,8 +169,8 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             if let Some(extra_files) = &dep.additional_data.extra_files {
                 for path_str in extra_files.iter() {
                     let path =
-                        PathBuf::new().join(&format!("extern/includes/{}/{}", &dep.id, path_str));
-                    let extern_path = std::path::PathBuf::new().join(&format!(
+                        PathBuf::new().join(format!("extern/includes/{}/{}", &dep.id, path_str));
+                    let extern_path = std::path::PathBuf::new().join(format!(
                         "includes/{}/{}",
                         &shared_dep.dependency.id, path_str
                     ));

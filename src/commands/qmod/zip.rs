@@ -8,7 +8,6 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
 use qpm_qmod::models::mod_json::ModJson;
-use zip::write::FileOptionExtension;
 
 use crate::commands::qmod::manifest::{generate_qmod_manifest, ManifestQmodOperationArgs};
 use crate::commands::scripts;
