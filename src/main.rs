@@ -23,7 +23,15 @@ mod benchmark;
 #[cfg(test)]
 mod tests;
 
+
+#[cfg(all(feature = "gitoxide", feature = "libgit2"))]
+compile_error!("feature \"gitoxide\" and feature \"libgit2\" cannot be enabled at the same time");
+
 fn main() -> Result<()> {
+    pretty_env_logger::formatted_builder()
+        .filter_level(log::LevelFilter::Info)
+        .parse_default_env()
+        .init();
     color_eyre::config::HookBuilder::default()
         .panic_section(concat!(
             "version ",

@@ -1,13 +1,8 @@
-use std::{
-    fs::File,
-    io::{BufReader, BufWriter},
-    path::Path,
-    process::{Command, Stdio},
-};
+use std::{fs::File, io::BufWriter, path::Path};
 
 use color_eyre::{
     eyre::{bail, Context},
-    Result, Section,
+    Result,
 };
 use owo_colors::OwoColorize;
 //use duct::cmd;
@@ -19,6 +14,7 @@ use crate::{
     terminal::colors::QPMColor,
 };
 
+#[cfg(feature = "libgit2")]
 pub fn check_git() -> Result<()> {
     let mut git = std::process::Command::new("git");
     git.arg("--version");
@@ -47,6 +43,11 @@ pub fn check_git() -> Result<()> {
             );
         }
     }
+}
+
+#[cfg(feature = "gitoxide")]
+pub fn check_git() -> Result<()> {
+    Ok(())
 }
 
 pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
@@ -125,7 +126,8 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
     Ok(out.exists())
 }
 
-pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
+#[cfg(feature = "libgit2")]
+pub fn clone(mut url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
     check_git()?;
     if let Ok(token_unwrapped) = get_keyring().get_password() {
         if let Some(gitidx) = url.find("github.com") {
@@ -185,6 +187,162 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
             bail!("{}", error_string);
         }
     }
+
+    Ok(out.try_exists()?)
+}
+
+// https://github.com/rust-lang/cargo/blob/7da3c360bc82021e0daf93dba092628165375456/src/cargo/sources/git/utils.rs#L346
+#[cfg(feature = "gitoxide")]
+fn recursive_update(repo: &gix::Repository) -> color_eyre::Result<()> {
+    use std::num::NonZero;
+
+    use prodash::progress::Log;
+
+    use color_eyre::eyre::ContextCompat;
+    use gix::{
+        bstr::BStr,
+        clone::{PrepareCheckout, PrepareFetch},
+        submodule::config::Update,
+    };
+
+    use crate::utils::progress::PbrProgress;
+
+    let Some(mut submodules) = repo.submodules().context("Submodules listing")? else {
+        return Ok(());
+    };
+
+    println!(
+        "Recursive cloning submodules for {}",
+        repo.path().display().file_path_color()
+    );
+
+    submodules.try_for_each(|submodule| -> color_eyre::Result<()> {
+        println!(
+            "Cloning submodule {} {}",
+            submodule.name().download_file_name_color(),
+            submodule.path()?.file_path_color()
+        );
+
+        let update = submodule.update()?.unwrap_or(Default::default());
+
+        if update == Update::None {
+            return Ok(());
+        }
+
+        let sub_url = submodule.url()?;
+        let sub_path = submodule.work_dir()?;
+
+        let mut prepare_clone = gix::prepare_clone(sub_url, &sub_path)
+            .with_context(|| format!("Preparing submodule clone {sub_path:?}"))?
+            .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
+                NonZero::new(1).unwrap(),
+            ));
+
+        let (mut prepare_checkout, _) = prepare_clone
+            .fetch_then_checkout(
+                // prodash::progress::Log::new("Fetch", None),
+                PbrProgress::default(),
+                &gix::interrupt::IS_INTERRUPTED,
+            )
+            .with_context(|| format!("Fetching and checking out submodule {sub_path:?}"))?;
+
+        println!(
+            "Checking out submodule {} into {:?} ...",
+            submodule.name(),
+            prepare_checkout
+                .repo()
+                .work_dir()
+                .context("repo work dir")?
+        );
+
+        if let Some(index_id) = submodule.index_id()? {
+            prepare_checkout = prepare_checkout.with_object_id(Some(index_id));
+        }
+
+        let (sub_repo, _) = prepare_checkout
+            .main_worktree(PbrProgress::default(), &gix::interrupt::IS_INTERRUPTED)
+            .with_context(|| format!("Submodule worktree {}", submodule.name()))?;
+
+        recursive_update(&sub_repo)
+            .with_context(|| format!("Cloning submodules of {sub_path:?}"))
+    })?;
+
+    Ok(())
+}
+
+#[cfg(feature = "gitoxide")]
+pub fn clone(url: String, branch: Option<&str>, out: &Path) -> Result<bool> {
+    use std::num::NonZero;
+
+    use color_eyre::eyre::{ContextCompat, OptionExt};
+    use gix::{bstr::BStr, head, refs::PartialName, submodule::config::Update, trace::warn};
+
+    use crate::{terminal::colors::QPMColor, utils::progress::PbrProgress};
+
+    check_git()?;
+    // TODO: Figure out tokens\
+    // TODO: Clone submodules
+
+    let branch_ref: Option<PartialName> = branch.map(PartialName::try_from).transpose()?;
+
+    let mut prepare_clone = gix::prepare_clone(gix::url::parse(url.as_str().into())?, out)?
+        .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(
+            NonZero::new(1).unwrap(),
+        ))
+        .with_ref_name(branch_ref.as_ref())?;
+
+    let (mut prepare_checkout, _) = prepare_clone.fetch_then_checkout(
+        // prodash::progress::Log::new("Fetch", None),
+        PbrProgress::default(),
+        &gix::interrupt::IS_INTERRUPTED,
+    )?;
+
+    println!(
+        "Checking out into {:?} ...",
+        prepare_checkout
+            .repo()
+            .work_dir()
+            .context("repo work dir")?
+    );
+
+    // let branch_ref = branch
+    //     .map(|b| prepare_checkout.repo().find_reference(b))
+    //     .transpose()?;
+
+    // let branch_fn = branch.map(|b| {
+    //     let str = b.to_string();
+    //     move |r: &'a Repository| -> Reference<'a> {
+    //         r.find_reference(str.as_str())
+    //             .expect("remote branch not found")
+    //     }
+    // });
+
+    let (repo, _) = prepare_checkout
+        .main_worktree(PbrProgress::default(), &gix::interrupt::IS_INTERRUPTED)
+        .with_context(|| format!("Checkout {branch:?}"))?;
+
+    recursive_update(&repo).with_context(|| format!("Cloning submodules of root repo"))?;
+
+    println!(
+        "Repo cloned into {:?}",
+        repo.work_dir().expect("directory pre-created")
+    );
+
+    let remote = repo
+        .find_default_remote(gix::remote::Direction::Fetch)
+        .expect("always present after clone")?;
+
+    println!(
+        "Default remote: {} -> {}",
+        remote
+            .name()
+            .expect("default remote is always named")
+            .as_bstr(),
+        remote
+            .url(gix::remote::Direction::Fetch)
+            .expect("should be the remote URL")
+            .to_bstring(),
+    );
 
     Ok(out.try_exists()?)
 }
