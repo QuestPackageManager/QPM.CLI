@@ -1,0 +1,3 @@
+bin.name = "qpm"
+args = "qmod zip"
+fs.sandbox = true
