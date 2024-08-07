@@ -1,3 +1,3 @@
 $ENV:TRYCMD="overwrite"
-& cargo test --test tests::commands::trycmd
+& cargo test --bin qpm -- tests::commands::trycmd -- --nocapture
 $ENV:TRYCMD=""
