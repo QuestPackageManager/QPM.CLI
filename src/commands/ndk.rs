@@ -225,7 +225,7 @@ fn do_use(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
         .as_ref()
         .unwrap()
         .join(version);
-    
+
     apply_ndk(Path::new(&ndk_path))?;
     Ok(())
 }
