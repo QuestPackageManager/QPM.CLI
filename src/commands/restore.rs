@@ -3,7 +3,7 @@ use std::{env, fs::File, io::Read, path::Path};
 use clap::Args;
 
 use color_eyre::{
-    eyre::{bail, eyre, Context, ContextCompat, Result},
+    eyre::{bail, eyre, ContextCompat, Result},
     Section,
 };
 use itertools::Itertools;
