@@ -65,6 +65,9 @@ pub enum MainCommand {
     Download(download::Download),
     Ndk(ndk::Ndk),
 
+    #[command(about = "Shorthand for qpm dependency add")]
+    Add(dependency::DependencyOperationAddArgs),
+
     #[command(alias = "s")]
     Scripts(scripts::ScriptsCommand),
 
@@ -91,10 +94,11 @@ impl Command for MainCommand {
             MainCommand::Doctor(c) => c.execute(),
             MainCommand::Download(c) => c.execute(),
             MainCommand::Ndk(n) => n.execute(),
-            #[cfg(feature = "templatr")]
-            MainCommand::Templatr(c) => c.execute(),
+            MainCommand::Add(add) => add.execute(),
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
+            #[cfg(feature = "templatr")]
+            MainCommand::Templatr(c) => c.execute(),
         }
     }
 }

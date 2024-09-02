@@ -58,45 +58,48 @@ pub struct DependencyOperationRemoveArgs {
 impl Command for DependencyCommand {
     fn execute(self) -> color_eyre::Result<()> {
         match self.op {
-            DependencyOperation::Add(a) => add_dependency(a),
+            DependencyOperation::Add(a) => a.execute(),
             DependencyOperation::Remove(r) => remove_dependency(r),
         }
     }
 }
 
-fn add_dependency(dependency_args: DependencyOperationAddArgs) -> Result<()> {
-    if dependency_args.id == "yourmom" {
-        bail!("The dependency was too big to add, we can't add this one!");
-    }
-
-    let repo = repository::useful_default_new(dependency_args.offline)?;
-
-    let versions = repo
-        .get_package_versions(&dependency_args.id)
-        .context("No version found for dependency")?;
-
-    if versions.is_none() || versions.as_ref().unwrap().is_empty() {
-        bail!(
-            "Package {} does not seem to exist qpackages, please make sure you spelled it right, and that it's an actual package!",
-            dependency_args.id.bright_green()
-        );
-    }
-
-    let version = match dependency_args.version {
-        Option::Some(v) => v,
-        // if no version given, use ^latest instead, should've specified a version idiot
-        Option::None => {
-            semver::VersionReq::parse(&format!("^{}", versions.unwrap().first().unwrap().version))
-                .unwrap()
+impl Command for DependencyOperationAddArgs {
+    fn execute(self) -> Result<()> {
+        if self.id == "yourmom" {
+            bail!("The dependency was too big to add, we can't add this one!");
         }
-    };
 
-    let additional_data = match &dependency_args.additional_data {
-        Option::Some(d) => Some(serde_json::from_str(d)?),
-        Option::None => None,
-    };
+        let repo = repository::useful_default_new(self.offline)?;
 
-    put_dependency(&dependency_args.id, version, additional_data)
+        let versions = repo
+            .get_package_versions(&self.id)
+            .context("No version found for dependency")?;
+
+        if versions.is_none() || versions.as_ref().unwrap().is_empty() {
+            bail!(
+            "Package {} does not seem to exist qpackages, please make sure you spelled it right, and that it's an actual package!",
+            self.id.bright_green()
+        );
+        }
+
+        let version = match self.version {
+            Option::Some(v) => v,
+            // if no version given, use ^latest instead, should've specified a version idiot
+            Option::None => semver::VersionReq::parse(&format!(
+                "^{}",
+                versions.unwrap().first().unwrap().version
+            ))
+            .unwrap(),
+        };
+
+        let additional_data = match &self.additional_data {
+            Option::Some(d) => Some(serde_json::from_str(d)?),
+            Option::None => None,
+        };
+
+        put_dependency(&self.id, version, additional_data)
+    }
 }
 
 fn put_dependency(
