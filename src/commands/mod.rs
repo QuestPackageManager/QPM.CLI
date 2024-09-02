@@ -1,4 +1,5 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
+use clap_complete::Shell;
 use color_eyre::Result;
 
 pub mod cache;
@@ -26,6 +27,16 @@ pub trait Command {
 }
 
 #[derive(Parser)]
+#[command(name = "qpm")]
+pub struct Opt {
+    // If provided, outputs the completion file for given shell
+    #[arg(long = "generate", value_enum)]
+    pub generator: Option<Shell>,
+    #[command(subcommand)]
+    pub command: Option<MainCommand>,
+}
+
+#[derive(Subcommand)]
 pub enum MainCommand {
     Restore(restore::RestoreCommand),
     /// Cache control

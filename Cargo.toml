@@ -74,6 +74,7 @@ symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.13"
 stopwatch = "0.0.7"
+clap_complete = "4"
 
 [target.aarch64-apple-darwin.dependencies]
 # Allow cross compiles

@@ -5,7 +5,10 @@
 #![feature(exit_status_error)]
 #![feature(if_let_guard)]
 
-use clap::Parser;
+use std::io;
+
+use clap::{CommandFactory, Parser};
+use clap_complete::{generate, Generator, Shell};
 use color_eyre::Result;
 use commands::Command;
 
@@ -23,6 +26,34 @@ mod benchmark;
 #[cfg(test)]
 mod tests;
 
+fn print_completions<G: Generator>(gen: G, cmd: &mut clap::Command) {
+    generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
+}
+/// Suggests the location where to pipe the auto-generated completion script
+/// based on the shell type.
+fn suggest_completion_location(shell: Shell) {
+    eprintln!("To add this to your shell, you may use the following command:");
+
+    let file_name = shell.file_name("qpm");
+
+    // powershell is unique so
+    // we make it its own suggestion
+    if shell == Shell::PowerShell {
+        eprintln!("\tqpm --generate {shell} | Set-Content \"$HOME\\qpm_autocomplete.ps1\"");
+        eprintln!("\t'if (Test-Path \"$HOME\\qpm_autocomplete.ps1\") {{ . \"$HOME\\qpm_autocomplete.ps1\" }}' | Add-Content -Path $PROFILE");
+    } else {
+        let loc = match shell {
+            Shell::Bash => format!("/etc/bash_completion.d/{file_name}"),
+            Shell::Elvish => format!("~/.elvish/lib/completions/{file_name}"),
+            Shell::Fish => format!("~/.config/fish/completions/{file_name}"),
+            Shell::Zsh => format!("~/.zsh/completions/{file_name}"),
+            _ => todo!(),
+        };
+
+        eprintln!("\tqpm --generate {shell} > {loc}")
+    }
+}
+
 fn main() -> Result<()> {
     color_eyre::config::HookBuilder::default()
         .panic_section(concat!(
@@ -33,7 +64,17 @@ fn main() -> Result<()> {
             "/issues/new"
         ))
         .install()?;
-    commands::MainCommand::parse().execute()?;
+    let command_result = commands::Opt::parse();
+
+    if let Some(generator) = command_result.generator {
+        let mut cmd = commands::Opt::command();
+        eprintln!("Generating completion file for {generator:?}...");
+        print_completions(generator, &mut cmd);
+        suggest_completion_location(generator);
+    }
+    if let Some(command) = command_result.command {
+        command.execute()?;
+    }
 
     Ok(())
 }
