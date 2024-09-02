@@ -12,7 +12,7 @@ pub struct TemplatrCommand {
     /// Destination where template will be copied to. FILES WILL BE OVERWRITTEN
     dest: String,
 
-    #[clap(short, long)]
+    #[clap(short = 'b', long)]
     git_branch: Option<String>,
 }
 
