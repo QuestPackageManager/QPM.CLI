@@ -38,9 +38,6 @@ pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
 
 git2 = "0.19"
 
-#tokio fix
-tokio = { version = ">=1.33", features = ["io-util", "io-std", "net", "macros"] }
-
 bytes = "*"
 reqwest = { version = "0.12", features = [
     "blocking",
