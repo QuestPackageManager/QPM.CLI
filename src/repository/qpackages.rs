@@ -135,18 +135,6 @@ impl QPMRepository {
         let lib_path = base_path.join("lib");
         let tmp_path = base_path.join("tmp");
 
-        if src_path.join("qpm.shared.json").exists() {
-            // ensure is valid
-            SharedPackageConfig::read(src_path).with_context(|| {
-                format!(
-                    "Failed to get config {}:{} in cache",
-                    config.info.id.dependency_id_color(),
-                    config.info.version.version_id_color()
-                )
-            })?;
-            return Ok(());
-        }
-
         let so_path = lib_path.join(config.info.get_so_name());
         let debug_so_path = lib_path.join(format!(
             "debug_{}",
@@ -157,6 +145,18 @@ impl QPMRepository {
                 .unwrap()
                 .to_string_lossy()
         ));
+
+        let src_exists = src_path.join("qpm.shared.json").exists();
+        if src_exists {
+            // ensure is valid
+            SharedPackageConfig::read(&src_path).with_context(|| {
+                format!(
+                    "Failed to get config {}:{} in cache",
+                    config.info.id.dependency_id_color(),
+                    config.info.version.version_id_color()
+                )
+            })?;
+        }
 
         // Downloads the repo / zip file into src folder w/ subfolder taken into account
         if !src_path.exists() {
@@ -278,41 +278,58 @@ impl QPMRepository {
 
         if !lib_path.exists() {
             fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
-            // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
-            let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
-                if !path.exists() || File::open(path).is_err() {
-                    if let Some(url) = url_opt {
-                        println!(
-                            "Downloading {} from {} to {}",
-                            path.file_name()
-                                .unwrap()
-                                .to_string_lossy()
-                                .download_file_name_color(),
-                            url_opt.unwrap().version_id_color(),
-                            path.as_os_str()
-                                .to_string_lossy()
-                                .alternate_dependency_version_color()
-                        );
-                        // so_link existed, download
-                        if url.contains("github.com") {
-                            // github url!
-                            git::get_release(url, path)?;
-                        } else {
-                            let mut file = BufWriter::new(File::create(path)?);
-                            download_file_report(url, &mut file, |_, _| {})
-                                .context("Failed to write out downloaded bytes")?;
-                        }
+        }
+
+        // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
+        let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
+            // only download if file doesn't exist already
+            if path.exists() {
+                return Ok(());
+            }
+
+            let temp_path = path.with_added_extension("temp");
+
+            if temp_path.exists() {
+                std::fs::remove_file(&temp_path)
+                    .with_context(|| format!("Failed to remove tmp file {temp_path:?}"))?;
+            }
+
+            if !temp_path.exists() || File::open(&temp_path).is_err() {
+                if let Some(url) = url_opt {
+                    println!(
+                        "Downloading {} from {} to {}",
+                        path.file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .download_file_name_color(),
+                        url_opt.unwrap().version_id_color(),
+                        path.as_os_str()
+                            .to_string_lossy()
+                            .alternate_dependency_version_color()
+                    );
+                    // so_link existed, download
+                    if url.contains("github.com") {
+                        // github url!
+                        git::get_release(url, &temp_path)?;
+                    } else {
+                        let mut file = BufWriter::new(File::create(&temp_path)?);
+                        download_file_report(url, &mut file, |_, _| {})
+                            .context("Failed to write out downloaded bytes")?;
                     }
                 }
-                Ok(())
-            };
+            }
 
-            download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
-            download_binary(
-                &debug_so_path,
-                config.info.additional_data.debug_so_link.as_ref(),
-            )?;
-        }
+            std::fs::rename(temp_path, path)?;
+
+            Ok(())
+        };
+
+        download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
+        download_binary(
+            &debug_so_path,
+            config.info.additional_data.debug_so_link.as_ref(),
+        )?;
+
         if config.info.additional_data.so_link.is_none()
             && config.info.additional_data.debug_so_link.is_none()
             && config.info.additional_data.static_link.is_none()

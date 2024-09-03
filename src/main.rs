@@ -4,6 +4,7 @@
 #![feature(let_chains)]
 #![feature(exit_status_error)]
 #![feature(if_let_guard)]
+#![feature(path_add_extension)]
 
 use std::io;
 
