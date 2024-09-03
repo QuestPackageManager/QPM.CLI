@@ -286,6 +286,7 @@ impl QPMRepository {
             if path.exists() {
                 return Ok(());
             }
+            let Some(url) = url_opt else { return Ok(()) };
 
             let temp_path = path.with_added_extension("temp");
 
@@ -295,31 +296,30 @@ impl QPMRepository {
             }
 
             if !temp_path.exists() || File::open(&temp_path).is_err() {
-                if let Some(url) = url_opt {
-                    println!(
-                        "Downloading {} from {} to {}",
-                        path.file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .download_file_name_color(),
-                        url_opt.unwrap().version_id_color(),
-                        path.as_os_str()
-                            .to_string_lossy()
-                            .alternate_dependency_version_color()
-                    );
-                    // so_link existed, download
-                    if url.contains("github.com") {
-                        // github url!
-                        git::get_release(url, &temp_path)?;
-                    } else {
-                        let mut file = BufWriter::new(File::create(&temp_path)?);
-                        download_file_report(url, &mut file, |_, _| {})
-                            .context("Failed to write out downloaded bytes")?;
-                    }
+                println!(
+                    "Downloading {} from {} to {}",
+                    path.file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .download_file_name_color(),
+                    url_opt.unwrap().version_id_color(),
+                    path.as_os_str()
+                        .to_string_lossy()
+                        .alternate_dependency_version_color()
+                );
+                // so_link existed, download
+                if url.contains("github.com") {
+                    // github url!
+                    git::get_release(url, &temp_path)?;
+                } else {
+                    let mut file = BufWriter::new(File::create(&temp_path)?);
+                    download_file_report(url, &mut file, |_, _| {})
+                        .context("Failed to write out downloaded bytes")?;
                 }
             }
 
-            std::fs::rename(temp_path, path)?;
+            std::fs::rename(&temp_path, &path)
+                .with_context(|| format!("Unable to rename {temp_path:?} to {path:?}"))?;
 
             Ok(())
         };
