@@ -27,11 +27,13 @@ pub trait Command {
 }
 
 #[derive(Parser)]
-#[command(name = "qpm")]
+#[command(name = "qpm", bin_name = "qpm", version, about, long_about)]
+#[command(arg_required_else_help = true)]
 pub struct Opt {
     // If provided, outputs the completion file for given shell
     #[arg(long = "generate", value_enum)]
     pub generator: Option<Shell>,
+    
     #[command(subcommand)]
     pub command: Option<MainCommand>,
 }
