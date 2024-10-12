@@ -64,7 +64,7 @@ jobs:
           args: --release
 
       - name: Upload executable
-        uses: actions/upload-artifact@v2
+        uses:  actions/upload-artifact@v4
         with:
           name: ${{ matrix.prefix }}-${{ matrix.file-name }}
           path: ./target/release/${{ matrix.file-name }}

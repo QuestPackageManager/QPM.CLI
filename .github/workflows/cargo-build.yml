@@ -95,7 +95,7 @@ jobs:
         run: lipo -create -output qpm-universal target/release/${{matrix.file-name}} target/aarch64-apple-darwin/release/${{matrix.file-name}}
 
       - name: Artifact Upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{matrix.os == 'macos-13' }}
         with:
           name: qpm-universal
@@ -118,7 +118,7 @@ jobs:
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /f installer/installer.iss'
 
       - name: Artifact Upload
-        uses: actions/upload-artifact@v2
+        uses:  actions/upload-artifact@v4
         if: ${{matrix.os == 'windows-latest' }}
         with:
           name: qpm-installer.exe
@@ -126,7 +126,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload executable
-        uses: actions/upload-artifact@v2
+        uses:  actions/upload-artifact@v4
         with:
           name: ${{ matrix.prefix }}-${{ matrix.file-name }}
           path: ./target/release/${{ matrix.file-name }}
