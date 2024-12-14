@@ -30,6 +30,7 @@ mod tests;
 fn print_completions<G: Generator>(gen: G, cmd: &mut clap::Command) {
     generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
 }
+
 /// Suggests the location where to pipe the auto-generated completion script
 /// based on the shell type.
 fn suggest_completion_location(shell: Shell) {
