@@ -8,6 +8,7 @@ use qpm_qmod::models::mod_json::ModJson;
 
 use crate::models::mod_json::{ModJsonExtensions, PreProcessingData};
 use crate::models::package::{PackageConfigExtensions, SharedPackageConfigExtensions};
+use crate::repository::{self, Repository};
 
 use qpm_package::models::dependency::SharedPackageConfig;
 
@@ -42,14 +43,16 @@ pub(crate) fn execute_qmod_manifest_operation(
 ) -> Result<()> {
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
+    let repo = repository::useful_default_new(build_parameters.offline)?;
 
-    let new_json = generate_qmod_manifest(&package, shared_package, build_parameters)?;
+    let new_json = generate_qmod_manifest(&repo, &package, shared_package, build_parameters)?;
     // Write mod.json
     new_json.write(&PathBuf::from(ModJson::get_result_name()))?;
     Ok(())
 }
 
 pub(crate) fn generate_qmod_manifest(
+    repo: &impl Repository,
     package: &PackageConfig,
     shared_package: SharedPackageConfig,
     build_parameters: ManifestQmodOperationArgs,
@@ -61,7 +64,7 @@ pub(crate) fn generate_qmod_manifest(
     let binary = shared_package
         .config
         .info
-        .get_so_name()
+        .get_so_name2()
         .file_name()
         .map(|s| s.to_string_lossy().to_string());
 
@@ -72,7 +75,7 @@ pub(crate) fn generate_qmod_manifest(
         binary,
     };
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
-    let template_mod_json: ModJson = shared_package.to_mod_json();
+    let template_mod_json: ModJson = shared_package.to_mod_json(repo)?;
     let legacy_0_1_0 = package.matches_version(&VersionReq::parse("^0.1.0")?);
     existing_json = ModJson::merge_modjson(existing_json, template_mod_json, legacy_0_1_0);
     if let Some(excluded) = build_parameters.exclude_libs {

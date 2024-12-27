@@ -3,7 +3,7 @@ use std::{env, fs::File, io::Read, path::Path};
 use clap::Args;
 
 use color_eyre::{
-    eyre::{bail, eyre, ContextCompat, Result},
+    eyre::{bail, eyre, Context, ContextCompat, Result},
     Section,
 };
 use itertools::Itertools;
@@ -82,18 +82,25 @@ impl Command for RestoreCommand {
 
                 // update config
                 shared_package.config = package;
-                // make additional data use cached data
+
+                // https://discord.com/channels/994470435100033074/994630741235347566/1265083186157715538
+                // make additional data update (for local installs)
                 shared_package
                     .restored_dependencies
                     .iter_mut()
                     .try_for_each(|d| -> color_eyre::Result<()> {
-                        let package = repo
+                        let package: SharedPackageConfig = repo
                             .get_package(&d.dependency.id, &d.version)
-                            .ok()
-                            .flatten()
                             .with_context(|| {
                                 format!(
                                     "Unable to fetch {}:{}",
+                                    d.dependency.id.dependency_id_color(),
+                                    d.version.version_id_color()
+                                )
+                            })?
+                            .wrap_err_with(|| {
+                                format!(
+                                    "Package {}:{} does not exist",
                                     d.dependency.id.dependency_id_color(),
                                     d.version.version_id_color()
                                 )
