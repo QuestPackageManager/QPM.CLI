@@ -1,4 +1,3 @@
-#![feature(entry_insert)]
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
 #![feature(let_chains)]
@@ -13,7 +12,9 @@ use clap_complete::{generate, Generator, Shell};
 use color_eyre::Result;
 use commands::Command;
 
+#[cfg(feature = "cli")]
 pub mod commands;
+
 pub mod models;
 pub mod network;
 pub mod repository;

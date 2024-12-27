@@ -11,9 +11,14 @@ repository = "https://github.com/QuestPackageManager/QPM.CLI"
 name = "qpm"
 path = "src/main.rs"
 
+[lib]
+required-features = []
+
+
 [features]
-default = ["templatr", "network_test"]
+default = ["templatr", "network_test", "cli"]
 templatr = ["dep:templatr"]
+cli = ["dep:clap"]
 network_test = []
 
 [build-dependencies]
@@ -49,7 +54,7 @@ reqwest = { version = "0.12", features = [
     "rustls-tls",
 ], default-features = false }
 
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive"], optional = true}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-xml-rs = "0.6"
