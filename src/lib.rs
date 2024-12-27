@@ -14,3 +14,6 @@ pub mod repository;
 pub mod resolver;
 pub mod terminal;
 pub mod utils;
+
+pub use qpm_package as package;
+pub use qpm_qmod as qmod;
