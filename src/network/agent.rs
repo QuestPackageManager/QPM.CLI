@@ -7,11 +7,10 @@ use std::{
 };
 
 use color_eyre::{
-    eyre::{bail, ensure, eyre, Context},
+    eyre::{ensure, Context},
     Result,
 };
 use pbr::ProgressBar;
-use reqwest::StatusCode;
 
 use crate::models::config::get_combine_config;
 
@@ -56,7 +55,7 @@ where
         match read {
             // EOF
             Ok(0) => break,
-            
+
             Ok(amount) => {
                 written += amount;
                 buffer.write_all(&temp_buf[0..amount])?;

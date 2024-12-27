@@ -224,7 +224,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                 version_range: dep.version_range.clone(),
                 id: dep.id.clone(),
                 mod_link: shared_dep.dependency.additional_data.mod_link.clone(),
-                required: dep.additional_data.required
+                required: dep.additional_data.required,
             })
             .collect();
 

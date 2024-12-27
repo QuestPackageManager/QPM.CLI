@@ -33,7 +33,7 @@ pub struct Opt {
     // If provided, outputs the completion file for given shell
     #[arg(long = "generate", value_enum)]
     pub generator: Option<Shell>,
-    
+
     #[command(subcommand)]
     pub command: Option<MainCommand>,
 }

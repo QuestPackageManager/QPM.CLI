@@ -318,7 +318,7 @@ impl QPMRepository {
                 }
             }
 
-            std::fs::rename(&temp_path, &path)
+            std::fs::rename(&temp_path, path)
                 .with_context(|| format!("Unable to rename {temp_path:?} to {path:?}"))?;
 
             Ok(())

@@ -22,8 +22,8 @@ const NINJA_DOWNLOAD: &str =
 const NINJA_DOWNLOAD: &str =
     "https://github.com/ninja-build/ninja/releases/latest/download/ninja-win.zip";
 
-/// CMAKE
-/// TODO: Extract tars on Linux/Mac
+// CMAKE
+// TODO: Extract tars on Linux/Mac
 
 #[cfg(windows)]
 const ADB_DOWNLOAD: &str =

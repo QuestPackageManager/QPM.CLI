@@ -32,8 +32,8 @@ where
     repo: &'b R,
 }
 
-impl<'a, 'b, R: Repository> DependencyProvider<String, VersionWrapper>
-    for PackageDependencyResolver<'a, 'b, R>
+impl<R: Repository> DependencyProvider<String, VersionWrapper>
+    for PackageDependencyResolver<'_, '_, R>
 {
     fn choose_package_version<T: Borrow<String>, U: Borrow<Range<VersionWrapper>>>(
         &self,
