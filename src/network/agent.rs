@@ -10,7 +10,6 @@ use color_eyre::{
     eyre::{ensure, Context},
     Result,
 };
-use pbr::ProgressBar;
 
 use crate::models::config::get_combine_config;
 
@@ -80,10 +79,22 @@ where
 }
 
 #[inline(always)]
+#[cfg(not(feature = "cli"))]
+pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, callback: F) -> Result<usize>
+where
+    F: FnMut(usize, usize),
+{
+    download_file(url, buffer, callback)
+}
+
+#[inline(always)]
+#[cfg(feature = "cli")]
 pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
+    use pbr::ProgressBar;
+
     let mut progress_bar = ProgressBar::new(0);
     progress_bar.set_units(pbr::Units::Bytes);
 

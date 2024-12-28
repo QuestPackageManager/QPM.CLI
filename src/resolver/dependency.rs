@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, error::Error, path::Path, vec::IntoIter};
+use std::{borrow::Borrow, error::Error, path::Path, time::Instant, vec::IntoIter};
 
 use crate::{
     models::package::SharedPackageConfigExtensions,
@@ -14,7 +14,6 @@ use itertools::Itertools;
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
-use stopwatch::Stopwatch;
 
 use pubgrub::{
     error::PubGrubError,
@@ -113,7 +112,7 @@ pub fn resolve<'a>(
         root,
         repo: repository,
     };
-    let sw = Stopwatch::start_new();
+    let time = Instant::now();
     let result = match pubgrub::solver::resolve(
         &resolver,
         root.info.id.clone(),
@@ -135,7 +134,9 @@ pub fn resolve<'a>(
             bail!("pubgrub: {err}\n{err:?}");
         }
     };
-    println!("Took {}ms to dependency resolve", sw.elapsed_ms());
+
+    let sw = time.elapsed();
+    println!("Took {}ms to dependency resolve", sw.as_millis());
     result
 }
 
