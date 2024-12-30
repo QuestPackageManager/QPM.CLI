@@ -77,6 +77,9 @@ pub struct ResolveArgs {
     /// Download package if necessary
     #[clap(short, long, default_value = "false")]
     download: bool,
+
+    #[clap(short, long, default_value = "false")]
+    ignore_missing: bool
 }
 
 fn fuzzy_match_ndk<'a>(
@@ -231,8 +234,18 @@ fn do_use(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
 }
 
 fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
-    let package = PackageConfig::read(".")?;
-    let ndk_requirement = package.workspace.ndk.as_ref();
+    let package = PackageConfig::exists(".")
+        .then(|| PackageConfig::read("."))
+        .transpose()?;
+
+    if package.is_none() {
+        if r.ignore_missing {
+            return Ok(());
+        }
+        bail!("No package found in current directory")
+    }
+
+    let ndk_requirement = package.and_then(|p| p.workspace.ndk);
     let Some(ndk_requirement) = ndk_requirement else {
         bail!("No NDK requirement set in project")
     };
@@ -252,7 +265,7 @@ fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
         // download
         None if r.download => {
             let manifest = get_android_manifest()?;
-            let (_version, ndk) = range_match_ndk(&manifest, ndk_requirement)?;
+            let (_version, ndk) = range_match_ndk(&manifest, &ndk_requirement)?;
 
             download_ndk_version(ndk)?
         }
@@ -266,7 +279,7 @@ fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
             let manifest = get_android_manifest().ok();
             let mut suggested_version = manifest
                 .as_ref()
-                .and_then(|manifest| range_match_ndk(manifest, ndk_requirement).ok());
+                .and_then(|manifest| range_match_ndk(manifest, &ndk_requirement).ok());
 
             if let Some((suggested_version, _)) = &mut suggested_version {
                 report = report.suggestion(format!("qpm ndk download {suggested_version}"));
