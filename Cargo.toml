@@ -78,7 +78,7 @@ gix = { version = "*", features = [
     "worktree-mutation",
     "blocking-network-client",
     "blocking-http-transport-reqwest-rust-tls",
-], optional = true }
+], optional = true, default-features = false}
 
 # Use PR with symlink fix for Unix systems.
 zip = "2"
