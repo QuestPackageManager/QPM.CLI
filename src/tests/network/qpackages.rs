@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use bytes::{BufMut, BytesMut};
 use color_eyre::{eyre::OptionExt, Report, Result};
 use itertools::Itertools;
@@ -8,9 +10,9 @@ use qpm_package::models::{
 };
 use semver::{Version, VersionReq};
 
-use crate::{
+use qpm_cli::{
     network::agent::download_file_report,
-    repository::{qpackages::QPMRepository, Repository},
+    repository::{self, local::FileRepository, qpackages::QPMRepository, Repository},
     resolver::dependency,
 };
 
@@ -150,6 +152,79 @@ fn resolve_fail() -> Result<()> {
     assert!(resolved.is_err());
     let report: Report = resolved.err().unwrap();
     println!("{report:?}");
+
+    Ok(())
+}
+
+#[test]
+fn resolve_redownload_cache() -> Result<()> {
+    let workspace_tmp_dir = option_env!("CARGO_TARGET_TMPDIR")
+        .map(PathBuf::from)
+        .unwrap_or(std::env::temp_dir());
+
+    fn get_repo() -> Result<_> {
+        let mut file_repo = FileRepository::read()?;
+        if let Some(bs) = file_repo.artifacts.get_mut("beatsaber-hook") {
+            bs.remove(&Version::new(5, 1, 9));
+        }
+        file_repo.write()?;
+
+        let mut repo = repository::useful_default_new(false)?;
+
+        repo
+    }
+
+    let shared_package = SharedPackageConfig {
+        config: PackageConfig {
+            version: PackageConfig::default().version,
+
+            shared_dir: Default::default(),
+            dependencies_dir: workspace_tmp_dir.join("extern"),
+            info: PackageMetadata {
+                name: "T".to_string(),
+                id: "t".to_string(),
+                version: Version::new(0, 0, 0),
+                url: Default::default(),
+                additional_data: Default::default(),
+            },
+            dependencies: vec![PackageDependency {
+                id: "beatsaber-hook".to_string(),
+                version_range: VersionReq::parse("=5.1.9").unwrap(),
+                additional_data: PackageDependencyModifier::default(),
+            }],
+            workspace: Default::default(),
+            ..Default::default()
+        },
+        restored_dependencies: vec![],
+    };
+
+    let resolved = {
+        let repo = get_repo()?;
+
+        let resolved = dependency::resolve(&shared_package.config, &repo)
+            .unwrap()
+            .collect_vec();
+
+        dependency::restore(&workspace_tmp_dir, &shared_package, &resolved, &mut repo)?;
+
+        let path = FileRepository::get_package_cache_path("beatsaber-hook", &Version::new(5, 1, 9));
+        let lib_path = path.join("lib").join("libbeatsaber-hook_5_1_9.so");
+
+        println!("Lib path: {lib_path:?}");
+
+        assert!(lib_path.exists());
+        std::fs::remove_file(&lib_path)?;
+
+        resolved
+    };
+
+    {
+        let repo = get_repo()?;
+        assert!(!lib_path.exists());
+
+        dependency::restore(&workspace_tmp_dir, &shared_package, &resolved, &mut repo)?;
+        assert!(lib_path.exists());
+    }
 
     Ok(())
 }
