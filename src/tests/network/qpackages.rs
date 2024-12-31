@@ -171,7 +171,7 @@ fn resolve_redownload_cache() -> Result<()> {
 
         let mut repo = repository::useful_default_new(false)?;
 
-        repo
+        Ok(repo)
     }
 
     let shared_package = SharedPackageConfig {
