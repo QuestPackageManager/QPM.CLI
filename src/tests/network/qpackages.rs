@@ -198,17 +198,17 @@ fn resolve_redownload_cache() -> Result<()> {
         restored_dependencies: vec![],
     };
 
+    let path = FileRepository::get_package_cache_path("beatsaber-hook", &Version::new(5, 1, 9));
+    let lib_path = path.join("lib").join("libbeatsaber-hook_5_1_9.so");
+
     let resolved = {
-        let repo = get_repo()?;
+        let mut repo = get_repo()?;
 
         let resolved = dependency::resolve(&shared_package.config, &repo)
             .unwrap()
             .collect_vec();
 
         dependency::restore(&workspace_tmp_dir, &shared_package, &resolved, &mut repo)?;
-
-        let path = FileRepository::get_package_cache_path("beatsaber-hook", &Version::new(5, 1, 9));
-        let lib_path = path.join("lib").join("libbeatsaber-hook_5_1_9.so");
 
         println!("Lib path: {lib_path:?}");
 
@@ -219,7 +219,7 @@ fn resolve_redownload_cache() -> Result<()> {
     };
 
     {
-        let repo = get_repo()?;
+        let mut repo = get_repo()?;
         assert!(!lib_path.exists());
 
         dependency::restore(&workspace_tmp_dir, &shared_package, &resolved, &mut repo)?;
