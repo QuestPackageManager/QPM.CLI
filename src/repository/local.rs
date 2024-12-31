@@ -334,6 +334,8 @@ impl FileRepository {
 
         let extern_dir = workspace_dir.join(&package.dependencies_dir);
 
+        assert!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
+
         // delete if needed
         if extern_dir.exists() {
             fs::remove_dir_all(&extern_dir)
