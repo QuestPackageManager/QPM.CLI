@@ -162,7 +162,7 @@ fn resolve_redownload_cache() -> Result<()> {
         .map(PathBuf::from)
         .unwrap_or(std::env::temp_dir());
 
-    fn get_repo() -> Result<_> {
+    fn get_repo() -> Result<impl Repository> {
         let mut file_repo = FileRepository::read()?;
         if let Some(bs) = file_repo.artifacts.get_mut("beatsaber-hook") {
             bs.remove(&Version::new(5, 1, 9));
