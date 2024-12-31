@@ -135,12 +135,12 @@ impl QPMRepository {
         let lib_path = base_path.join("lib");
         let tmp_path = base_path.join("tmp");
 
-        let so_path = lib_path.join(config.info.get_so_name());
+        let so_path = lib_path.join(config.info.get_so_name2());
         let debug_so_path = lib_path.join(format!(
             "debug_{}",
             config
                 .info
-                .get_so_name()
+                .get_so_name2()
                 .file_name()
                 .unwrap()
                 .to_string_lossy()
@@ -284,6 +284,8 @@ impl QPMRepository {
         let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
             // only download if file doesn't exist already
             if path.exists() {
+                #[cfg(debug_assertions)]
+                println!("{} already exists, skipping download", path.display().bright_yellow());
                 return Ok(());
             }
             let Some(url) = url_opt else { return Ok(()) };
@@ -320,6 +322,11 @@ impl QPMRepository {
 
             std::fs::rename(&temp_path, path)
                 .with_context(|| format!("Unable to rename {temp_path:?} to {path:?}"))?;
+
+           if path.exists() {
+                #[cfg(debug_assertions)]
+                println!("{} downloaded successfully", path.display().bright_green());
+            }
 
             Ok(())
         };

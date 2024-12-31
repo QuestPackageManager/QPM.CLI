@@ -2,7 +2,7 @@ use color_eyre::Result;
 use itertools::Itertools;
 use semver::Version;
 
-use crate::{repository::Repository, resolver::dependency};
+use qpm_cli::{repository::Repository, resolver::dependency};
 
 use super::mocks::repo::get_mock_repository;
 

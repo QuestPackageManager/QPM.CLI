@@ -7,7 +7,7 @@ use qpm_package::models::{
 };
 use semver::{Version, VersionReq};
 
-use crate::repository::local::FileRepository;
+use qpm_cli::repository::local::FileRepository;
 
 pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
     SharedPackageConfig {
