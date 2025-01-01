@@ -1,5 +1,5 @@
 use color_eyre::{
-    eyre::{bail, Context, OptionExt},
+    eyre::{bail, ensure, Context, ContextCompat, OptionExt},
     Result,
 };
 use itertools::Itertools;
@@ -20,10 +20,17 @@ use qpm_package::{
 
 use crate::{
     models::{config::get_combine_config, package::PackageConfigExtensions},
+    terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
 };
 
 use super::Repository;
+
+pub struct PackageFiles {
+    pub headers: PathBuf,
+    pub binary: Option<PathBuf>,
+    // pub extras: Vec<PathBuf>,
+}
 
 // TODO: Somehow make a global singleton of sorts/cached instance to share across places
 // like resolver
@@ -308,6 +315,65 @@ impl FileRepository {
         Self::get_package_versions_cache_path(id).join(version.to_string())
     }
 
+    pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
+        let dep_cache_path = Self::get_package_cache_path(&package.info.id, &package.info.version);
+
+        let libs_path = dep_cache_path.join("lib");
+        let src_path = dep_cache_path.join("src");
+
+        if !src_path.exists() {
+            bail!(
+                "Missing src for dependency {}:{}",
+                package.info.id.dependency_id_color(),
+                package.info.version.dependency_version_color()
+            );
+        }
+
+        let exposed_headers = src_path.join(&package.shared_dir);
+
+        if package.info.additional_data.headers_only.unwrap_or(false) {
+            return Ok(PackageFiles {
+                headers: exposed_headers,
+                binary: None,
+            });
+        }
+
+        // get so name or release so name
+        let name = match package.info.additional_data.debug_so_link.is_none() {
+            true => package
+                .info
+                .get_so_name2()
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            false => format!(
+                "debug_{}",
+                package
+                    .info
+                    .get_so_name2()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+            ),
+        };
+
+        let binary = libs_path.join(&name);
+
+        if !binary.exists() {
+            bail!(
+                "Missing binary {name} for {}:{}",
+                package.info.id.dependency_id_color(),
+                package.info.version.dependency_version_color()
+            );
+        }
+
+        Ok(PackageFiles {
+            headers: exposed_headers,
+            binary: Some(binary),
+        })
+    }
+
     pub fn collect_deps(
         package: &PackageConfig,
         restored_deps: &[SharedPackageConfig],
@@ -334,7 +400,7 @@ impl FileRepository {
 
         let extern_dir = workspace_dir.join(&package.dependencies_dir);
 
-        assert!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
+        ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
 
         // delete if needed
         if extern_dir.exists() {
@@ -347,83 +413,75 @@ impl FileRepository {
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
 
         // direct deps (binaries)
-        for referenced_dep in &package.dependencies {
-            let shared_dep = restored_dependencies_map.get(&referenced_dep.id).unwrap();
-            let dep_cache_path =
-                Self::get_package_cache_path(&referenced_dep.id, &shared_dep.config.info.version);
-            let libs_path = dep_cache_path.join("lib");
 
-            // skip header only deps
-            if shared_dep
-                .config
-                .info
-                .additional_data
-                .headers_only
-                .unwrap_or(false)
-            {
-                continue;
-            }
+        let deps: Vec<_> = restored_deps
+            .iter()
+            .map(|p| Self::collect_files_of_package(&p.config).map(|f| (p, f))).try_collect()?;
 
-            // Not header only
-            let data = &shared_dep.config.info.additional_data;
-            // get so name or release so name
-            let name = match data.debug_so_link.is_none() {
-                true => shared_dep
-                    .config
-                    .info
-                    .get_so_name()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string(),
-                false => format!(
-                    "debug_{}",
-                    shared_dep
-                        .config
-                        .info
-                        .get_so_name()
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                ),
-            };
+        let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) = 
+            // partition by direct dependencies and indirect
+            deps.into_iter().partition(|(dep, _)| {
+                package
+                    .dependencies
+                    .iter()
+                    .any(|d| d.id == dep.config.info.id)
+            });
 
-            let src_binary = libs_path.join(&name);
+        for (direct_dep, direct_dep_files) in direct_deps {
+            let project_deps_headers_target = extern_headers.join(direct_dep.config.info.id.clone());
+
+            let exposed_headers = direct_dep_files.headers;
+            let src_binary = direct_dep_files.binary.wrap_err_with(|| {
+                format!(
+                    "Binary not found for direct package {}:{}",
+                    direct_dep.config.info.id.dependency_id_color(),
+                    direct_dep.config.version.dependency_version_color()
+                )
+            })?;
 
             if !src_binary.exists() {
                 bail!(
-                    "Missing binary {name} for {}:{}",
-                    referenced_dep.id,
-                    shared_dep.config.info.version
+                    "Missing binary {} for {}:{}",
+                    src_binary.file_name().unwrap_or_default().to_string_lossy(),
+                    direct_dep.config.info.id.dependency_id_color(),
+                    direct_dep.config.version.dependency_version_color()
+                );
+            }
+            if !exposed_headers.exists() {
+                bail!(
+                    "Missing header files for {}:{}",
+                    direct_dep.config.info.id.dependency_id_color(),
+                    direct_dep.config.version.dependency_version_color()
                 );
             }
 
             paths.insert(
                 src_binary,
-                extern_binaries.join(shared_dep.config.info.get_so_name()),
+                extern_binaries.join(direct_dep.config.info.get_so_name2()),
+            );
+
+            paths.insert(
+                exposed_headers,
+                project_deps_headers_target.join(&direct_dep.config.shared_dir),
             );
         }
 
         // Get headers of all dependencies restored
-        for (restored_id, restored_dep) in &restored_dependencies_map {
-            let dep_cache_path =
-                Self::get_package_cache_path(restored_id, &restored_dep.config.info.version);
-            let src_path = dep_cache_path.join("src");
+        for (indirect_dep, indirect_dep_files) in indirect_deps {
+            let project_deps_headers_target = extern_headers.join(indirect_dep.config.info.id.clone());
 
-            if !src_path.exists() {
+            let exposed_headers = indirect_dep_files.headers;
+            if !exposed_headers.exists() {
                 bail!(
-                    "Missing src for dependency {}:{}",
-                    restored_id,
-                    restored_dep.config.info.version.to_string()
+                    "Missing header files for {}:{}",
+                    indirect_dep.config.info.id.dependency_id_color(),
+                    indirect_dep.config.version.dependency_version_color()
                 );
             }
 
-            let exposed_headers = src_path.join(&restored_dep.config.shared_dir);
-            let project_deps_headers_target = extern_headers.join(restored_id);
-
             paths.insert(
                 exposed_headers,
-                project_deps_headers_target.join(&restored_dep.config.shared_dir),
+                project_deps_headers_target.join(&indirect_dep.config.shared_dir),
             );
         }
 
