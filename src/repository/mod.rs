@@ -1,10 +1,15 @@
-use color_eyre::Result;
+use color_eyre::{
+    eyre::{Context, ContextCompat},
+    Result,
+};
 use itertools::Itertools;
 use semver::Version;
 
 use qpm_package::models::{
     backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
 };
+
+use crate::terminal::colors::QPMColor;
 
 use self::{
     local::FileRepository, memcached::MemcachedRepository, multi::MultiDependencyRepository,
@@ -20,6 +25,24 @@ pub trait Repository {
     fn get_package_names(&self) -> Result<Vec<String>>;
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>>;
     fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>>;
+
+    fn get_package_checked(&self, id: &str, version: &Version) -> Result<SharedPackageConfig> {
+        self.get_package(id, version)
+            .with_context(|| {
+                format!(
+                    "Unable to fetch {}:{}",
+                    id.dependency_id_color(),
+                    version.version_id_color()
+                )
+            })?
+            .wrap_err_with(|| {
+                format!(
+                    "Package not found: {}:{}",
+                    id.dependency_id_color(),
+                    version.version_id_color()
+                )
+            })
+    }
     // add to the db cache
     // this just stores the shared config itself, not the package
     fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()>;

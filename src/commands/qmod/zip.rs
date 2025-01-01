@@ -13,6 +13,7 @@ use crate::commands::qmod::manifest::{generate_qmod_manifest, ManifestQmodOperat
 use crate::commands::scripts;
 use crate::models::mod_json::ModJsonExtensions;
 use crate::models::package::PackageConfigExtensions;
+use crate::repository;
 use crate::terminal::colors::QPMColor;
 
 use qpm_package::models::dependency::SharedPackageConfig;
@@ -63,8 +64,10 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
+    let repo = repository::useful_default_new(build_parameters.offline)?;
 
     let new_manifest = generate_qmod_manifest(
+        &repo,
         &package,
         shared_package,
         ManifestQmodOperationArgs {
