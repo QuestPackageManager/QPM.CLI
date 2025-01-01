@@ -26,6 +26,7 @@ use crate::{
 
 use super::Repository;
 
+// All files must exist
 pub struct PackageFiles {
     pub headers: PathBuf,
     pub binary: Option<PathBuf>,
@@ -318,6 +319,14 @@ impl FileRepository {
     pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
         let dep_cache_path = Self::get_package_cache_path(&package.info.id, &package.info.version);
 
+        if !dep_cache_path.exists() {
+            bail!(
+                "Missing cache for dependency {}:{}",
+                package.info.id.dependency_id_color(),
+                package.info.version.dependency_version_color()
+            );
+        }
+
         let libs_path = dep_cache_path.join("lib");
         let src_path = dep_cache_path.join("src");
 
@@ -585,14 +594,9 @@ impl Repository for FileRepository {
         let exist_in_db = self
             .get_artifact(&config.info.id, &config.info.version)
             .is_some();
-        let exists_in_cache = get_combine_config()
-            .cache
-            .as_ref()
-            .unwrap()
-            .join(&config.info.id)
-            .join(config.info.version.to_string())
-            .exists();
-        Ok(exist_in_db && exists_in_cache)
+        let file = FileRepository::collect_files_of_package(config);
+
+        Ok(exist_in_db && file.is_ok())
     }
 
     fn write_repo(&self) -> Result<()> {
