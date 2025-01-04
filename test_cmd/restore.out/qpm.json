@@ -20,6 +20,11 @@
       "id": "scotland2",
       "versionRange": "=0.1.4",
       "additionalData": {}
+    },
+    {
+      "id": "fmt",
+      "versionRange": "=11.0.2",
+      "additionalData": {}
     }
   ]
 }
