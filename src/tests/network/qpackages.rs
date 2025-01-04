@@ -169,7 +169,7 @@ fn resolve_redownload_cache() -> Result<()> {
         }
         file_repo.write()?;
 
-        let mut repo = repository::useful_default_new(false)?;
+        let repo = repository::useful_default_new(false)?;
 
         Ok(repo)
     }

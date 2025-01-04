@@ -79,7 +79,7 @@ pub struct ResolveArgs {
     download: bool,
 
     #[clap(short, long, default_value = "false")]
-    ignore_missing: bool
+    ignore_missing: bool,
 }
 
 fn fuzzy_match_ndk<'a>(

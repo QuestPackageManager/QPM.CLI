@@ -285,7 +285,10 @@ impl QPMRepository {
             // only download if file doesn't exist already
             if path.exists() {
                 #[cfg(debug_assertions)]
-                println!("{} already exists, skipping download", path.display().bright_yellow());
+                println!(
+                    "{} already exists, skipping download",
+                    path.display().bright_yellow()
+                );
                 return Ok(());
             }
             let Some(url) = url_opt else { return Ok(()) };
@@ -323,7 +326,7 @@ impl QPMRepository {
             std::fs::rename(&temp_path, path)
                 .with_context(|| format!("Unable to rename {temp_path:?} to {path:?}"))?;
 
-           if path.exists() {
+            if path.exists() {
                 #[cfg(debug_assertions)]
                 println!("{} downloaded successfully", path.display().bright_green());
             }
