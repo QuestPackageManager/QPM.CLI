@@ -21,10 +21,34 @@
         "id": "scotland2",
         "versionRange": "=0.1.4",
         "additionalData": {}
+      },
+      {
+        "id": "fmt",
+        "versionRange": "=11.0.2",
+        "additionalData": {}
       }
     ]
   },
   "restoredDependencies": [
+    {
+      "dependency": {
+        "id": "fmt",
+        "versionRange": "=11.0.2",
+        "additionalData": {
+          "headersOnly": true,
+          "branchName": "version/v11_0_2",
+          "compileOptions": {
+            "systemIncludes": [
+              "fmt/include/"
+            ],
+            "cppFlags": [
+              "-DFMT_HEADER_ONLY"
+            ]
+          }
+        }
+      },
+      "version": "11.0.2"
+    },
     {
       "dependency": {
         "id": "scotland2",
