@@ -7,10 +7,7 @@ use owo_colors::OwoColorize;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{hash_map::Entry, HashMap},
-    fs,
-    io::{BufReader, Write},
-    path::{Path, PathBuf},
+    collections::{hash_map::Entry, HashMap}, fs, io::{BufReader, Write}, ops::Not, path::{Path, PathBuf}
 };
 
 use qpm_package::{
@@ -425,9 +422,10 @@ impl FileRepository {
 
         let deps: Vec<_> = restored_deps
             .iter()
-            .map(|p| Self::collect_files_of_package(&p.config).map(|f| (p, f))).try_collect()?;
+            .map(|p| Self::collect_files_of_package(&p.config).map(|f| (p, f)))
+            .try_collect()?;
 
-        let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) = 
+        let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) =
             // partition by direct dependencies and indirect
             deps.into_iter().partition(|(dep, _)| {
                 package
@@ -437,18 +435,32 @@ impl FileRepository {
             });
 
         for (direct_dep, direct_dep_files) in direct_deps {
-            let project_deps_headers_target = extern_headers.join(direct_dep.config.info.id.clone());
+            let project_deps_headers_target =
+                extern_headers.join(direct_dep.config.info.id.clone());
 
             let exposed_headers = direct_dep_files.headers;
-            let src_binary = direct_dep_files.binary.wrap_err_with(|| {
-                format!(
-                    "Binary not found for direct package {}:{}",
-                    direct_dep.config.info.id.dependency_id_color(),
-                    direct_dep.config.version.dependency_version_color()
-                )
-            })?;
+            let src_binary = direct_dep
+                .config
+                .info
+                .additional_data
+                .headers_only
+                .unwrap_or(false)
+                .not()
+                // not header only
+                .then(|| {
+                    direct_dep_files.binary.wrap_err_with(|| {
+                        format!(
+                            "Binary not found for direct package {}:{}",
+                            direct_dep.config.info.id.dependency_id_color(),
+                            direct_dep.config.version.dependency_version_color()
+                        )
+                    })
+                })
+                .transpose()?;
 
-            if !src_binary.exists() {
+            if let Some(src_binary) = src_binary.as_ref()
+                && !src_binary.exists()
+            {
                 bail!(
                     "Missing binary {} for {}:{}",
                     src_binary.file_name().unwrap_or_default().to_string_lossy(),
@@ -464,10 +476,12 @@ impl FileRepository {
                 );
             }
 
-            paths.insert(
-                src_binary,
-                extern_binaries.join(direct_dep.config.info.get_so_name2()),
-            );
+            if let Some(src_binary) = src_binary {
+                paths.insert(
+                    src_binary,
+                    extern_binaries.join(direct_dep.config.info.get_so_name2()),
+                );
+            }
 
             paths.insert(
                 exposed_headers,
@@ -477,7 +491,8 @@ impl FileRepository {
 
         // Get headers of all dependencies restored
         for (indirect_dep, indirect_dep_files) in indirect_deps {
-            let project_deps_headers_target = extern_headers.join(indirect_dep.config.info.id.clone());
+            let project_deps_headers_target =
+                extern_headers.join(indirect_dep.config.info.id.clone());
 
             let exposed_headers = indirect_dep_files.headers;
             if !exposed_headers.exists() {
