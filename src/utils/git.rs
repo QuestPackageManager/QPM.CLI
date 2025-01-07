@@ -33,7 +33,7 @@ pub fn check_git() -> Result<()> {
             #[cfg(windows)]
             bail!(
                 "Please make sure git ({}) is installed and on path, then try again!",
-                "https://git-scm.com/download/windows".bright_yellow()
+                "https://git-scm.com/download/win".bright_yellow()
             );
             #[cfg(target_os = "linux")]
             bail!(
