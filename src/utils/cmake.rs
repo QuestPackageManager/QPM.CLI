@@ -216,6 +216,12 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
         }
     }
 
+    if let Some(ref additional_include_dirs) = dep.config.workspace.additional_includes {
+        for dir in additional_include_dirs.iter() {
+            writeln!(result, "target_include_directories(${{COMPILE_ID}} PRIVATE ${{CMAKE_CURRENT_SOURCE_DIR}}/{dir})")?;
+        }
+    }
+
     if !any {
         result.push_str("# Sadly, there were none with extra include dirs\n");
     }

@@ -70,6 +70,7 @@ pub fn write_toolchain_file(
                 .into_iter()
                 .chain(x.system_includes.unwrap_or_default())
                 .collect();
+
             let cpp_features: Vec<String> = acc
                 .cpp_features
                 .unwrap_or_default()
