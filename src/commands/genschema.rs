@@ -1,4 +1,5 @@
 use clap::Args;
+use color_eyre::eyre::Context;
 
 use crate::{
     models::{config::UserConfig, schemas::SchemaLinks, toolchain::ToolchainData}, repository::local::FileRepository
@@ -14,7 +15,8 @@ impl GenSchemaCommand {
         let schema_json = schemars::schema_for!(T);
         let schema = serde_json::to_string_pretty(&schema_json).unwrap();
         let name = url.rsplit('/').next().expect("Invalid URL");
-        std::fs::write(name, schema).expect(&format!("Failed to write {}", name));
+        let err_msg = format!("Failed to write {}", name);
+        std::fs::write(name, schema).context(err_msg)?;
         Ok(())
     }
 }
