@@ -87,6 +87,7 @@ walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.13"
+schemars = { version = "0.8.21", features = ["semver"] }
 
 [target.aarch64-apple-darwin.dependencies]
 # Allow cross compiles

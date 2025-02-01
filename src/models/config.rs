@@ -6,10 +6,13 @@ use std::{
 };
 
 use color_eyre::{eyre::Context, Result};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 use crate::utils::json;
+
+use super::schemas::{SchemaLinks, WithSchema};
 
 static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
 
@@ -17,16 +20,23 @@ pub fn get_combine_config() -> &'static UserConfig {
     COMBINED_CONFIG.get_or_init(|| UserConfig::read_combine().unwrap())
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Hash, PartialEq, Eq)]
 #[allow(non_snake_case)]
 #[serde(rename_all = "camelCase")]
+#[schemars(description = "User configuration for QPM-RS")]
 pub struct UserConfig {
+    /// Path where cache is stored
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache: Option<PathBuf>,
+
+    /// Timeout for http requests
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<u32>,
+
+    /// Whether to symlink or copy files
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symlink: Option<bool>,
+
     /// Path where ndk downloads are stored
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ndk_download_path: Option<PathBuf>,
@@ -88,7 +98,10 @@ impl UserConfig {
 
         let mut file = File::create(&path)
             .with_context(|| format!("Unable to write config file at {path:?}"))?;
-        serde_json::to_writer_pretty(&mut file, self)
+        serde_json::to_writer_pretty(&mut file, &WithSchema {
+            schema: SchemaLinks::USER_CONFIG,
+            value: self
+        })
             .with_context(|| format!("Unable to serialize global config file at {path:?}"))?;
 
         Ok(())
