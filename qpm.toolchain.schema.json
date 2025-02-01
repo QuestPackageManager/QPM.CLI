@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ToolchainData",
+  "type": "object",
+  "required": [
+    "compile_options",
+    "extern_dir"
+  ],
+  "properties": {
+    "binary_out": {
+      "description": "Output path for the binary",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "compile_options": {
+      "description": "Compile options",
+      "allOf": [
+        {
+          "$ref": "#/definitions/CompileOptions"
+        }
+      ]
+    },
+    "debug_binary_out": {
+      "description": "Output path for the debug binary",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "extern_dir": {
+      "description": "Path to the extern directory",
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "CompileOptions": {
+      "description": "Additional options for compilation and edits to compilation related files.",
+      "type": "object",
+      "properties": {
+        "cFlags": {
+          "description": "Additional C flags to add.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "cppFeatures": {
+          "description": "Additional C++ features to add. Deprecated, unused and exclusive to CMake.",
+          "deprecated": true,
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "cppFlags": {
+          "description": "Additional C++ flags to add.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "includePaths": {
+          "description": "Additional include paths to add, relative to the extern directory.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "systemIncludes": {
+          "description": "Additional system include paths to add, relative to the extern directory.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

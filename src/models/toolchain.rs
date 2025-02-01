@@ -2,17 +2,25 @@ use std::{fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
 use qpm_package::models::{dependency::SharedPackageConfig, extra::CompileOptions};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::repository::Repository;
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+use super::schemas::{SchemaLinks, WithSchema};
+
+#[derive(Serialize, JsonSchema, Deserialize, Debug, Default, Clone)]
 pub struct ToolchainData {
+    /// Compile options
     pub compile_options: CompileOptions,
-    /// relative to package dir
+
+    /// Path to the extern directory
     pub extern_dir: PathBuf,
 
+    /// Output path for the binary
     pub binary_out: Option<PathBuf>,
+
+    /// Output path for the debug binary
     pub debug_binary_out: Option<PathBuf>,
 }
 
@@ -94,6 +102,9 @@ pub fn write_toolchain_file(
         debug_binary_out: None,
     };
     let file = File::create(toolchain_path)?;
-    serde_json::to_writer_pretty(file, &toolchain)?;
+    serde_json::to_writer_pretty(file, &WithSchema {
+        schema: SchemaLinks::TOOLCHAIN_DATA,
+        value: toolchain
+    })?;
     Ok(())
 }

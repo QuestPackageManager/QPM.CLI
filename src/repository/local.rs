@@ -4,6 +4,7 @@ use color_eyre::{
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
+use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -16,7 +17,7 @@ use qpm_package::{
 };
 
 use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
+    models::{config::get_combine_config, package::PackageConfigExtensions, schemas::{SchemaLinks, WithSchema}},
     terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
 };
@@ -32,7 +33,7 @@ pub struct PackageFiles {
 
 // TODO: Somehow make a global singleton of sorts/cached instance to share across places
 // like resolver
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
 pub struct FileRepository {
     #[serde(default)]
     pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
@@ -214,7 +215,10 @@ impl FileRepository {
     }
 
     pub fn write(&self) -> Result<()> {
-        let config = serde_json::to_string_pretty(&self).expect("Serialization failed");
+        let config = serde_json::to_string_pretty(&WithSchema {
+            schema: SchemaLinks::FILE_REPOSITORY,
+            value: self
+        }).expect("Serialization failed");
         let path = Self::global_file_repository_path();
 
         std::fs::create_dir_all(Self::global_repository_dir())

@@ -18,6 +18,7 @@ pub mod qmod;
 pub mod restore;
 pub mod scripts;
 pub mod version;
+pub mod genschema;
 
 #[cfg(feature = "templatr")]
 pub mod templatr;
@@ -77,6 +78,9 @@ pub enum MainCommand {
     Templatr(templatr::TemplatrCommand),
 
     Version(version::VersionCommand),
+
+    #[command(hide = true)]
+    GenSchema(genschema::GenSchemaCommand),
 }
 
 impl Command for MainCommand {
@@ -99,6 +103,7 @@ impl Command for MainCommand {
             MainCommand::Add(add) => add.execute(),
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
+            MainCommand::GenSchema(g) => g.execute(),
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
         }

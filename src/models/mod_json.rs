@@ -12,6 +12,8 @@ use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 
 use crate::utils::json;
 
+use super::schemas::{SchemaLinks, WithSchema};
+
 pub trait ModJsonExtensions: Sized {
     fn get_template_name() -> &'static str;
     fn get_result_name() -> &'static str;
@@ -72,7 +74,10 @@ impl ModJsonExtensions for ModJson {
     fn write(&self, path: &Path) -> Result<()> {
         let file = File::create(path)
             .with_context(|| format!("Unable to create ModJson file at {path:?}"))?;
-        serde_json::to_writer_pretty(file, self)
+        serde_json::to_writer_pretty(file, &WithSchema {
+            schema: SchemaLinks::MOD_CONFIG,
+            value: self
+        })
             .with_context(|| format!("Unable to deserialize ModJson file at {path:?}"))?;
         Ok(())
     }
