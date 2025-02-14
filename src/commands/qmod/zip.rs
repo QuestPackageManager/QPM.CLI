@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
@@ -60,6 +61,23 @@ pub struct ZipQmodOperationArgs {
 
     #[clap()]
     pub(crate) out_target: Option<PathBuf>,
+}
+
+fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    // Canonicalize the given path
+    let canonicalized_path = fs::canonicalize(&path)?;
+
+    // Get the current directory
+    let current_dir = env::current_dir()?;
+
+    // Canonicalize the current directory
+    let current_dir = fs::canonicalize(&current_dir)?;
+
+    // Compute the relative path
+    let relative_path = pathdiff::diff_paths(&canonicalized_path, &current_dir)
+        .ok_or("Failed to compute relative path")?;
+
+    Ok(relative_path)
 }
 
 pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs) -> Result<()> {
@@ -126,11 +144,24 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
 
     let extra_files = include_files.iter().cloned();
 
-    let combined_files = file_copies_list
+    let mut combined_files = file_copies_list
         .chain(late_mod_list)
         .chain(early_mod_list)
         .chain(lib_list)
         .chain(extra_files)
+        .map(|p| get_relative_pathbuf(p.to_path_buf()).unwrap())
+        .collect_vec();
+
+    if let Some(cover_image) = new_manifest.cover_image.as_ref() {
+        if let Ok(cover_image_path) = get_relative_pathbuf(PathBuf::from(cover_image)) {
+            if cover_image_path.exists() {
+                combined_files.push(cover_image_path);
+            }
+        }
+    }
+
+    let combined_files = combined_files
+        .iter()
         .unique()
         .collect_vec();
 
