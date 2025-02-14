@@ -1,3 +1,5 @@
+use std::fs;
+
 use clap::{Args, Subcommand};
 use color_eyre::{
     eyre::{bail, Context},
@@ -5,8 +7,7 @@ use color_eyre::{
 };
 use owo_colors::OwoColorize;
 use qpm_package::models::{
-    extra::PackageDependencyModifier,
-    package::{PackageConfig, PackageDependency},
+    dependency::SharedPackageConfig, extra::PackageDependencyModifier, package::{PackageConfig, PackageDependency}
 };
 use semver::VersionReq;
 
@@ -30,6 +31,8 @@ pub enum DependencyOperation {
     Add(DependencyOperationAddArgs),
     /// Remove a dependency
     Remove(DependencyOperationRemoveArgs),
+    /// Sort the dependencies alphabetically
+    Sort,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -60,6 +63,7 @@ impl Command for DependencyCommand {
         match self.op {
             DependencyOperation::Add(a) => a.execute(),
             DependencyOperation::Remove(r) => remove_dependency(r),
+            DependencyOperation::Sort => sort_dependencies(),
         }
     }
 }
@@ -145,5 +149,28 @@ fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<(
     let mut package = PackageConfig::read(".")?;
     package.dependencies.retain(|p| p.id != dependency_args.id);
     package.write(".")?;
+    Ok(())
+}
+
+fn sort_dependencies() -> Result<()> {
+    let mut package = PackageConfig::read(".")?;
+
+    // Sort the dependencies by id
+    package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+
+    // Write the package back to the file
+    package.write(".")?;
+
+    // Check if the qpm.shared.json file exists
+    if fs::exists("qpm.shared.json").unwrap_or(false) {
+        // Read the shared package
+        let mut shared_package = SharedPackageConfig::read(".")?;
+
+        // Sort the dependencies by id
+        shared_package.config.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+
+        // Write the shared package back to the file
+        shared_package.write(".")?;
+    }
     Ok(())
 }
