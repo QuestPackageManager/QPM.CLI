@@ -50,12 +50,20 @@ pub struct DependencyOperationAddArgs {
     /// Additional data for the dependency (as a valid json object)
     #[clap(long)]
     pub additional_data: Option<String>,
+
+    /// If the dependencies should be sorted after removing
+    #[clap(long, default_value = "false")]
+    pub sort: bool,
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct DependencyOperationRemoveArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
+
+    /// If the dependencies should be sorted after removing
+    #[clap(long, default_value = "false")]
+    pub sort: bool,
 }
 
 impl Command for DependencyCommand {
@@ -102,7 +110,7 @@ impl Command for DependencyOperationAddArgs {
             Option::None => None,
         };
 
-        put_dependency(&self.id, version, additional_data)
+        put_dependency(&self.id, version, additional_data, self.sort)
     }
 }
 
@@ -110,6 +118,7 @@ fn put_dependency(
     id: &str,
     version: VersionReq,
     additional_data: Option<PackageDependencyModifier>,
+    sort: bool,
 ) -> Result<()> {
     println!(
         "Adding dependency with id {} and version {}",
@@ -141,6 +150,10 @@ fn put_dependency(
         None => package.dependencies.push(dep),
     }
 
+    if sort {
+        package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+    }
+
     package.write(".")?;
     Ok(())
 }
@@ -148,6 +161,11 @@ fn put_dependency(
 fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
     package.dependencies.retain(|p| p.id != dependency_args.id);
+
+    if dependency_args.sort {
+        package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+    }
+
     package.write(".")?;
     Ok(())
 }
