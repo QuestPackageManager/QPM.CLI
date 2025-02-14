@@ -144,21 +144,16 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
 
     let extra_files = include_files.iter().cloned();
 
+    let cover_image = new_manifest.cover_image.as_ref().map(PathBuf::from);
+
     let mut combined_files = file_copies_list
         .chain(late_mod_list)
         .chain(early_mod_list)
         .chain(lib_list)
         .chain(extra_files)
-        .map(|p| get_relative_pathbuf(p.to_path_buf()).unwrap())
-        .collect_vec();
+        .chain(cover_image.into_iter())
+        .map(|p| get_relative_pathbuf(p.to_path_buf()).unwrap());
 
-    if let Some(cover_image) = new_manifest.cover_image.as_ref() {
-        if let Ok(cover_image_path) = get_relative_pathbuf(PathBuf::from(cover_image)) {
-            if cover_image_path.exists() {
-                combined_files.push(cover_image_path);
-            }
-        }
-    }
 
     let combined_files = combined_files
         .iter()
