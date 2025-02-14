@@ -146,17 +146,13 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
 
     let cover_image = new_manifest.cover_image.as_ref().map(PathBuf::from);
 
-    let mut combined_files = file_copies_list
+    let combined_files = file_copies_list
         .chain(late_mod_list)
         .chain(early_mod_list)
         .chain(lib_list)
         .chain(extra_files)
         .chain(cover_image.into_iter())
-        .map(|p| get_relative_pathbuf(p.to_path_buf()).unwrap());
-
-
-    let combined_files = combined_files
-        .iter()
+        .map(|p| get_relative_pathbuf(p.to_path_buf()).unwrap())
         .unique()
         .collect_vec();
 
