@@ -55,6 +55,9 @@ pub struct ZipQmodOperationArgs {
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
 
+    #[clap(long = "skip_build", default_value = "false")]
+    pub(crate) skip_build: bool,
+
     #[clap()]
     pub(crate) out_target: Option<PathBuf>,
 }
@@ -78,8 +81,10 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     // Run build script
     let build_script = &package.workspace.get_build();
     if let Some(build_script) = build_script {
-        println!("Running build script");
-        scripts::invoke_script(build_script, &[])?;
+        if !build_parameters.skip_build {
+            println!("Running build script");
+            scripts::invoke_script(build_script, &[])?;
+        }
     }
 
     let include_dirs = build_parameters
