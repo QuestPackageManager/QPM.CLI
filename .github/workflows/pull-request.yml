@@ -2,6 +2,7 @@
 name: Pull Request Test
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths-ignore:
@@ -13,59 +14,4 @@ on:
       - "installer/**"
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-13]
-        include:
-          - os: ubuntu-latest
-            file-name: qpm
-            prefix: linux
-
-          - os: macOS-13
-            file-name: qpm
-            prefix: macos
-
-          - os: windows-latest
-            file-name: qpm.exe
-            prefix: windows
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Get libdbus if Ubuntu
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: |
-          sudo apt-get install -y libdbus-1-dev
-
-      - name: Cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
-
-      - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release
-
-      - name: Upload executable
-        uses:  actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.prefix }}-${{ matrix.file-name }}
-          path: ./target/release/${{ matrix.file-name }}
-          if-no-files-found: error
+    uses: ./.github/workflows/cargo-build.yml
