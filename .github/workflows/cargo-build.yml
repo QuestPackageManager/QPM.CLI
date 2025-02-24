@@ -17,16 +17,6 @@ on:
         required: false
         type: string
         default: 1.0.0
-  
-  push:
-    branches: [main]
-    paths-ignore:
-      - "README.md"
-      - "**.json"
-      - "**.yml"
-      - "LICENSE"
-      - "!.github/workflows/cargo-build.yml"
-      - "installer/**"
 
 jobs:
   version:
