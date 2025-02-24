@@ -192,13 +192,13 @@ jobs:
       - name: Artifact Upload (Archive)
         uses: actions/upload-artifact@v4
         with:
-          name: qpm-macos-universal
+          name: qpm-macos
           path: qpm-macos-universal.zip
           if-no-files-found: error
 
       - name: Artifact Upload
         uses: actions/upload-artifact@v4
         with:
-          name: macos-universal-qpm
+          name: macos-qpm
           path: qpm
           if-no-files-found: error
