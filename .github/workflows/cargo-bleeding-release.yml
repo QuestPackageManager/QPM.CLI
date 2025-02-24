@@ -34,11 +34,14 @@ jobs:
           pattern: qpm-*
           path: artifacts
 
-      - name: Move bleeding tag
+      - name: Delete bleeding tag
         run: |
-          git tag -f bleeding
-          git push -f origin bleeding
+          git push -d origin bleeding || true
 
+      # Give GitHub time to delete the old release
+      - name: Sleep
+        run: sleep 10
+        
       - name: Bleeeding Artifact Upload
         uses: softprops/action-gh-release@v1
         with:
