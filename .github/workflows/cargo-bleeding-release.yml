@@ -37,8 +37,11 @@ jobs:
           gh release delete bleeding -y --cleanup-tag || true
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Delay 10s
+        run: sleep 10
         
-      - name: Bleeeding Artifact Upload
+      - name: Bleeding Artifact Upload
         uses: softprops/action-gh-release@v1
         with:
           body: |
