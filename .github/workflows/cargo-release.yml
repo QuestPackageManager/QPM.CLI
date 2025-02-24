@@ -1,4 +1,4 @@
-# Runs on push to main, basically the "release" version since we don't really do releases (that's bad right)
+# Runs when a new release is published.
 name: Cargo Release
 
 on:
@@ -39,6 +39,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: release-*
           path: artifacts
 
       - name: Release Artifact Upload
@@ -65,7 +66,7 @@ jobs:
       - name: Submit to winget
         id: winget_deploy
         uses: vedantmgoyal9/winget-releaser@main
-        if: ${{ env.winget_token_present == 'true' }}
+        if: env.winget_token_present == 'true'
         with:
           identifier: QuestPackageManager.QuestPackageManager
           installers-regex: 'installer\.exe$'
