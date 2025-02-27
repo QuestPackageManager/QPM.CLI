@@ -2,9 +2,10 @@ use clap::{Args, Subcommand};
 
 use super::Command;
 
-mod create;
-mod edit;
-mod edit_extra;
+pub(crate) mod create;
+pub(crate) mod edit;
+pub(crate) mod edit_extra;
+pub(crate) mod format;
 
 #[derive(Args, Debug, Clone)]
 
@@ -22,6 +23,8 @@ pub enum PackageOperation {
     Edit(edit::EditArgs),
     /// Edit extra supported properties of the package
     EditExtra(edit_extra::EditExtraArgs),
+    /// Re-serialize the qpm.json file
+    Format(format::FormatArgs),
 }
 
 impl Command for PackageCommand {
@@ -30,6 +33,7 @@ impl Command for PackageCommand {
             PackageOperation::Create(c) => c.execute(),
             PackageOperation::Edit(e) => e.execute(),
             PackageOperation::EditExtra(ee) => ee.execute(),
+            PackageOperation::Format(f) => f.execute(),
         }
     }
 }
