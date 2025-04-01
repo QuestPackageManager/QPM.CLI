@@ -146,15 +146,62 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
 
     let cover_image = new_manifest.cover_image.as_ref().map(PathBuf::from);
 
-    let combined_files = file_copies_list
+    let combined_files = {
+        // Combine all the files into a single iterator
+        let combined_files = file_copies_list
         .chain(late_mod_list)
         .chain(early_mod_list)
         .chain(lib_list)
         .chain(extra_files)
-        .chain(cover_image.into_iter())
-        .map(|p| get_relative_pathbuf(p.to_path_buf()).unwrap())
-        .unique()
-        .collect_vec();
+        .chain(cover_image.into_iter());
+
+        // Loop over the files to make sure they all exist.  Store the missing files in a vector to panic later.
+        {
+            let mut missing_files = vec![];
+            let mut folders = vec![];
+
+            for file in combined_files.clone() {
+                if !file.exists() {
+                    missing_files.push(file.to_str().unwrap().to_owned());
+                }
+
+                if file.is_dir() {
+                    folders.push(file.to_str().unwrap().to_owned());
+                }
+            }
+
+            // If there are any folders, panic and print the list. We don't support folders yet.
+            if folders.len() > 0 {
+                panic!(
+                    "Folders aren't supported in qmods:\n{}",
+                    folders
+                        .iter()
+                        .map(|s| format!("\t{}", s.file_path_color()))
+                        .join("\n")
+                );
+            }
+
+            // If there are any missing files, panic and print the list of missing files.
+            if missing_files.len() > 0 {
+                panic!(
+                    "The following files were not found:\n{}",
+                    missing_files
+                        .iter()
+                        .map(|s| format!("\t{}", s.file_path_color()))
+                        .join("\n")
+                );
+            }
+        }
+
+        // Now that we know all the files exist, we can return the paths.
+        combined_files
+            .map(|p| {
+            let relative_path = get_relative_pathbuf(p.to_path_buf()).unwrap();
+            (p, relative_path)
+            })
+            .unique_by(|(original_path, _)| format!("{}", original_path.file_name().unwrap().to_str().unwrap()))
+            .collect_vec()
+    };
 
     let out_target_qmod = qmod_out.with_extension("qmod");
 
@@ -166,7 +213,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         "Using files: \n{}",
         combined_files
             .iter()
-            .map(|s| format!("\t{}", s.to_string_lossy().file_path_color()))
+            .map(|(original_path, _)| format!("\t{}", original_path.to_string_lossy().file_path_color()))
             .join("\n")
     );
     let mut zip_file = File::create(&out_target_qmod)?;
@@ -175,13 +222,13 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
 
     let options =
         zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
-    for file in combined_files {
-        println!("Adding file {}", file.to_string_lossy().green());
+    for (original_path, resolved_path) in combined_files {
+        println!("Adding file {}", original_path.to_string_lossy().green());
 
         // 50kb
-        let contents = fs::read(&file)?;
+        let contents = fs::read(&resolved_path)?;
 
-        zip.start_file(file.file_name().unwrap().to_string_lossy(), options)?;
+        zip.start_file(original_path.file_name().unwrap().to_string_lossy(), options)?;
         zip.write_all(contents.as_slice())?;
     }
 
