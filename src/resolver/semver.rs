@@ -1,13 +1,14 @@
 use std::fmt;
 
-use pubgrub::range::Range;
+
+use pubgrub::Range;
 use semver::{Comparator, Op, Prerelease, VersionReq};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VersionWrapper(pub semver::Version);
 
 pub fn req_to_range(req: VersionReq) -> Range<VersionWrapper> {
-    let mut range = Range::any();
+    let mut range = Range::full();
     for comparator in req.comparators {
         let next = match comparator {
             Comparator {
@@ -183,7 +184,7 @@ pub fn req_to_range(req: VersionReq) -> Range<VersionWrapper> {
 }
 
 fn exact_xyz(major: u64, minor: u64, patch: u64, pre: Prerelease) -> Range<VersionWrapper> {
-    Range::exact(semver::Version {
+    Range::singleton(semver::Version {
         major,
         minor,
         patch,
@@ -209,8 +210,13 @@ fn exact_x(major: u64) -> Range<VersionWrapper> {
 }
 
 fn greater_xyz(major: u64, minor: u64, patch: u64, pre: Prerelease) -> Range<VersionWrapper> {
-    greater_eq_xyz(major, minor, patch, pre.clone())
-        .intersection(&exact_xyz(major, minor, patch, pre).negate())
+    Range::strictly_higher_than(semver::Version {
+        major,
+        minor,
+        patch,
+        pre,
+        build: Default::default(),
+    })
 }
 fn greater_xy(major: u64, minor: u64) -> Range<VersionWrapper> {
     greater_eq_xyz(major, minor + 1, 0, Prerelease::EMPTY)
@@ -307,17 +313,7 @@ fn wildcard_x(major: u64) -> Range<VersionWrapper> {
     exact_x(major)
 }
 
-impl pubgrub::version::Version for VersionWrapper {
-    fn lowest() -> Self {
-        Self(semver::Version::new(0, 0, 0))
-    }
 
-    fn bump(&self) -> Self {
-        let mut v = self.0.clone();
-        v.patch += 1;
-        Self(v)
-    }
-}
 
 macro_rules! impl_traits {
     ($($t:ty => $tt:ty),*) => {
