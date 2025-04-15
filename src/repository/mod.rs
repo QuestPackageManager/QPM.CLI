@@ -23,7 +23,7 @@ pub trait Repository {
     /// Returns None if the package is not found in any repository
     /// Ordered by version descending
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>>;
-    
+
     fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>>;
     // add to the db cache
     // this just stores the shared config itself, not the package

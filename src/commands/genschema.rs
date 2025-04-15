@@ -2,13 +2,14 @@ use clap::Args;
 use color_eyre::eyre::Context;
 
 use crate::{
-    models::{config::UserConfig, schemas::SchemaLinks, toolchain::ToolchainData}, repository::local::FileRepository
+    models::{config::UserConfig, schemas::SchemaLinks, toolchain::ToolchainData},
+    repository::local::FileRepository,
 };
 
 use super::Command;
 
 #[derive(Args, Clone, Debug)]
-pub struct GenSchemaCommand { }
+pub struct GenSchemaCommand {}
 
 impl GenSchemaCommand {
     fn write_schema<T: ?Sized + schemars::JsonSchema>(url: &str) -> color_eyre::Result<()> {

@@ -6,8 +6,8 @@ use std::{
 };
 
 use color_eyre::{
-    eyre::{bail, Context},
     Result, Section,
+    eyre::{Context, bail},
 };
 use owo_colors::OwoColorize;
 //use duct::cmd;

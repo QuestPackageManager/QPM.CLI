@@ -1,7 +1,7 @@
 use bytes::{BufMut, BytesMut};
 use color_eyre::{
-    eyre::{bail, Context, OptionExt},
     Result, Section,
+    eyre::{Context, OptionExt, bail},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
@@ -239,7 +239,9 @@ impl QPMRepository {
                         )
                     })?;
             } else {
-                bail!("Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo");
+                bail!(
+                    "Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo"
+                );
             }
 
             // clear up tmp folder if it still exists

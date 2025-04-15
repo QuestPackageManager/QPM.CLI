@@ -54,8 +54,10 @@ pub(crate) fn generate_qmod_manifest(
     shared_package: SharedPackageConfig,
     build_parameters: ManifestQmodOperationArgs,
 ) -> Result<ModJson> {
-    ensure!(std::path::Path::new("mod.template.json").exists(),
-        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
+    ensure!(
+        std::path::Path::new("mod.template.json").exists(),
+        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\""
+    );
     println!("Generating mod.json file from template using qpm.shared.json...");
 
     let binary = shared_package

@@ -7,8 +7,8 @@ use std::{
 };
 
 use color_eyre::{
-    eyre::{ensure, Context},
     Result,
+    eyre::{Context, ensure},
 };
 
 use crate::models::config::get_combine_config;
@@ -65,7 +65,7 @@ where
             }
             Err(e) => {
                 return Err(e)
-                    .with_context(|| format!("Failed to continue reading bytes from {url}"))
+                    .with_context(|| format!("Failed to continue reading bytes from {url}"));
             }
         }
     }

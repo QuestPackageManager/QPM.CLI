@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use bytes::{BufMut, BytesMut};
-use color_eyre::{eyre::OptionExt, Report, Result};
+use color_eyre::{Report, Result, eyre::OptionExt};
 use itertools::Itertools;
 use qpm_package::models::{
     dependency::SharedPackageConfig,
@@ -12,7 +12,7 @@ use semver::{Version, VersionReq};
 
 use qpm_cli::{
     network::agent::download_file_report,
-    repository::{self, local::FileRepository, qpackages::QPMRepository, Repository},
+    repository::{self, Repository, local::FileRepository, qpackages::QPMRepository},
     resolver::dependency,
 };
 
@@ -100,10 +100,12 @@ fn resolve() -> Result<()> {
 
     assert_ne!(bs_hooks, None);
 
-    assert!(bs_hooks_dep
-        .unwrap()
-        .version_range
-        .matches(&bs_hooks.unwrap().config.info.version));
+    assert!(
+        bs_hooks_dep
+            .unwrap()
+            .version_range
+            .matches(&bs_hooks.unwrap().config.info.version)
+    );
 
     println!(
         "Resolved deps: {:?}",

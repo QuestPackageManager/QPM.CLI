@@ -3,8 +3,8 @@ use std::{env, fs::File, io::Read, path::Path};
 use clap::Args;
 
 use color_eyre::{
-    eyre::{bail, eyre, ContextCompat, Result},
     Section,
+    eyre::{ContextCompat, Result, bail, eyre},
 };
 use itertools::Itertools;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
@@ -14,7 +14,7 @@ use crate::{
     models::{
         config::get_combine_config,
         package::{
-            PackageConfigExtensions, SharedPackageConfigExtensions, SHARED_PACKAGE_FILE_NAME,
+            PackageConfigExtensions, SHARED_PACKAGE_FILE_NAME, SharedPackageConfigExtensions,
         },
     },
     repository::{self, Repository},
@@ -24,8 +24,7 @@ use crate::{
 
 use super::Command;
 
-#[derive(Args)]
-#[derive(Default)]
+#[derive(Args, Default)]
 pub struct RestoreCommand {
     #[clap(default_value = "false", long, short)]
     update: bool,
@@ -81,12 +80,16 @@ impl Command for RestoreCommand {
             eprintln!(
                 "It seems that the current repository has {SHARED_PACKAGE_FILE_NAME} ignored. "
             );
-            eprintln!("Please commit it to avoid inconsistent dependency resolving. git add {SHARED_PACKAGE_FILE_NAME} --force");
+            eprintln!(
+                "Please commit it to avoid inconsistent dependency resolving. git add {SHARED_PACKAGE_FILE_NAME} --force"
+            );
         }
 
         if unlocked && env::var("CI") == Ok("true".to_string()) {
             eprintln!("Running in CI and using unlocked resolve, this seems like a bug!");
-            eprintln!("Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository");
+            eprintln!(
+                "Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository"
+            );
         }
 
         let resolved_deps = match &mut shared_package_opt {

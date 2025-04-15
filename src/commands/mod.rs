@@ -9,6 +9,7 @@ pub mod config;
 pub mod dependency;
 pub mod doctor;
 pub mod download;
+pub mod genschema;
 pub mod install;
 pub mod list;
 pub mod ndk;
@@ -18,7 +19,6 @@ pub mod qmod;
 pub mod restore;
 pub mod scripts;
 pub mod version;
-pub mod genschema;
 
 #[cfg(feature = "templatr")]
 pub mod templatr;

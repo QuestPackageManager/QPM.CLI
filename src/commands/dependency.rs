@@ -1,14 +1,14 @@
-
+use super::package::format::reserialize_package;
 use clap::{Args, Subcommand};
 use color_eyre::{
-    eyre::{bail, Context},
     Result,
+    eyre::{Context, bail},
 };
 use owo_colors::OwoColorize;
 use qpm_package::models::{
-    extra::PackageDependencyModifier, package::{PackageConfig, PackageDependency}
+    extra::PackageDependencyModifier,
+    package::{PackageConfig, PackageDependency},
 };
-use super::package::format::reserialize_package;
 use semver::VersionReq;
 
 use crate::{
@@ -90,9 +90,9 @@ impl Command for DependencyOperationAddArgs {
 
         if versions.is_none() || versions.as_ref().unwrap().is_empty() {
             bail!(
-            "Package {} does not seem to exist qpackages, please make sure you spelled it right, and that it's an actual package!",
-            self.id.bright_green()
-        );
+                "Package {} does not seem to exist qpackages, please make sure you spelled it right, and that it's an actual package!",
+                self.id.bright_green()
+            );
         }
 
         let version = match self.version {

@@ -1,6 +1,5 @@
 use std::fmt;
 
-
 use pubgrub::Range;
 use semver::{Comparator, Op, Prerelease, VersionReq};
 
@@ -312,8 +311,6 @@ fn wildcard_xy(major: u64, minor: u64) -> Range<VersionWrapper> {
 fn wildcard_x(major: u64) -> Range<VersionWrapper> {
     exact_x(major)
 }
-
-
 
 macro_rules! impl_traits {
     ($($t:ty => $tt:ty),*) => {

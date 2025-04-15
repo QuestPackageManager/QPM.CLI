@@ -1,17 +1,14 @@
 use std::fs;
 
 use clap::Args;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 use color_eyre::Result;
+use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
-use crate::{
-    commands::Command,
-    models::package::PackageConfigExtensions,
-};
+use crate::{commands::Command, models::package::PackageConfigExtensions};
 
 #[derive(Args, Debug, Clone)]
 
-pub struct FormatArgs { }
+pub struct FormatArgs {}
 
 impl Command for FormatArgs {
     fn execute(self) -> color_eyre::Result<()> {
@@ -38,7 +35,10 @@ pub fn reserialize_package(sort: bool) -> Result<()> {
 
         if sort {
             // Sort the dependencies by id
-            shared_package.config.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+            shared_package
+                .config
+                .dependencies
+                .sort_by(|a, b| a.id.cmp(&b.id));
         }
 
         // Write the shared package back to the file

@@ -10,7 +10,7 @@ use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
 use qpm_qmod::models::mod_json::ModJson;
 
-use crate::commands::qmod::manifest::{generate_qmod_manifest, ManifestQmodOperationArgs};
+use crate::commands::qmod::manifest::{ManifestQmodOperationArgs, generate_qmod_manifest};
 use crate::commands::scripts;
 use crate::models::mod_json::ModJsonExtensions;
 use crate::models::package::PackageConfigExtensions;
@@ -81,8 +81,10 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
 }
 
 pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs) -> Result<()> {
-    ensure!(std::path::Path::new("mod.template.json").exists(),
-        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\"");
+    ensure!(
+        std::path::Path::new("mod.template.json").exists(),
+        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\""
+    );
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
@@ -186,10 +188,13 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     }
 
     zip.start_file(ModJson::get_result_name(), options)?;
-    serde_json::to_writer_pretty(&mut zip, &WithSchema {
-        schema: SchemaLinks::MOD_CONFIG,
-        value: new_manifest
-    })?;
+    serde_json::to_writer_pretty(
+        &mut zip,
+        &WithSchema {
+            schema: SchemaLinks::MOD_CONFIG,
+            value: new_manifest,
+        },
+    )?;
     // Apply the changes you've made.
     // Dropping the `ZipWriter` will have the same effect, but may silently fail
     zip.finish()?;

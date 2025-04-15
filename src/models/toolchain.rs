@@ -102,9 +102,12 @@ pub fn write_toolchain_file(
         debug_binary_out: None,
     };
     let file = File::create(toolchain_path)?;
-    serde_json::to_writer_pretty(file, &WithSchema {
-        schema: SchemaLinks::TOOLCHAIN_DATA,
-        value: toolchain
-    })?;
+    serde_json::to_writer_pretty(
+        file,
+        &WithSchema {
+            schema: SchemaLinks::TOOLCHAIN_DATA,
+            value: toolchain,
+        },
+    )?;
     Ok(())
 }

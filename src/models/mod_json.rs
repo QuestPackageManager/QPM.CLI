@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{Result, eyre::Context};
 
 use itertools::Itertools;
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
@@ -74,11 +74,14 @@ impl ModJsonExtensions for ModJson {
     fn write(&self, path: &Path) -> Result<()> {
         let file = File::create(path)
             .with_context(|| format!("Unable to create ModJson file at {path:?}"))?;
-        serde_json::to_writer_pretty(file, &WithSchema {
-            schema: SchemaLinks::MOD_CONFIG,
-            value: self
-        })
-            .with_context(|| format!("Unable to deserialize ModJson file at {path:?}"))?;
+        serde_json::to_writer_pretty(
+            file,
+            &WithSchema {
+                schema: SchemaLinks::MOD_CONFIG,
+                value: self,
+            },
+        )
+        .with_context(|| format!("Unable to deserialize ModJson file at {path:?}"))?;
         Ok(())
     }
 

@@ -18,8 +18,8 @@ use color_eyre::{
 };
 use itertools::Itertools;
 use pubgrub::{
-    DefaultStringReporter, Dependencies, DependencyProvider, OfflineDependencyProvider,
-    PackageResolutionStatistics, PubGrubError, Reporter,
+    DefaultStringReporter, Dependencies, DependencyProvider, PackageResolutionStatistics,
+    PubGrubError, Reporter,
 };
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
@@ -136,7 +136,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         if version_count == 0 {
             return (u32::MAX, Reverse(0));
         }
-        
+
         // Prioritize packages that have had more conflicts first
         // and versions with fewer options (using Reverse) second
         (package_statistics.conflict_count(), Reverse(version_count))

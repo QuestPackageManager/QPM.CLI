@@ -5,8 +5,8 @@ use std::{
 
 use clap::{Args, Subcommand};
 use color_eyre::{
-    eyre::{bail, eyre, Context},
     Result, Section,
+    eyre::{Context, bail, eyre},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;

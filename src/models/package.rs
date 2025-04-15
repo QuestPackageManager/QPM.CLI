@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
 
-use color_eyre::{eyre::Context, owo_colors::OwoColorize, Result, Section};
+use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
 use itertools::Itertools;
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
@@ -14,7 +14,10 @@ use semver::VersionReq;
 
 use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
 
-use super::{schemas::{SchemaLinks, WithSchema}, toolchain};
+use super::{
+    schemas::{SchemaLinks, WithSchema},
+    toolchain,
+};
 
 pub const PACKAGE_FILE_NAME: &str = "qpm.json";
 pub const SHARED_PACKAGE_FILE_NAME: &str = "qpm.shared.json";
@@ -60,11 +63,14 @@ impl PackageConfigExtensions for PackageConfig {
         let path = dir.as_ref().join(PACKAGE_FILE_NAME);
         let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
-        serde_json::to_writer_pretty(file, &WithSchema {
-            schema: SchemaLinks::PACKAGE_CONFIG,
-            value: self
-        })
-            .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
+        serde_json::to_writer_pretty(
+            file,
+            &WithSchema {
+                schema: SchemaLinks::PACKAGE_CONFIG,
+                value: self,
+            },
+        )
+        .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
         Ok(())
     }
 
@@ -115,11 +121,14 @@ impl PackageConfigExtensions for SharedPackageConfig {
         let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
         let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
-        serde_json::to_writer_pretty(file, &WithSchema {
-            schema: SchemaLinks::SHARED_PACKAGE_CONFIG,
-            value: self
-        })
-            .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
+        serde_json::to_writer_pretty(
+            file,
+            &WithSchema {
+                schema: SchemaLinks::SHARED_PACKAGE_CONFIG,
+                value: self,
+            },
+        )
+        .with_context(|| format!("Unable to write PackageConfig at {path:?}"))?;
         Ok(())
     }
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
@@ -167,7 +176,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                         },
                         version: d.config.info.version.clone(),
                     })
-                    .collect()
+                    .collect(),
             },
             resolved_deps,
         ))

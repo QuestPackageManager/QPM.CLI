@@ -5,7 +5,7 @@ use std::{
     sync,
 };
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{Result, eyre::Context};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
@@ -98,11 +98,14 @@ impl UserConfig {
 
         let mut file = File::create(&path)
             .with_context(|| format!("Unable to write config file at {path:?}"))?;
-        serde_json::to_writer_pretty(&mut file, &WithSchema {
-            schema: SchemaLinks::USER_CONFIG,
-            value: self
-        })
-            .with_context(|| format!("Unable to serialize global config file at {path:?}"))?;
+        serde_json::to_writer_pretty(
+            &mut file,
+            &WithSchema {
+                schema: SchemaLinks::USER_CONFIG,
+                value: self,
+            },
+        )
+        .with_context(|| format!("Unable to serialize global config file at {path:?}"))?;
 
         Ok(())
     }

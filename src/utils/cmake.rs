@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{Result, eyre::Context};
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
     models::dependency::SharedPackageConfig,
@@ -28,7 +28,9 @@ pub fn write_cmake(shared_package: &SharedPackageConfig, repo: &impl Repository)
     let cmake_opt = shared_package.config.info.additional_data.cmake;
 
     if cmake_opt.is_none() && Path::new("./CMakeLists.txt").exists() {
-        eprintln!("qpm.json::info::additional_data::cmake is undefined in a CMake project, consider setting it to true");
+        eprintln!(
+            "qpm.json::info::additional_data::cmake is undefined in a CMake project, consider setting it to true"
+        );
     }
 
     // default to true
@@ -68,13 +70,19 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
 
             if let Some(include_dirs) = compile_options.include_paths {
                 for dir in include_dirs.iter() {
-                    writeln!(result, "target_include_directories(${{COMPILE_ID}} PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})")?;
+                    writeln!(
+                        result,
+                        "target_include_directories(${{COMPILE_ID}} PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})"
+                    )?;
                 }
             }
 
             if let Some(system_include_dirs) = compile_options.system_includes {
                 for dir in system_include_dirs.iter() {
-                    writeln!(result, "target_include_directories(${{COMPILE_ID}} SYSTEM PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})")?;
+                    writeln!(
+                        result,
+                        "target_include_directories(${{COMPILE_ID}} SYSTEM PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})"
+                    )?;
                 }
             }
 

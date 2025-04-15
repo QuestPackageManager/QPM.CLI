@@ -8,7 +8,7 @@
 use std::io;
 
 use clap::{CommandFactory, Parser};
-use clap_complete::{generate, Generator, Shell};
+use clap_complete::{Generator, Shell, generate};
 use color_eyre::Result;
 use commands::Command;
 
@@ -29,7 +29,12 @@ mod benchmark;
 mod tests;
 
 fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
-    generate(generator, cmd, cmd.get_name().to_string(), &mut io::stdout());
+    generate(
+        generator,
+        cmd,
+        cmd.get_name().to_string(),
+        &mut io::stdout(),
+    );
 }
 
 /// Suggests the location where to pipe the auto-generated completion script
@@ -43,7 +48,9 @@ fn suggest_completion_location(shell: Shell) {
     // we make it its own suggestion
     if shell == Shell::PowerShell {
         eprintln!("\tqpm --generate {shell} | Set-Content \"$HOME\\qpm_autocomplete.ps1\"");
-        eprintln!("\t'if (Test-Path \"$HOME\\qpm_autocomplete.ps1\") {{ . \"$HOME\\qpm_autocomplete.ps1\" }}' | Add-Content -Path $PROFILE");
+        eprintln!(
+            "\t'if (Test-Path \"$HOME\\qpm_autocomplete.ps1\") {{ . \"$HOME\\qpm_autocomplete.ps1\" }}' | Add-Content -Path $PROFILE"
+        );
     } else {
         let loc = match shell {
             Shell::Bash => format!("/etc/bash_completion.d/{file_name}"),

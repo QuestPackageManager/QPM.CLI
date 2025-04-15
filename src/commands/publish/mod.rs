@@ -1,11 +1,11 @@
 use clap::Args;
-use color_eyre::eyre::{anyhow, bail, Context};
+use color_eyre::eyre::{Context, anyhow, bail};
 use owo_colors::OwoColorize;
 use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
 
 use crate::{
     models::{config::get_publish_keyring, package::PackageConfigExtensions},
-    repository::{qpackages::QPMRepository, Repository},
+    repository::{Repository, qpackages::QPMRepository},
     terminal::colors::QPMColor,
 };
 
@@ -69,7 +69,10 @@ impl Command for PublishCommand {
 
         // check if url is set to download headers
         if shared_package.config.info.url.is_none() {
-            bail!("info.url is null, please make sure to init this with the base link to your repo, e.g. '{}'", "https://github.com/RedBrumbler/QuestPackageManager-Rust".bright_yellow());
+            bail!(
+                "info.url is null, please make sure to init this with the base link to your repo, e.g. '{}'",
+                "https://github.com/RedBrumbler/QuestPackageManager-Rust".bright_yellow()
+            );
         }
         // check if this is header only, if it's not header only check if the so_link is set, if not, panic
         if !shared_package
@@ -80,7 +83,9 @@ impl Command for PublishCommand {
             .unwrap_or(false)
             && shared_package.config.info.additional_data.so_link.is_none()
         {
-            bail!("soLink is not set in the package config, but this package is not header only, please make sure to either add the soLink or to make the package header only.");
+            bail!(
+                "soLink is not set in the package config, but this package is not header only, please make sure to either add the soLink or to make the package header only."
+            );
         }
 
         // TODO: Implement a check that gets the repo and checks if the shared folder and subfolder exists, if not it throws an error and won't let you publish

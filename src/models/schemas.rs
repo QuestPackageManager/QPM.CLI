@@ -1,4 +1,4 @@
-use serde::{Serialize};
+use serde::Serialize;
 
 /// A struct that wraps a value with a schema reference.
 #[derive(Serialize)]

@@ -1,5 +1,5 @@
 use clap::{Args, Subcommand};
-use color_eyre::{owo_colors::OwoColorize, Result};
+use color_eyre::{Result, owo_colors::OwoColorize};
 
 use super::Command;
 

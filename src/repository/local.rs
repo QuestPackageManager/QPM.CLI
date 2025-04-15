@@ -1,6 +1,6 @@
 use color_eyre::{
-    eyre::{bail, ensure, Context, ContextCompat, OptionExt},
     Result,
+    eyre::{Context, ContextCompat, OptionExt, bail, ensure},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
@@ -8,7 +8,11 @@ use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{hash_map::Entry, HashMap}, fs, io::{BufReader, Write}, ops::Not, path::{Path, PathBuf}
+    collections::{HashMap, hash_map::Entry},
+    fs,
+    io::{BufReader, Write},
+    ops::Not,
+    path::{Path, PathBuf},
 };
 
 use qpm_package::{
@@ -17,7 +21,11 @@ use qpm_package::{
 };
 
 use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions, schemas::{SchemaLinks, WithSchema}},
+    models::{
+        config::get_combine_config,
+        package::PackageConfigExtensions,
+        schemas::{SchemaLinks, WithSchema},
+    },
     terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
 };
@@ -217,8 +225,9 @@ impl FileRepository {
     pub fn write(&self) -> Result<()> {
         let config = serde_json::to_string_pretty(&WithSchema {
             schema: SchemaLinks::FILE_REPOSITORY,
-            value: self
-        }).expect("Serialization failed");
+            value: self,
+        })
+        .expect("Serialization failed");
         let path = Self::global_file_repository_path();
 
         std::fs::create_dir_all(Self::global_repository_dir())
@@ -277,15 +286,27 @@ impl FileRepository {
 
             if let Err(e) = &symlink_result {
                 #[cfg(windows)]
-                eprintln!("Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}", e.bright_red(), "qpm config symlink disable".bright_yellow());
+                eprintln!(
+                    "Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}",
+                    e.bright_red(),
+                    "qpm config symlink disable".bright_yellow()
+                );
                 #[cfg(not(windows))]
-                eprintln!("Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}", e.bright_red(), "qpm config symlink disable".bright_yellow());
+                eprintln!(
+                    "Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}",
+                    e.bright_red(),
+                    "qpm config symlink disable".bright_yellow()
+                );
             }
 
             if !symlink || symlink_result.is_err() {
                 // if dir, make sure it exists
                 if !src.exists() {
-                    bail!("The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...", src.display().bright_yellow(), "qpm cache clear".bright_yellow());
+                    bail!(
+                        "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
+                        src.display().bright_yellow(),
+                        "qpm cache clear".bright_yellow()
+                    );
                 } else if src.is_dir() {
                     std::fs::create_dir_all(&dest)
                         .context("Failed to create destination folder")?;

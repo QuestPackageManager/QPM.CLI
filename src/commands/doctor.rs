@@ -2,8 +2,8 @@ use std::{env, fs::File};
 
 use clap::Args;
 use color_eyre::{
-    eyre::{anyhow, bail},
     Help, Result,
+    eyre::{anyhow, bail},
 };
 use owo_colors::OwoColorize;
 
@@ -45,7 +45,9 @@ impl Command for DoctorCommand {
         let qpm = look_path("qpm")?;
 
         if !cmake {
-            eprintln!("CMake is not installed in path! Use winget or your OS package manager to install CMake.")
+            eprintln!(
+                "CMake is not installed in path! Use winget or your OS package manager to install CMake."
+            )
         } else {
             println!("Cmake found!");
         }

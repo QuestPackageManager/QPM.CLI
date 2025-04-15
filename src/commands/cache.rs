@@ -4,7 +4,7 @@ use std::{
 };
 
 use clap::Subcommand;
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{Result, eyre::Context};
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 use semver::Version;
