@@ -1,9 +1,10 @@
 [package]
 name = "qpm_cli"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/QuestPackageManager/QPM.CLI"
 
+rust-version = "1.85"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 # Rename binary
@@ -69,7 +70,7 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
 ] }
 pubgrub = "0.2"
 owo-colors = "4"
-dirs = "5.0.0"
+dirs = "6.0.0"
 keyring = "3"
 
 gix = { version = "*", features = [
@@ -87,8 +88,8 @@ zip = "2"
 walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
-itertools = "0.13"
-schemars = { version = "0.8.21", features = ["semver"] }
+itertools = "0.14"
+schemars = { version = "0.8", features = ["semver"] }
 
 [target.aarch64-apple-darwin.dependencies]
 # Allow cross compiles

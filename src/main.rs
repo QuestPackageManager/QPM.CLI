@@ -28,8 +28,8 @@ mod benchmark;
 #[cfg(test)]
 mod tests;
 
-fn print_completions<G: Generator>(gen: G, cmd: &mut clap::Command) {
-    generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
+fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
+    generate(generator, cmd, cmd.get_name().to_string(), &mut io::stdout());
 }
 
 /// Suggests the location where to pipe the auto-generated completion script

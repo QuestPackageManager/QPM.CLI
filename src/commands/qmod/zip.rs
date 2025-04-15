@@ -151,7 +151,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         .chain(early_mod_list)
         .chain(lib_list)
         .chain(extra_files)
-        .chain(cover_image.into_iter())
+        .chain(cover_image)
         .map(|p| get_relative_pathbuf(p.to_path_buf()).unwrap())
         .unique()
         .collect_vec();

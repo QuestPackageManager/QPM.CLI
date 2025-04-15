@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use bytes::{BufMut, BytesMut};
 use color_eyre::{eyre::OptionExt, Report, Result};

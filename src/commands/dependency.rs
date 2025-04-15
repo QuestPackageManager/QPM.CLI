@@ -1,4 +1,3 @@
-use std::fs;
 
 use clap::{Args, Subcommand};
 use color_eyre::{
@@ -7,7 +6,7 @@ use color_eyre::{
 };
 use owo_colors::OwoColorize;
 use qpm_package::models::{
-    dependency::SharedPackageConfig, extra::PackageDependencyModifier, package::{PackageConfig, PackageDependency}
+    extra::PackageDependencyModifier, package::{PackageConfig, PackageDependency}
 };
 use super::package::format::reserialize_package;
 use semver::VersionReq;

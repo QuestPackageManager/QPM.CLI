@@ -25,6 +25,7 @@ use crate::{
 use super::Command;
 
 #[derive(Args)]
+#[derive(Default)]
 pub struct RestoreCommand {
     #[clap(default_value = "false", long, short)]
     update: bool,
