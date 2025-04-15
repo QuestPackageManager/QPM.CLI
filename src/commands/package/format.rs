@@ -15,7 +15,7 @@ pub struct FormatArgs { }
 
 impl Command for FormatArgs {
     fn execute(self) -> color_eyre::Result<()> {
-        reserialize_package(false);
+        reserialize_package(false)?;
         Ok(())
     }
 }
