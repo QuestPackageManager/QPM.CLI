@@ -1,4 +1,4 @@
 bin.name = "qpm"
-args = "ndk download 27"
+args = "ndk download 27 --quiet"
 fs.sandbox = true
 binary = true

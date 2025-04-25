@@ -12,7 +12,7 @@ use crate::{
         android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
         config::get_combine_config,
     },
-    network::agent::{download_file_report, get_agent},
+    network::agent::{download_file, download_file_report, get_agent},
     terminal::colors::QPMColor,
 };
 
@@ -101,7 +101,7 @@ pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
     })
 }
 
-pub fn download_ndk_version(ndk: &RemotePackage) -> Result<PathBuf> {
+pub fn download_ndk_version(ndk: &RemotePackage, show_progress: bool) -> Result<PathBuf> {
     let archive = get_host_archive(ndk).expect("Could not find ndk for current os and arch");
 
     let archive_url = format!("{ANDROID_DL_URL}/{}", archive.complete.url);
@@ -119,8 +119,14 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<PathBuf> {
     let _name = &archive.complete.url;
 
     let mut bytes = BytesMut::new().writer();
-    download_file_report(&archive_url, &mut bytes, |_, _| {})?;
-
+    match show_progress {
+        true => {
+            download_file_report(&archive_url, &mut bytes, |_, _| {})?;
+        }
+        false => {
+            download_file(&archive_url, &mut bytes, |_, _| {})?;
+        }
+    }
     println!("Extracting ndk");
     let buffer = Cursor::new(bytes.into_inner());
 

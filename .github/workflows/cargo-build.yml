@@ -117,6 +117,7 @@ jobs:
           command: build
           args: --release --target ${{ matrix.target }}
 
+      # Cargo CLI tests depend on build
       - name: Cargo test
         if: matrix.target == ''
         uses: actions-rs/cargo@v1

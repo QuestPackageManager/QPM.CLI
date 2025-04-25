@@ -31,6 +31,10 @@ use super::Command;
 pub struct Ndk {
     #[clap(subcommand)]
     pub op: NdkOperation,
+
+    /// If true, does not print progress
+    #[clap(long, short,global=true, default_value = "false")]
+    quiet: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -128,7 +132,7 @@ impl Command for Ndk {
                 let manifest = get_android_manifest()?;
 
                 let (_version, ndk) = fuzzy_match_ndk(&manifest, &d.version)?;
-                let path = download_ndk_version(ndk)?;
+                let path = download_ndk_version(ndk, !self.quiet)?;
                 println!("{}", path.display());
                 return Ok(());
             }
@@ -182,15 +186,15 @@ impl Command for Ndk {
 
                 println!("{}", ndk_path.display());
             }
-            NdkOperation::Resolve(r) => do_resolve(r)?,
-            NdkOperation::Pin(u) => do_use(u)?,
+            NdkOperation::Resolve(r) => do_resolve(r, self.quiet)?,
+            NdkOperation::Pin(u) => do_pin(u)?,
         }
 
         Ok(())
     }
 }
 
-fn do_use(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
+fn do_pin(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
     let version = match u.online {
         false => {
             let version_req = VersionReq::parse(&u.version)?;
@@ -233,7 +237,7 @@ fn do_use(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
     Ok(())
 }
 
-fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
+fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<(), color_eyre::eyre::Error> {
     let package = PackageConfig::exists(".")
         .then(|| PackageConfig::read("."))
         .transpose()?;
@@ -267,7 +271,7 @@ fn do_resolve(r: ResolveArgs) -> Result<(), color_eyre::eyre::Error> {
             let manifest = get_android_manifest()?;
             let (_version, ndk) = range_match_ndk(&manifest, &ndk_requirement)?;
 
-            download_ndk_version(ndk)?
+            download_ndk_version(ndk,!quiet)?
         }
         // error
         _ => {
