@@ -370,15 +370,20 @@ impl FileRepository {
         }
 
         // get so name or release so name
-        let name = match package.info.additional_data.so_link {
-            None => package
+
+        let use_release_name = package.info.additional_data.debug_so_link.is_none()
+            || package.info.additional_data.static_link.is_some();
+
+        // get so name or release so name
+        let name = match use_release_name {
+            true => package
                 .info
                 .get_so_name2()
                 .file_name()
                 .unwrap()
                 .to_string_lossy()
                 .to_string(),
-            Some(_) => format!(
+            false => format!(
                 "debug_{}",
                 package
                     .info
