@@ -25,6 +25,16 @@
       "id": "fmt",
       "versionRange": "=11.0.2",
       "additionalData": {}
+    },
+    {
+      "id": "beatsaber-hook",
+      "versionRange": "^5.1.9",
+      "additionalData": {}
+    },
+    {
+      "id": "libcurl",
+      "versionRange": "^8.7.1",
+      "additionalData": {}
     }
   ]
 }

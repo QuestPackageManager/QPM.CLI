@@ -370,15 +370,15 @@ impl FileRepository {
         }
 
         // get so name or release so name
-        let name = match package.info.additional_data.debug_so_link.is_none() {
-            true => package
+        let name = match package.info.additional_data.so_link {
+            None => package
                 .info
                 .get_so_name2()
                 .file_name()
                 .unwrap()
                 .to_string_lossy()
                 .to_string(),
-            false => format!(
+            Some(_) => format!(
                 "debug_{}",
                 package
                     .info
@@ -502,10 +502,9 @@ impl FileRepository {
             }
 
             if let Some(src_binary) = src_binary {
-                paths.insert(
-                    src_binary,
-                    extern_binaries.join(direct_dep.config.info.get_so_name2()),
-                );
+                let file_name = src_binary.file_name().expect("Failed to get file name");
+
+                paths.insert(src_binary.clone(), extern_binaries.join(file_name));
             }
 
             paths.insert(
