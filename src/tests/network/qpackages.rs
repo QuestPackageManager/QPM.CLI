@@ -77,7 +77,7 @@ fn get_artifact() -> Result<()> {
 #[test]
 fn resolve() -> Result<()> {
     let repo = QPMRepository::default();
-    let version = Version::new(3, 14, 0);
+    let version = Version::new(6, 4, 0);
     let p = repo.get_package("beatsaber-hook", &version)?;
 
     assert_ne!(p, None);
@@ -87,24 +87,24 @@ fn resolve() -> Result<()> {
 
     assert!(!resolved.is_empty());
 
-    let bs_hooks_dep = unwrapped_p
+    let paper_dep = unwrapped_p
         .config
         .dependencies
         .iter()
-        .find(|b| b.id == "beatsaber-hook");
-    assert_ne!(bs_hooks_dep, None);
+        .find(|b| b.id.contains("paper"));
+    assert_ne!(paper_dep, None);
 
-    let bs_hooks = resolved
+    let paper = resolved
         .iter()
-        .find(|b| b.config.info.id == "beatsaber-hook");
+        .find(|b| b.config.info.id.contains("paper"));
 
-    assert_ne!(bs_hooks, None);
+    assert_ne!(paper, None);
 
     assert!(
-        bs_hooks_dep
+        paper_dep
             .unwrap()
             .version_range
-            .matches(&bs_hooks.unwrap().config.info.version)
+            .matches(&paper.unwrap().config.info.version)
     );
 
     println!(
