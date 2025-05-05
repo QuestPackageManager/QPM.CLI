@@ -35,7 +35,7 @@ fn get_artifact_package_versions() -> Result<()> {
 #[test]
 fn download_package_binary() -> Result<()> {
     let repo = QPMRepository::default();
-    let id: &str = "codegen";
+    let id: &str = "beatsaber-hook";
     let versions = repo.get_package_versions(id)?.ok_or_eyre("No versions")?;
     let version = &versions.first().unwrap().version;
     let package = repo
@@ -77,8 +77,8 @@ fn get_artifact() -> Result<()> {
 #[test]
 fn resolve() -> Result<()> {
     let repo = QPMRepository::default();
-    let version = Version::new(0, 33, 0);
-    let p = repo.get_package("codegen", &version)?;
+    let version = Version::new(3, 14, 0);
+    let p = repo.get_package("beatsaber-hook", &version)?;
 
     assert_ne!(p, None);
     let unwrapped_p = p.unwrap();
