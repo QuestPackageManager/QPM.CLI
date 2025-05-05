@@ -146,17 +146,14 @@ impl FileRepository {
 
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
-            let so_path = lib_path.join(package.config.info.get_so_name());
-            let debug_so_path = lib_path.join(format!(
-                "debug_{}",
-                package
-                    .config
-                    .info
-                    .get_so_name()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-            ));
+            let so_path = lib_path.join(package.config.info.get_so_name2());
+            let debug_bin_name = package
+                .config
+                .info
+                .get_so_name2()
+                .with_extension("debug.so");
+            
+            let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
 
             if let Some(binary_path_unwrapped) = &binary_path {
                 copy_things(binary_path_unwrapped, &so_path)?;
@@ -384,10 +381,9 @@ impl FileRepository {
                 .to_string_lossy()
                 .to_string(),
             false => {
-                let bin = package.info.get_so_name2();
-
                 // lib{name}.debug.so
-                bin.with_extension("debug.so");
+                let bin = package.info.get_so_name2().with_extension("debug.so");
+
                 bin.file_name().unwrap().to_string_lossy().to_string()
             }
         };

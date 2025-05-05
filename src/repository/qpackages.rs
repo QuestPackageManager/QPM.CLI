@@ -136,15 +136,8 @@ impl QPMRepository {
         let tmp_path = base_path.join("tmp");
 
         let so_path = lib_path.join(config.info.get_so_name2());
-        let debug_so_path = lib_path.join(format!(
-            "debug_{}",
-            config
-                .info
-                .get_so_name2()
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-        ));
+        let debug_bin_name = config.info.get_so_name2().with_extension("debug.so");
+        let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
 
         let src_exists = src_path.join("qpm.shared.json").exists();
         if src_exists {
