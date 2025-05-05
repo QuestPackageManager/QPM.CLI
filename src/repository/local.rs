@@ -383,15 +383,13 @@ impl FileRepository {
                 .unwrap()
                 .to_string_lossy()
                 .to_string(),
-            false => format!(
-                "debug_{}",
-                package
-                    .info
-                    .get_so_name2()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-            ),
+            false => {
+                let bin = package.info.get_so_name2();
+
+                // lib{name}.debug.so
+                bin.with_extension("debug.so");
+                bin.file_name().unwrap().to_string_lossy().to_string()
+            }
         };
 
         let binary = libs_path.join(&name);
@@ -469,13 +467,14 @@ impl FileRepository {
                 extern_headers.join(direct_dep.config.info.id.clone());
 
             let exposed_headers = direct_dep_files.headers;
-            let src_binary = direct_dep
+            let not_header_only = direct_dep
                 .config
                 .info
                 .additional_data
                 .headers_only
                 .unwrap_or(false)
-                .not()
+                .not();
+            let src_binary = not_header_only
                 // not header only
                 .then(|| {
                     direct_dep_files.binary.wrap_err_with(|| {
