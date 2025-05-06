@@ -2863,9 +2863,9 @@ dependencies = [
 
 [[package]]
 name = "serde-xml-rs"
-version = "0.8.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "176b7ff880ab6ead7a020e773e9c096467fe347615a3e22ac29300cbdef67a5d"
+checksum = "c6560602b989198ebb381e3192c86970116b3b2e13b8b8a39d6d0850e40b6b81"
 dependencies = [
  "log",
  "serde",
@@ -3147,7 +3147,7 @@ dependencies = [
 [[package]]
 name = "templatr"
 version = "0.1.0"
-source = "git+https://github.com/QuestPackageManager/templatr.git?branch=gitoxide#e501a38fe4c9b1462d717d2226c477f4e9fcdc58"
+source = "git+https://github.com/QuestPackageManager/templatr.git?branch=gitoxide#19ea7c9078a6145571397eb92656630845b054b1"
 dependencies = [
  "clap",
  "color-eyre",
