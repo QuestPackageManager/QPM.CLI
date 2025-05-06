@@ -103,7 +103,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     if let Some(build_script) = build_script {
         if !build_parameters.skip_build {
             println!("Running build script");
-            scripts::invoke_script(build_script, &[])?;
+            scripts::invoke_script(build_script, &[], &package)?;
         }
     }
 

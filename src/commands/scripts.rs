@@ -1,4 +1,4 @@
-use std::process::Stdio;
+use std::{path::Path, process::Stdio};
 
 use clap::Args;
 
@@ -7,7 +7,7 @@ use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
 use qpm_package::models::package::PackageConfig;
 
-use crate::models::package::PackageConfigExtensions;
+use crate::{models::package::PackageConfigExtensions, utils::ndk};
 
 use super::Command;
 
@@ -22,7 +22,7 @@ impl Command for ScriptsCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
-        let scripts = package.workspace.scripts;
+        let scripts = &package.workspace.scripts;
 
         let script = scripts.get(&self.script);
 
@@ -32,18 +32,24 @@ impl Command for ScriptsCommand {
 
         let supplied_args = self.args.unwrap_or_default();
 
-        if let Some(script) = script {
-            invoke_script(script, &supplied_args)?;
-        }
+        let Some(script) = script else {
+            return Ok(());
+        };
+
+        invoke_script(script, &supplied_args, &package)?;
+
         Ok(())
     }
 }
 
 pub fn invoke_script(
-    script: &[String],
+    script_commands: &[String],
     supplied_args: &[String],
+    package: &PackageConfig,
 ) -> Result<(), color_eyre::eyre::Error> {
-    for command_str in script {
+    let android_ndk_home = ndk::resolve_ndk_version(package);
+
+    for command_str in script_commands {
         let split = command_str.split_once(' ');
 
         let exec = match split {
@@ -80,6 +86,11 @@ pub fn invoke_script(
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
+
+        // Set the environment variable for Android NDK home if provided
+        if let Some(path) = &android_ndk_home {
+            c.env("ANDROID_NDK_HOME", path);
+        }
 
         c.spawn()?.wait()?.exit_ok()?;
     }

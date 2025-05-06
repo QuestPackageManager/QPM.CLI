@@ -20,8 +20,12 @@ use crate::{
         config::get_combine_config,
         package::PackageConfigExtensions,
     },
-    utils::android::{
-        download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
+    utils::{
+        android::{
+            download_ndk_version, get_android_manifest, get_ndk_str_versions,
+            get_ndk_str_versions_str,
+        },
+        ndk,
     },
 };
 
@@ -33,7 +37,7 @@ pub struct Ndk {
     pub op: NdkOperation,
 
     /// If true, does not print progress
-    #[clap(long, short,global=true, default_value = "false")]
+    #[clap(long, short, global = true, default_value = "false")]
     quiet: bool,
 }
 
@@ -242,36 +246,29 @@ fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<(), color_eyre::eyre::Error
         .then(|| PackageConfig::read("."))
         .transpose()?;
 
-    if package.is_none() {
+    let Some(package) = package else {
         if r.ignore_missing {
             return Ok(());
         }
         bail!("No package found in current directory")
-    }
+    };
 
-    let ndk_requirement = package.and_then(|p| p.workspace.ndk);
+    let ndk_requirement = package.workspace.ndk.clone();
     let Some(ndk_requirement) = ndk_requirement else {
         bail!("No NDK requirement set in project")
     };
-    let ndk_installed_path_opt = get_combine_config()
-        .get_ndk_installed()
-        .into_iter()
-        .flatten()
-        .sorted_by(|a, b| a.file_name().cmp(b.file_name()))
-        .rev() // descending
-        .find(|s| {
-            Version::parse(s.file_name().to_str().unwrap())
-                .is_ok_and(|version| ndk_requirement.matches(&version))
-        });
+
+    let ndk_installed_path_opt = ndk::resolve_ndk_version(&package);
+
     let ndk_installed_path: PathBuf = match ndk_installed_path_opt {
         // NDK Found, unwrap
-        Some(ndk_installed_path) => ndk_installed_path.path().into(),
+        Some(ndk_installed_path) => ndk_installed_path,
         // download
         None if r.download => {
             let manifest = get_android_manifest()?;
             let (_version, ndk) = range_match_ndk(&manifest, &ndk_requirement)?;
 
-            download_ndk_version(ndk,!quiet)?
+            download_ndk_version(ndk, !quiet)?
         }
         // error
         _ => {
@@ -295,6 +292,7 @@ fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<(), color_eyre::eyre::Error
 
     // apply the NDK to the environment
     apply_ndk(&ndk_installed_path)?;
+
     Ok(())
 }
 
