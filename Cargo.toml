@@ -40,7 +40,7 @@ trycmd = { version = "0.15" }
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
-templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
+templatr = { git = "https://github.com/QuestPackageManager/templatr.git", branch = "gitoxide", optional = true }
 pathdiff = "0.2"
 
 # No need for tracing support
@@ -91,14 +91,14 @@ fs_extra = "1.2"
 itertools = "0.14"
 schemars = { version = "0.8", features = ["semver"] }
 
-[target.aarch64-apple-darwin.dependencies]
-# Allow cross compiles
-openssl = { version = "0.10", features = ["vendored"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
-[target.x86_64-apple-darwin.dependencies]
-# Statically link openssl
-openssl = { version = "0.10", features = ["vendored"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
+# [target.aarch64-apple-darwin.dependencies]
+# # Allow cross compiles
+# openssl = { version = "0.10", features = ["vendored"] }
+# openssl-sys = { version = "0.9", features = ["vendored"] }
+# [target.x86_64-apple-darwin.dependencies]
+# # Statically link openssl
+# openssl = { version = "0.10", features = ["vendored"] }
+# openssl-sys = { version = "0.9", features = ["vendored"] }
 
 [profile.release]
 opt-level = 3
