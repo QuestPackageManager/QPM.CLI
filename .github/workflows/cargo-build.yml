@@ -213,3 +213,45 @@ jobs:
           name: macos-universal-qpm
           path: qpm
           if-no-files-found: error
+
+  bleeding-release:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    concurrency:
+      group: bleeding-release
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: artifacts
+
+      - name: Delete the previous bleeding release
+        run: |
+          gh release delete bleeding -y --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Delay 10s
+        run: sleep 10
+        
+      - name: Bleeding Artifact Upload
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            This is an automatic release generated from the last successful commit to the main branch.  While this was a successful build, the resulting binary may not be fully stable.
+
+            SHA: ${{ github.sha }}
+          name: 'Latest Build on main'
+          tag_name: bleeding
+          prerelease: true
+          files: artifacts/**/*
