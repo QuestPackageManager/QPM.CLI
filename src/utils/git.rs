@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, BufWriter},
+    io::{BufReader, BufWriter, Write},
     path::Path,
     process::{Command, Stdio},
 };
@@ -15,8 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     models::config::get_keyring,
-    network::agent::{download_file_report, get_agent},
-    terminal::colors::QPMColor,
+    network::agent::{self},
 };
 
 pub fn check_git() -> Result<()> {
@@ -60,15 +59,10 @@ pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
 
 pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<bool> {
     let file = File::create(out).context("create so file failed")?;
-    let mut buf = BufWriter::new(file);
-
-    download_file_report(url, &mut buf, |_, _| {}).with_context(|| {
-        format!(
-            "Failed while downloading {} to {}",
-            url.blue(),
-            out.display().file_path_color()
-        )
-    })?;
+    let mut writer = BufWriter::new(file);
+    writer
+        .write_all(&agent::get_bytes(url)?)
+        .context("Failed to write to file")?;
 
     Ok(out.exists())
 }
@@ -93,8 +87,8 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
         &token, &user, &repo, &tag
     );
 
-    let data = match get_agent().get(asset_data_link).send() {
-        Ok(o) => o.json::<GithubReleaseData>().unwrap(),
+    let data = match agent::get::<GithubReleaseData>(&asset_data_link) {
+        Ok(o) => o,
         Err(e) => {
             let error_string = e.to_string().replace(token, "***");
             bail!("{}", error_string);
@@ -109,15 +103,11 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
                 .replace("api.github.com", &format!("{token}@api.github.com"));
 
             let file = File::create(out).context("create so file failed")?;
-            let mut buf = BufWriter::new(file);
 
-            download_file_report(&download, &mut buf, |_, _| {}).with_context(|| {
-                format!(
-                    "Failed while downloading {} to {}",
-                    download.replace(token, "{token}").blue(),
-                    out.display().file_path_color()
-                )
-            })?;
+            let mut writer = BufWriter::new(file);
+            writer
+                .write_all(&agent::get_bytes(&download)?)
+                .context("Failed to write out downloaded bytes")?;
             break;
         }
     }
