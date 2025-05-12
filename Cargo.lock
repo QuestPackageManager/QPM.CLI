@@ -2567,6 +2567,7 @@ dependencies = [
  "serde_json",
  "symlink",
  "templatr",
+ "thiserror 2.0.12",
  "trycmd",
  "ureq",
  "vergen",

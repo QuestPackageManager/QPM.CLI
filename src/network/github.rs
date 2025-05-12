@@ -46,7 +46,7 @@ pub struct GithubCommitDiffCommitDataResponse {
     pub message: String,
 }
 
-pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, agent::Error> {
+pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, agent::AgentError> {
     agent::get(&format!(
         "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/branches/{branch}"
     ))
@@ -54,7 +54,7 @@ pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, agent::Er
 pub fn get_github_commit_diff(
     old: &str,
     new: &str,
-) -> Result<GithubCommitDiffResponse, agent::Error> {
+) -> Result<GithubCommitDiffResponse, agent::AgentError> {
     agent::get(&format!(
         "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/compare/{old}...{new}"
     ))

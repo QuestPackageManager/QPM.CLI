@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    env,
-    io::{Cursor},
-};
+use std::{collections::HashMap, env, fs, io::Cursor, path::PathBuf};
 
 use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
@@ -16,7 +12,7 @@ use crate::{
         android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
         config::get_combine_config,
     },
-    network::agent::{self, download_file_report},
+    network::agent::{self, download_file, download_file_report},
     terminal::colors::QPMColor,
 };
 

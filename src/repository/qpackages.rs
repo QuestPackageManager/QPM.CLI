@@ -1,12 +1,12 @@
-use bytes::{BufMut, BytesMut};
 use color_eyre::{
-    eyre::{anyhow, bail, Context},
-    Result,
+    Result, Section,
+    eyre::{Context, OptionExt, anyhow, bail},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
 use semver::Version;
 use std::{
+    collections::HashMap,
     fs::{self, File},
     io::{BufWriter, Cursor},
     path::Path,
@@ -21,10 +21,7 @@ use qpm_package::{
 };
 
 use crate::{
-    models::{
-        config::get_combine_config, package::PackageConfigExtensions,
-        package_metadata::PackageMetadataExtensions,
-    },
+    models::{config::get_combine_config, package::PackageConfigExtensions},
     network::agent::{self, download_file_report},
     terminal::colors::QPMColor,
     utils::git,
@@ -84,7 +81,7 @@ impl QPMRepository {
         match agent::post(&url, package, &headers) {
             Ok(o) => Ok(o),
             Err(e) => match e {
-                agent::Error::Unauthorized => Err(anyhow!(
+                agent::AgentError::Unauthorized => Err(anyhow!(
                     "Could not publish to {}: Unauthorized! Did you provide the correct key?",
                     API_URL
                 )

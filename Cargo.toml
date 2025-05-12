@@ -17,7 +17,7 @@ required-features = []
 
 
 [features]
-default = ["templatr", "network_test", "cli", "gitoxide"]
+default = ["templatr", "network_test", "cli", "gitoxide", "reqwest"]
 templatr = ["dep:templatr"]
 
 reqwest = ["dep:reqwest"]
@@ -95,6 +95,7 @@ symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.14"
 schemars = { version = "0.8", features = ["semver"] }
+thiserror = "2.0.12"
 
 [target.aarch64-apple-darwin.dependencies]
 # Allow cross compiles

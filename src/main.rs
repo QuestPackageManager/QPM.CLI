@@ -28,13 +28,41 @@ mod benchmark;
 #[cfg(test)]
 mod tests;
 
+fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
+    generate(
+        generator,
+        cmd,
+        cmd.get_name().to_string(),
+        &mut io::stdout(),
+    );
+}
 
-#[cfg(all(feature = "reqwest", feature = "ureq"))]
-compile_error!("feature \"reqwest\" and feature \"ureq\" cannot be enabled at the same time");
+/// Suggests the location where to pipe the auto-generated completion script
+/// based on the shell type.
+fn suggest_completion_location(shell: Shell) {
+    eprintln!("To add this to your shell, you may use the following command:");
 
-#[cfg(not(any(feature = "reqwest", feature = "ureq")))]
-compile_error!("feature \"reqwest\" or feature \"ureq\" must be enabled, though not both simultaneously");
+    let file_name = shell.file_name("qpm");
 
+    // powershell is unique so
+    // we make it its own suggestion
+    if shell == Shell::PowerShell {
+        eprintln!("\tqpm --generate {shell} | Set-Content \"$HOME\\qpm_autocomplete.ps1\"");
+        eprintln!(
+            "\t'if (Test-Path \"$HOME\\qpm_autocomplete.ps1\") {{ . \"$HOME\\qpm_autocomplete.ps1\" }}' | Add-Content -Path $PROFILE"
+        );
+    } else {
+        let loc = match shell {
+            Shell::Bash => format!("/etc/bash_completion.d/{file_name}"),
+            Shell::Elvish => format!("~/.elvish/lib/completions/{file_name}"),
+            Shell::Fish => format!("~/.config/fish/completions/{file_name}"),
+            Shell::Zsh => format!("~/.zsh/completions/{file_name}"),
+            _ => todo!(),
+        };
+
+        eprintln!("\tqpm --generate {shell} > {loc}")
+    }
+}
 
 fn main() -> Result<()> {
     color_eyre::config::HookBuilder::default()

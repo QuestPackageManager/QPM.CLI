@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env,
     io::{ErrorKind, Read, Write},
     sync,
@@ -6,12 +7,15 @@ use std::{
     time::Duration,
 };
 
-use color_eyre::{
-    Result,
-    eyre::{Context, ensure},
-};
+use color_eyre::eyre::{Context, ensure};
+use reqwest::StatusCode;
+use serde::de::DeserializeOwned;
 
 use crate::models::config::get_combine_config;
+
+use super::agent_common;
+
+pub type AgentError = agent_common::AgentError<reqwest::Error>;
 
 static AGENT: sync::OnceLock<reqwest::blocking::Client> = sync::OnceLock::new();
 
@@ -30,7 +34,7 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
     })
 }
 
-pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
+pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> color_eyre::Result<usize>
 where
     F: FnMut(usize, usize),
 {
@@ -89,7 +93,7 @@ where
 
 #[inline(always)]
 #[cfg(feature = "cli")]
-pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
+pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> color_eyre::Result<usize>
 where
     F: FnMut(usize, usize),
 {
@@ -113,4 +117,74 @@ where
     println!();
 
     result
+}
+
+fn map_err(e: reqwest::Error) -> AgentError {
+    AgentError::AgentError(Box::new(e))
+}
+
+pub fn get<T>(url: &str) -> Result<T, AgentError>
+where
+    T: DeserializeOwned,
+{
+    get_agent()
+        .get(url)
+        .send()
+        .map_err(map_err)?
+        .error_for_status()
+        .map_err(map_err)?
+        .json::<T>()
+        .map_err(map_err)
+}
+
+pub fn get_bytes(url: &str) -> Result<Vec<u8>, AgentError> {
+    get_agent()
+        .get(url)
+        .send()
+        .map_err(map_err)?
+        .bytes()
+        .map(|b| b.into())
+        .map_err(map_err)
+}
+pub fn get_str(url: &str) -> Result<String, AgentError> {
+    get_agent()
+        .get(url)
+        .send()
+        .map_err(map_err)?
+        .text()
+        .map_err(map_err)
+}
+pub fn post(
+    url: &str,
+    data: impl serde::Serialize,
+    headers: &HashMap<&str, &str>,
+) -> Result<(), AgentError> {
+    let mut req = get_agent().post(url);
+
+    for (key, val) in headers {
+        req = req.header(*key, *val);
+    }
+
+    let res = req.json(&data).send().map_err(map_err)?;
+    if res.status() == StatusCode::UNAUTHORIZED {
+        return Err(AgentError::Unauthorized);
+    }
+
+    res.error_for_status().map_err(map_err)?;
+    Ok(())
+}
+
+pub fn get_opt<T>(url: &str) -> Result<Option<T>, AgentError>
+where
+    T: DeserializeOwned,
+{
+    let req = get_agent().get(url).send().map_err(map_err)?;
+
+    if req.status() == StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+
+    let res = req.json::<T>().map_err(map_err)?;
+
+    Ok(Some(res))
 }
