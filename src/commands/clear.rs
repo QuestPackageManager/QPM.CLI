@@ -90,11 +90,11 @@ fn remove_dependencies_dir() -> Result<()> {
                 if let Err(ed) = std::fs::remove_dir(&path) {
                     if let Err(ef) = std::fs::remove_file(&path) {
                         println!(
-                        "Failed to remove broken symlink for {}:\nAttempt 1 (dir):{}\nAttempt 2 (file):{}",
-                        path.display().bright_yellow(),
-                        ed,
-                        ef
-                    );
+                            "Failed to remove broken symlink for {}:\nAttempt 1 (dir):{}\nAttempt 2 (file):{}",
+                            path.display().bright_yellow(),
+                            ed,
+                            ef
+                        );
                     }
                 }
             }

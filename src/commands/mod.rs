@@ -1,4 +1,5 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
+use clap_complete::Shell;
 use color_eyre::Result;
 
 pub mod cache;
@@ -8,6 +9,7 @@ pub mod config;
 pub mod dependency;
 pub mod doctor;
 pub mod download;
+pub mod genschema;
 pub mod install;
 pub mod list;
 pub mod ndk;
@@ -26,6 +28,18 @@ pub trait Command {
 }
 
 #[derive(Parser)]
+#[command(name = "qpm", bin_name = "qpm", version, about, long_about)]
+#[command(arg_required_else_help = true)]
+pub struct Opt {
+    // If provided, outputs the completion file for given shell
+    #[arg(long = "generate", value_enum)]
+    pub generator: Option<Shell>,
+
+    #[command(subcommand)]
+    pub command: Option<MainCommand>,
+}
+
+#[derive(Subcommand)]
 pub enum MainCommand {
     Restore(restore::RestoreCommand),
     /// Cache control
@@ -54,6 +68,9 @@ pub enum MainCommand {
     Download(download::Download),
     Ndk(ndk::Ndk),
 
+    #[command(about = "Shorthand for qpm dependency add")]
+    Add(dependency::DependencyOperationAddArgs),
+
     #[command(alias = "s")]
     Scripts(scripts::ScriptsCommand),
 
@@ -61,6 +78,9 @@ pub enum MainCommand {
     Templatr(templatr::TemplatrCommand),
 
     Version(version::VersionCommand),
+
+    #[command(hide = true)]
+    GenSchema(genschema::GenSchemaCommand),
 }
 
 impl Command for MainCommand {
@@ -80,10 +100,12 @@ impl Command for MainCommand {
             MainCommand::Doctor(c) => c.execute(),
             MainCommand::Download(c) => c.execute(),
             MainCommand::Ndk(n) => n.execute(),
-            #[cfg(feature = "templatr")]
-            MainCommand::Templatr(c) => c.execute(),
+            MainCommand::Add(add) => add.execute(),
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
+            MainCommand::GenSchema(g) => g.execute(),
+            #[cfg(feature = "templatr")]
+            MainCommand::Templatr(c) => c.execute(),
         }
     }
 }

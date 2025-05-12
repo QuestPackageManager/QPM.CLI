@@ -1,0 +1,134 @@
+{
+  "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.Package/refs/heads/main/qpm.shared.schema.json",
+  "config": {
+    "version": "0.4.0",
+    "sharedDir": "shared",
+    "dependenciesDir": "extern",
+    "info": {
+      "name": "package1",
+      "id": "package1",
+      "version": "0.1.0",
+      "url": null,
+      "additionalData": {}
+    },
+    "workspace": {
+      "scripts": {},
+      "qmodIncludeDirs": [],
+      "qmodIncludeFiles": [],
+      "qmodOutput": null
+    },
+    "dependencies": [
+      {
+        "id": "scotland2",
+        "versionRange": "=0.1.4",
+        "additionalData": {}
+      },
+      {
+        "id": "fmt",
+        "versionRange": "=11.0.2",
+        "additionalData": {}
+      },
+      {
+        "id": "beatsaber-hook",
+        "versionRange": "^5.1.9",
+        "additionalData": {}
+      },
+      {
+        "id": "libcurl",
+        "versionRange": "^8.7.1",
+        "additionalData": {}
+      }
+    ]
+  },
+  "restoredDependencies": [
+    {
+      "dependency": {
+        "id": "paper",
+        "versionRange": "=3.7.0",
+        "additionalData": {
+          "soLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.7.0/libpaperlog.so",
+          "debugSoLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.7.0/debug_libpaperlog.so",
+          "overrideSoName": "libpaperlog.so",
+          "modLink": "https://github.com/Fernthedev/paperlog/releases/download/v3.7.0/paperlog.qmod",
+          "branchName": "version/v3_7_0",
+          "compileOptions": {
+            "systemIncludes": [
+              "shared/utfcpp/source"
+            ]
+          },
+          "cmake": false
+        }
+      },
+      "version": "3.7.0"
+    },
+    {
+      "dependency": {
+        "id": "libil2cpp",
+        "versionRange": "=0.3.2",
+        "additionalData": {
+          "headersOnly": true,
+          "cmake": false
+        }
+      },
+      "version": "0.3.2"
+    },
+    {
+      "dependency": {
+        "id": "libcurl",
+        "versionRange": "=8.7.1",
+        "additionalData": {
+          "staticLinking": true,
+          "soLink": "https://github.com/darknight1050/openssl-curl-android/releases/download/v8.7.1/libcurl.a",
+          "overrideSoName": "libcurl.a",
+          "branchName": "version-v8.7.1"
+        }
+      },
+      "version": "8.7.1"
+    },
+    {
+      "dependency": {
+        "id": "beatsaber-hook",
+        "versionRange": "=5.1.9",
+        "additionalData": {
+          "soLink": "https://github.com/QuestPackageManager/beatsaber-hook/releases/download/v5.1.9/libbeatsaber-hook_5_1_9.so",
+          "debugSoLink": "https://github.com/QuestPackageManager/beatsaber-hook/releases/download/v5.1.9/debug_libbeatsaber-hook_5_1_9.so",
+          "branchName": "version/v5_1_9",
+          "cmake": true
+        }
+      },
+      "version": "5.1.9"
+    },
+    {
+      "dependency": {
+        "id": "fmt",
+        "versionRange": "=11.0.2",
+        "additionalData": {
+          "headersOnly": true,
+          "branchName": "version/v11_0_2",
+          "compileOptions": {
+            "systemIncludes": [
+              "fmt/include/"
+            ],
+            "cppFlags": [
+              "-DFMT_HEADER_ONLY"
+            ]
+          }
+        }
+      },
+      "version": "11.0.2"
+    },
+    {
+      "dependency": {
+        "id": "scotland2",
+        "versionRange": "=0.1.4",
+        "additionalData": {
+          "soLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.4/libsl2.so",
+          "debugSoLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.4/debug_libsl2.so",
+          "overrideSoName": "libsl2.so",
+          "branchName": "version/v0_1_4"
+        }
+      },
+      "version": "0.1.4"
+    }
+  ]
+}

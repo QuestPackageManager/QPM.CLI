@@ -1,0 +1,527 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FileRepository",
+  "type": "object",
+  "properties": {
+    "artifacts": {
+      "default": {},
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/definitions/SharedPackageConfig"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "AdditionalPackageMetadata": {
+      "description": "Additional metadata for the package.",
+      "type": "object",
+      "properties": {
+        "branchName": {
+          "description": "The branch name of a GitHub repository. Only used when a valid GitHub URL is provided.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cmake": {
+          "description": "Whether to generate CMake files on restore.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "compileOptions": {
+          "description": "Additional compile options for the package.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CompileOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "debugSoLink": {
+          "description": "The link to the debug shared object file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headersOnly": {
+          "description": "Whether or not the package is header only",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "modLink": {
+          "description": "The link to the qmod file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "overrideSoName": {
+          "description": "The override name for the shared object file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "overrideStaticName": {
+          "description": "The override name for the static library file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "soLink": {
+          "description": "The link to the shared object file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staticLink": {
+          "description": "The link to the static library file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staticLinking": {
+          "description": "Whether the package is statically linked. Deprecated, use staticLink instead.",
+          "deprecated": true,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "subFolder": {
+          "description": "Sub-folder to use from the downloaded repository or zip, so one repository can contain multiple packages.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "toolchainOut": {
+          "description": "Path to generate a toolchain JSON file describing the project setup configuration.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "CompileOptions": {
+      "description": "Additional options for compilation and edits to compilation related files.",
+      "type": "object",
+      "properties": {
+        "cFlags": {
+          "description": "Additional C flags to add.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "cppFeatures": {
+          "description": "Additional C++ features to add. Deprecated, unused and exclusive to CMake.",
+          "deprecated": true,
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "cppFlags": {
+          "description": "Additional C++ flags to add.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "includePaths": {
+          "description": "Additional include paths to add, relative to the extern directory.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "systemIncludes": {
+          "description": "Additional system include paths to add, relative to the extern directory.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Dependency": {
+      "description": "A dependency of the package.",
+      "type": "object",
+      "required": [
+        "additionalData",
+        "id",
+        "versionRange"
+      ],
+      "properties": {
+        "additionalData": {
+          "description": "Additional metadata for the dependency. Deprecated, use packageConfig.additionalData instead.",
+          "deprecated": true,
+          "allOf": [
+            {
+              "$ref": "#/definitions/AdditionalPackageMetadata"
+            }
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "versionRange": {
+          "description": "The version range of the dependency",
+          "type": "string",
+          "properties": {
+            "format": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "DependencyLibType": {
+      "description": "Describes the dependency type.",
+      "oneOf": [
+        {
+          "description": "Shared library",
+          "type": "string",
+          "enum": [
+            "shared"
+          ]
+        },
+        {
+          "description": "Static library",
+          "type": "string",
+          "enum": [
+            "static"
+          ]
+        },
+        {
+          "description": "Header only",
+          "type": "string",
+          "enum": [
+            "headerOnly"
+          ]
+        }
+      ]
+    },
+    "PackageConfig": {
+      "description": "Configuration for a package.",
+      "type": "object",
+      "required": [
+        "dependencies",
+        "dependenciesDir",
+        "info",
+        "sharedDir"
+      ],
+      "properties": {
+        "dependencies": {
+          "description": "The dependencies of the package.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PackageDependency"
+          }
+        },
+        "dependenciesDir": {
+          "description": "The directory where dependencies are stored.",
+          "type": "string"
+        },
+        "info": {
+          "description": "The package metadata.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PackageMetadata"
+            }
+          ]
+        },
+        "sharedDir": {
+          "description": "The directory where shared files are stored.",
+          "type": "string"
+        },
+        "version": {
+          "description": "The version of the package configuration.",
+          "default": "0.4.0",
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+        },
+        "workspace": {
+          "description": "The workspace configuration.",
+          "default": {
+            "qmodIncludeDirs": [],
+            "qmodIncludeFiles": [],
+            "qmodOutput": null,
+            "scripts": {}
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WorkspaceConfig"
+            }
+          ]
+        }
+      }
+    },
+    "PackageDependency": {
+      "description": "A dependency of the package.",
+      "type": "object",
+      "required": [
+        "additionalData",
+        "id",
+        "versionRange"
+      ],
+      "properties": {
+        "additionalData": {
+          "description": "Additional metadata for the dependency",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PackageDependencyModifier"
+            }
+          ]
+        },
+        "id": {
+          "description": "The unique identifier of the dependency",
+          "type": "string"
+        },
+        "versionRange": {
+          "description": "The version range of the dependency",
+          "type": "string",
+          "properties": {
+            "format": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "PackageDependencyModifier": {
+      "description": "Modifies how a dependency should be restored.",
+      "type": "object",
+      "properties": {
+        "extraFiles": {
+          "description": "Additional files to be downloaded.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "includeQmod": {
+          "description": "If the mod dependency should be included in the generated mod.json. Defaults to true.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "libType": {
+          "description": "Specifies how to restore this dependency.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DependencyLibType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "localPath": {
+          "description": "Copy a dependency from a location that is local to this root path instead of from a remote URL.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private": {
+          "description": "Whether or not the dependency is private and should be used in restore.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "required": {
+          "description": "Whether the mod is optional or required. If omitted, assume true.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "PackageMetadata": {
+      "description": "Metadata information about the package.",
+      "type": "object",
+      "required": [
+        "additionalData",
+        "id",
+        "name",
+        "version"
+      ],
+      "properties": {
+        "additionalData": {
+          "description": "Additional metadata for the package.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AdditionalPackageMetadata"
+            }
+          ]
+        },
+        "id": {
+          "description": "The unique identifier of the package.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The name of the package.",
+          "type": "string"
+        },
+        "url": {
+          "description": "The website for the package.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "description": "The version of the package.",
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+        }
+      }
+    },
+    "SharedDependency": {
+      "description": "A resolved dependency of the package.",
+      "type": "object",
+      "required": [
+        "dependency",
+        "version"
+      ],
+      "properties": {
+        "dependency": {
+          "description": "The resolved dependency",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Dependency"
+            }
+          ]
+        },
+        "version": {
+          "description": "The resolved version of the dependency",
+          "type": "string",
+          "properties": {
+            "format": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "SharedPackageConfig": {
+      "description": "Shared package configuration.",
+      "type": "object",
+      "required": [
+        "config",
+        "restoredDependencies"
+      ],
+      "properties": {
+        "config": {
+          "description": "A copy of the package configuration stored in qpm.json for convenience.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PackageConfig"
+            }
+          ]
+        },
+        "restoredDependencies": {
+          "description": "The resolved dependencies of the package.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SharedDependency"
+          }
+        }
+      }
+    },
+    "WorkspaceConfig": {
+      "description": "Configuration for the workspace.",
+      "type": "object",
+      "required": [
+        "ndk"
+      ],
+      "properties": {
+        "ndk": {
+          "description": "The NDK version range.",
+          "type": "string",
+          "properties": {
+            "format": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        },
+        "qmodIncludeDirs": {
+          "description": "List of directories to search during qmod creation.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "qmodIncludeFiles": {
+          "description": "List of files to include in the resulting qmod.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "qmodOutput": {
+          "description": "Output path for the qmod.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scripts": {
+          "description": "Scripts associated with the workspace.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

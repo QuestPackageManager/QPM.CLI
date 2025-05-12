@@ -4,7 +4,7 @@ use clap::Args;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     extra::AdditionalPackageMetadata,
-    package::{PackageConfig, PackageMetadata},
+    package::{self, PackageConfig, PackageMetadata},
 };
 use semver::Version;
 
@@ -47,7 +47,9 @@ impl Command for PackageOperationCreateArgs {
                 "{}",
                 "Package already existed, not creating a new package!".bright_red()
             );
-            println!("Did you try to make a package in the same directory as another, or did you not use a clean folder?");
+            println!(
+                "Did you try to make a package in the same directory as another, or did you not use a clean folder?"
+            );
             return Ok(());
         }
 
@@ -81,6 +83,7 @@ impl Command for PackageOperationCreateArgs {
             info: package_info,
             dependencies: Default::default(),
             workspace: Default::default(),
+            version: package::package_target_version(),
         };
 
         package.write(".")?;

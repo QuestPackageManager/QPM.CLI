@@ -1,66 +1,215 @@
-# Runs on push to main, basically the "release" version since we don't really do releases (that's bad right)
+# A reusable workflow to build and test the project.
 name: Cargo Build
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version of QPM
+        required: false
+        type: string
+        default: 1.0.0
+
+  workflow_call:
+    inputs:
+      version:
+        description: The version of QPM
+        required: false
+        type: string
+        default: 1.0.0
+
   push:
-    branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - '**.json'
-      - '**.yml'
-      - 'LICENSE'
-      - '!.github/workflows/cargo-build.yml'
-      - 'installer/**'
+    branches: 
+      - 'main'
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-        include:
-          - os: ubuntu-latest
-            file-name: qpm-rust
-            prefix: linux
-
-          - os: macOS-latest
-            file-name: qpm-rust
-            prefix: macos
-
-          - os: windows-latest
-            file-name: qpm-rust.exe
-            prefix: windows
+  version:
+    name: Get version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Get version
+        id: version
+        run: |
+          if [[ -z "${{ inputs.version }}" ]]; then
+            echo "version=1.0.0" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo version=${{ inputs.version }} | tee -a "$GITHUB_OUTPUT"
+          fi
+  build:
+    runs-on: ${{ matrix.os }}
+    needs: [version]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            file-name: qpm
+            prefix: linux
+            suffix: linux-x64
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-      - uses: actions/cache@v2
+          - os: macos-13
+            file-name: qpm
+            prefix: macos-x64
+            suffix: macos-x64
+
+          - os: macos-13
+            file-name: qpm
+            prefix: macos-arm64
+            suffix: macos-arm64
+            target: aarch64-apple-darwin
+
+          - os: windows-latest
+            file-name: qpm.exe
+            prefix: windows
+            suffix: windows-x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      #! Windows 2022/Ubutnu 22.04/MacOS 14 include cargo now
+      # - uses: dtolnay/rust-toolchain@master
+      #   with:
+      #     toolchain: nightly
+      
+      - uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
+            ~/.cargo/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
+          key: ${{ matrix.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.os }}-${{ matrix.target }}-cargo-
+            
       - name: Get libdbus if Ubuntu
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get install -y libdbus-1-dev
+          
+      - name: Get OpenSSL if MacOS
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          brew install openssl@3
 
+      - uses: actions-rs/toolchain@v1
+        if: matrix.target != ''
+        with:
+          toolchain: nightly
+          target: ${{ matrix.target }}
+
+      - name: Double check
+        if: matrix.target != ''
+        run: |
+          rustup target add ${{ matrix.target }}
+          rustup show
+          
       - name: Cargo build
+        if: matrix.target == ''
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release
 
-      - name: Upload executable
-        uses: actions/upload-artifact@v2
+      - name: Cargo build target ${{ matrix.target }}
+        if: matrix.target != ''
+        uses: actions-rs/cargo@v1
         with:
-          name: ${{ matrix.prefix }}-${{ matrix.file-name }}
-          path: ./target/release/${{ matrix.file-name }}
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      # Cargo CLI tests depend on build
+      - name: Cargo test
+        if: matrix.target == ''
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release
+
+          # Windows
+      - name: Compress build
+        if: matrix.file-name != '' && matrix.prefix != '' && startsWith(matrix.os, 'windows-')
+        run: | 
+          pwsh -Command Compress-Archive ./target/${{ matrix.target }}/release/${{matrix.file-name}} -DestinationPath qpm-${{matrix.suffix}}.zip
+
+        # Non-windows
+      - name: Compress build
+        if: matrix.file-name != '' && matrix.prefix != '' && !startsWith(matrix.os, 'windows-')
+        run: |
+          chmod +x "./target/${{ matrix.target }}/release/${{matrix.file-name}}"
+          zip -j "qpm-${{matrix.suffix}}.zip" "./target/${{ matrix.target }}/release/${{matrix.file-name}}"
+
+      - name: Artifact Upload (Archive)
+        if: matrix.prefix != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{matrix.suffix}}
+          path: qpm-${{matrix.suffix}}.zip
+          if-no-files-found: error
+
+      - name: Artifact Upload
+        if: matrix.prefix != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.prefix}}-qpm
+          path: target/${{ matrix.target }}/release/${{matrix.file-name}}
+          if-no-files-found: error
+
+      - name: Download Inno Setup
+        if: matrix.file-name != '' && matrix.os == 'windows-latest'
+        uses: suisei-cn/actions-download-file@v1
+        with:
+          url: https://jrsoftware.org/download.php/is.exe
+          target: ../
+
+      - name: Install Inno Setup
+        if: matrix.file-name != '' && matrix.os == 'windows-latest'
+        run: "../is.exe /VERYSILENT /NORESTART /ALLUSERS"
+
+      - name: Compile Installer
+        if: matrix.file-name != '' && matrix.os == 'windows-latest'
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${{ needs.version.outputs.version }}" /f installer/installer.iss'
+
+      - name: Artifact Upload
+        uses:  actions/upload-artifact@v4
+        if: matrix.file-name != '' && matrix.os == 'windows-latest'
+        with:
+          name: release-installer-${{ matrix.prefix }}
+          path: ./installer/qpm-installer.exe
+          if-no-files-found: error
+
+  macos-universal:
+    name: Create macOS Universal Binary
+    runs-on: macos-13
+    needs: [build]
+    steps:
+      - name: Download Intel macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-x64-qpm
+          path: macos-x64
+
+      - name: Download ARM macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-arm64-qpm
+          path: macos-arm64
+
+      - name: Make Universal Binary
+        run: |
+          lipo -create -output "qpm" "macos-x64/qpm" "macos-arm64/qpm"
+          chmod +x qpm
+          zip -j "qpm-macos-universal.zip" "qpm"
+
+      - name: Artifact Upload (Archive)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-universal
+          path: qpm-macos-universal.zip
+          if-no-files-found: error
+
+      - name: Artifact Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal-qpm
+          path: qpm
           if-no-files-found: error

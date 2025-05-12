@@ -2,14 +2,14 @@ use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre::Context;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::{
+    extensions::package_metadata::PackageMetadataExtensions,
+    models::{dependency::SharedPackageConfig, package::PackageConfig},
+};
 
 use crate::{
-    models::{
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-        package_metadata::PackageMetadataExtensions,
-    },
-    repository::{local::FileRepository, multi::MultiDependencyRepository},
+    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    repository::{self, local::FileRepository},
 };
 
 use super::Command;
@@ -23,6 +23,12 @@ pub struct InstallCommand {
     pub cmake_build: Option<bool>,
 
     #[clap(default_value = "false", long, short)]
+    pub locked: bool, // pub additional_folders: Vec<String> // todo
+
+    #[clap(long, default_value = "false")]
+    offline: bool,
+
+    #[clap(long, default_value = "false")]
     pub update: bool, // pub additional_folders: Vec<String> // todo
 }
 
@@ -31,7 +37,7 @@ impl Command for InstallCommand {
         println!("Publishing package to local file repository");
 
         let package = PackageConfig::read(".")?;
-        let repo = MultiDependencyRepository::useful_default_new()?;
+        let repo = repository::useful_default_new(self.offline)?;
         let shared_package = match !self.update {
             true => SharedPackageConfig::read(".")?,
             false => SharedPackageConfig::resolve_from_package(package, &repo)?.0,
@@ -56,12 +62,13 @@ impl Command for InstallCommand {
         #[cfg(debug_assertions)]
         println!("Header only: {header_only}");
 
+        // TODO: Handle static library
         if !header_only {
             if binary_path.is_none() && self.cmake_build.unwrap_or(true) {
                 binary_path = Some(
                     PathBuf::from(format!(
                         "./build/{}",
-                        shared_package.config.info.get_so_name()
+                        shared_package.config.info.get_so_name().file_name().unwrap().to_string_lossy()
                     ))
                     .canonicalize().context("Failed to retrieve release binary for publishing since it is not header only")?,
                 );
@@ -71,7 +78,7 @@ impl Command for InstallCommand {
                 debug_binary_path = Some(
                     PathBuf::from(format!(
                         "./build/debug/{}",
-                        shared_package.config.info.get_so_name()
+                        shared_package.config.info.get_so_name().file_name().unwrap().to_string_lossy()
                     ))
                     .canonicalize().context("Failed to retrieve debug binary for publishing since it is not header only")?,
                 );

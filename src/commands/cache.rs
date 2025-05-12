@@ -4,14 +4,16 @@ use std::{
 };
 
 use clap::Subcommand;
-use color_eyre::Result;
+use color_eyre::{Result, eyre::Context};
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
+use semver::Version;
 use walkdir::WalkDir;
 
 use crate::{
     models::{config::get_combine_config, package::PackageConfigExtensions},
     repository::local::FileRepository,
+    terminal::colors::QPMColor,
 };
 
 use super::Command;
@@ -27,7 +29,7 @@ pub struct CacheCommand {
 #[derive(Subcommand, Debug, Clone)]
 pub enum CacheOperation {
     /// Clear the cache
-    Clear,
+    Clear(ClearCommand),
     /// Lists versions for each cached package
     List,
     /// Shows you the current cache path
@@ -36,10 +38,17 @@ pub enum CacheOperation {
     LegacyFix,
 }
 
+#[derive(clap::Args, Debug, Clone)]
+
+pub struct ClearCommand {
+    pub package: Option<String>,
+    pub version: Option<String>,
+}
+
 impl Command for CacheCommand {
     fn execute(self) -> color_eyre::Result<()> {
         match self.op {
-            CacheOperation::Clear => clear()?,
+            CacheOperation::Clear(c) => clear(c)?,
             CacheOperation::List => list(),
             CacheOperation::Path => path(),
             CacheOperation::LegacyFix => legacy_fix()?,
@@ -48,12 +57,39 @@ impl Command for CacheCommand {
     }
 }
 
-fn clear() -> Result<()> {
-    let config = get_combine_config();
-    let path = config.cache.as_ref().unwrap();
-    fs::remove_dir_all(path)?;
-    FileRepository::clear()?;
-    Ok(())
+fn clear(clear_params: ClearCommand) -> Result<()> {
+    match (clear_params.package, clear_params.version) {
+        (Some(package), None) => {
+            let mut file_repo = FileRepository::read()?;
+            file_repo.remove_package_versions(&package)?;
+            println!(
+                "Sucessfully removed all versions of {}",
+                package.dependency_id_color()
+            );
+            file_repo.write()?;
+            Ok(())
+        }
+        (Some(package), Some(version_str)) => {
+            let mut file_repo = FileRepository::read()?;
+            let version = Version::parse(&version_str).context("version parse")?;
+            file_repo.remove_package(&package, &version)?;
+            println!(
+                "Sucessfully removed {}/{}",
+                package.dependency_id_color(),
+                version.version_id_color()
+            );
+            file_repo.write()?;
+            Ok(())
+        }
+        // clear all
+        _ => {
+            let config = get_combine_config();
+            let path = config.cache.as_ref().unwrap();
+            fs::remove_dir_all(path)?;
+            FileRepository::clear()?;
+            Ok(())
+        }
+    }
 }
 
 fn path() {
@@ -91,11 +127,11 @@ fn legacy_fix() -> Result<()> {
     {
         let path = entry.unwrap().into_path().join("src");
         println!("{}", path.display());
-        let qpm_path = path.join("qpm.json");
+        let qpm_path = &path;
         if !qpm_path.exists() {
             continue;
         }
-        let shared_path = path.join(PackageConfig::read(&qpm_path)?.shared_dir);
+        let shared_path = path.join(PackageConfig::read(qpm_path)?.shared_dir);
 
         for entry in WalkDir::new(shared_path) {
             let entry_path = entry.unwrap().into_path();

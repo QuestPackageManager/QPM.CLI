@@ -1,10 +1,20 @@
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
-use color_eyre::{eyre::Context, Result};
-use qpm_package::models::dependency::SharedPackageConfig;
+use color_eyre::{Result, eyre::Context};
+use qpm_package::{
+    extensions::package_metadata::PackageMetadataExtensions,
+    models::dependency::SharedPackageConfig,
+};
 
-use crate::{models::package_metadata::PackageMetadataExtensions, repository::Repository};
+use crate::repository::Repository;
 use std::fmt::Write as OtherWrite;
+
+const EXTERN_CMAKE_FILE: &str = "extern.cmake";
+const QPM_CMAKE_FILE: &str = "qpm_defines.cmake";
 
 /// Fern: Adds line ending after each element
 /// thanks raft
@@ -14,8 +24,30 @@ macro_rules! concatln {
     }
 }
 
+pub fn write_cmake(shared_package: &SharedPackageConfig, repo: &impl Repository) -> Result<()> {
+    let cmake_opt = shared_package.config.info.additional_data.cmake;
+
+    if cmake_opt.is_none() && Path::new("./CMakeLists.txt").exists() {
+        eprintln!(
+            "qpm.json::info::additional_data::cmake is undefined in a CMake project, consider setting it to true"
+        );
+    }
+
+    // default to true
+    let cmake = cmake_opt.unwrap_or(true);
+    if !cmake {
+        return Ok(());
+    }
+    write_extern_cmake(shared_package, repo)?;
+    write_define_cmake(shared_package)?;
+
+    Ok(())
+}
+
 pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> Result<()> {
-    let mut extern_cmake_file = File::create("extern.cmake")?;
+    let path = Path::new("./").join(EXTERN_CMAKE_FILE);
+    let mut extern_cmake_file =
+        File::create(path).context(format!("Unable to create {EXTERN_CMAKE_FILE}"))?;
     let mut result = concatln!(
             "# YOU SHOULD NOT MANUALLY EDIT THIS FILE, QPM WILL VOID ALL CHANGES",
             "# always added",
@@ -38,13 +70,19 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
 
             if let Some(include_dirs) = compile_options.include_paths {
                 for dir in include_dirs.iter() {
-                    writeln!(result, "target_include_directories(${{COMPILE_ID}} PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})")?;
+                    writeln!(
+                        result,
+                        "target_include_directories(${{COMPILE_ID}} PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})"
+                    )?;
                 }
             }
 
             if let Some(system_include_dirs) = compile_options.system_includes {
                 for dir in system_include_dirs.iter() {
-                    writeln!(result, "target_include_directories(${{COMPILE_ID}} SYSTEM PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})")?;
+                    writeln!(
+                        result,
+                        "target_include_directories(${{COMPILE_ID}} SYSTEM PRIVATE ${{EXTERN_DIR}}/includes/{package_id}/{dir})"
+                    )?;
                 }
             }
 
@@ -79,55 +117,56 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             }
         }
 
-        if let Some(extra_files) = &shared_dep.dependency.additional_data.extra_files {
-            for path_str in extra_files.iter() {
-                let path = PathBuf::new().join(&format!(
-                    "extern/includes/{}/{}",
-                    &shared_dep.dependency.id, path_str
-                ));
-                let extern_path = PathBuf::new().join(&format!(
-                    "includes/{}/{}",
-                    &shared_dep.dependency.id, path_str
-                ));
-                if path.is_file() {
-                    writeln!(
-                        result,
-                        "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
-                        extern_path.display()
-                    )?;
-                } else {
-                    let listname = format!(
-                        "{}_{}_extra",
-                        path_str.replace(['/', '\\', '-'], "_"),
-                        shared_dep.dependency.id.replace('-', "_")
-                    );
+        //TODO: Revisit
+        // if let Some(extra_files) = &shared_dep.dependency.additional_data.extra_files {
+        //     for path_str in extra_files.iter() {
+        //         let path = PathBuf::new().join(&format!(
+        //             "extern/includes/{}/{}",
+        //             &shared_dep.dependency.id, path_str
+        //         ));
+        //         let extern_path = PathBuf::new().join(&format!(
+        //             "includes/{}/{}",
+        //             &shared_dep.dependency.id, path_str
+        //         ));
+        //         if path.is_file() {
+        //             writeln!(
+        //                 result,
+        //                 "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
+        //                 extern_path.display()
+        //             )?;
+        //         } else {
+        //             let listname = format!(
+        //                 "{}_{}_extra",
+        //                 path_str.replace(['/', '\\', '-'], "_"),
+        //                 shared_dep.dependency.id.replace('-', "_")
+        //             );
 
-                    writeln!(
-                        result,
-                        "RECURSE_FILES({}_c ${{EXTERN_DIR}}/{}/*.c)",
-                        listname,
-                        extern_path.display()
-                    )?;
+        //             writeln!(
+        //                 result,
+        //                 "RECURSE_FILES({}_c ${{EXTERN_DIR}}/{}/*.c)",
+        //                 listname,
+        //                 extern_path.display()
+        //             )?;
 
-                    writeln!(
-                        result,
-                        "RECURSE_FILES({}_cpp ${{EXTERN_DIR}}/{}/*.cpp)",
-                        listname,
-                        extern_path.display()
-                    )?;
+        //             writeln!(
+        //                 result,
+        //                 "RECURSE_FILES({}_cpp ${{EXTERN_DIR}}/{}/*.cpp)",
+        //                 listname,
+        //                 extern_path.display()
+        //             )?;
 
-                    writeln!(
-                        result,
-                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
-                    )?;
+        //             writeln!(
+        //                 result,
+        //                 "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
+        //             )?;
 
-                    writeln!(
-                        result,
-                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
-                    )?;
-                }
-            }
-        }
+        //             writeln!(
+        //                 result,
+        //                 "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
+        //             )?;
+        //         }
+        //     }
+        // }
 
         if let Some(dep) = dep
             .config
@@ -138,8 +177,8 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             if let Some(extra_files) = &dep.additional_data.extra_files {
                 for path_str in extra_files.iter() {
                     let path =
-                        PathBuf::new().join(&format!("extern/includes/{}/{}", &dep.id, path_str));
-                    let extern_path = std::path::PathBuf::new().join(&format!(
+                        PathBuf::new().join(format!("extern/includes/{}/{}", &dep.id, path_str));
+                    let extern_path = std::path::PathBuf::new().join(format!(
                         "includes/{}/{}",
                         &shared_dep.dependency.id, path_str
                     ));
@@ -206,8 +245,10 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
 }
 
 pub fn write_define_cmake(dep: &SharedPackageConfig) -> Result<()> {
+    let path = Path::new("./").join(QPM_CMAKE_FILE);
+
     let mut defines_cmake_file =
-        File::create("qpm_defines.cmake").expect("Failed to create defines cmake file");
+        File::create(path).context("Failed to create defines cmake file")?;
 
     defines_cmake_file
         .write_all(make_defines_string(dep)?.as_bytes())

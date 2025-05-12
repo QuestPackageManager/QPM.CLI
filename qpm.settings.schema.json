@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UserConfig",
+  "description": "User configuration for QPM-RS",
+  "type": "object",
+  "properties": {
+    "cache": {
+      "description": "Path where cache is stored",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ndkDownloadPath": {
+      "description": "Path where ndk downloads are stored",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "symlink": {
+      "description": "Whether to symlink or copy files",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "timeout": {
+      "description": "Timeout for http requests",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  }
+}

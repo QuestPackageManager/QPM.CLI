@@ -1,36 +1,49 @@
 use color_eyre::{
-    eyre::{bail, Context},
     Result,
+    eyre::{Context, ContextCompat, OptionExt, bail, ensure},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
+use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
     fs,
-    io::{Write, BufReader},
+    io::{BufReader, Write},
+    ops::Not,
     path::{Path, PathBuf},
 };
 
-use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
+use qpm_package::{
+    extensions::package_metadata::PackageMetadataExtensions,
+    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
 };
 
 use crate::{
     models::{
-        config::get_combine_config, package::PackageConfigExtensions,
-        package_metadata::PackageMetadataExtensions,
+        config::get_combine_config,
+        package::PackageConfigExtensions,
+        schemas::{SchemaLinks, WithSchema},
     },
+    terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
 };
 
 use super::Repository;
 
+// All files must exist
+pub struct PackageFiles {
+    pub headers: PathBuf,
+    pub binary: Option<PathBuf>,
+    // pub extras: Vec<PathBuf>,
+}
+
 // TODO: Somehow make a global singleton of sorts/cached instance to share across places
 // like resolver
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
 pub struct FileRepository {
+    #[serde(default)]
     pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
 }
 
@@ -78,7 +91,7 @@ impl FileRepository {
         Ok(())
     }
 
-    /// for local qpm-rust installs
+    /// for local qpm-rs installs
     pub fn add_artifact_and_cache(
         &mut self,
         package: SharedPackageConfig,
@@ -133,9 +146,14 @@ impl FileRepository {
 
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
-            let so_path = lib_path.join(package.config.info.get_so_name());
-            let debug_so_path =
-                lib_path.join(format!("debug_{}", package.config.info.get_so_name()));
+            let so_path = lib_path.join(package.config.info.get_so_name2());
+            let debug_bin_name = package
+                .config
+                .info
+                .get_so_name2()
+                .with_extension("debug.so");
+            
+            let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
 
             if let Some(binary_path_unwrapped) = &binary_path {
                 copy_things(binary_path_unwrapped, &so_path)?;
@@ -194,6 +212,7 @@ impl FileRepository {
 
         if let Ok(file) = std::fs::File::open(path) {
             json::json_from_reader_fast(BufReader::new(file))
+                .context("Unable to read local repository config")
         } else {
             // didn't exist
             Ok(Self::default())
@@ -201,7 +220,11 @@ impl FileRepository {
     }
 
     pub fn write(&self) -> Result<()> {
-        let config = serde_json::to_string_pretty(&self).expect("Serialization failed");
+        let config = serde_json::to_string_pretty(&WithSchema {
+            schema: SchemaLinks::FILE_REPOSITORY,
+            value: self,
+        })
+        .expect("Serialization failed");
         let path = Self::global_file_repository_path();
 
         std::fs::create_dir_all(Self::global_repository_dir())
@@ -217,7 +240,7 @@ impl FileRepository {
     }
 
     pub fn global_repository_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-Rust")
+        dirs::config_dir().unwrap().join("QPM-RS")
     }
 
     pub fn clear() -> Result<(), std::io::Error> {
@@ -260,15 +283,27 @@ impl FileRepository {
 
             if let Err(e) = &symlink_result {
                 #[cfg(windows)]
-                eprintln!("Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}", e.bright_red(), "qpm config symlink disable".bright_yellow());
+                eprintln!(
+                    "Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}",
+                    e.bright_red(),
+                    "qpm config symlink disable".bright_yellow()
+                );
                 #[cfg(not(windows))]
-                eprintln!("Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}", e.bright_red(), "qpm config symlink disable".bright_yellow());
+                eprintln!(
+                    "Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}",
+                    e.bright_red(),
+                    "qpm config symlink disable".bright_yellow()
+                );
             }
 
             if !symlink || symlink_result.is_err() {
                 // if dir, make sure it exists
                 if !src.exists() {
-                    bail!("The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...", src.display().bright_yellow(), "qpm cache clear".bright_yellow());
+                    bail!(
+                        "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
+                        src.display().bright_yellow(),
+                        "qpm cache clear".bright_yellow()
+                    );
                 } else if src.is_dir() {
                     std::fs::create_dir_all(&dest)
                         .context("Failed to create destination folder")?;
@@ -285,6 +320,90 @@ impl FileRepository {
         Ok(())
     }
 
+    #[inline]
+    pub fn get_package_versions_cache_path(id: &str) -> PathBuf {
+        let user_config = get_combine_config();
+        let base_path = user_config.cache.as_ref().unwrap();
+
+        // cache/{id}
+        base_path.join(id)
+    }
+
+    #[inline]
+    pub fn get_package_cache_path(id: &str, version: &Version) -> PathBuf {
+        // cache/{id}/{version}
+        Self::get_package_versions_cache_path(id).join(version.to_string())
+    }
+
+    pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
+        let dep_cache_path = Self::get_package_cache_path(&package.info.id, &package.info.version);
+
+        if !dep_cache_path.exists() {
+            bail!(
+                "Missing cache for dependency {}:{}",
+                package.info.id.dependency_id_color(),
+                package.info.version.dependency_version_color()
+            );
+        }
+
+        let libs_path = dep_cache_path.join("lib");
+        let src_path = dep_cache_path.join("src");
+
+        if !src_path.exists() {
+            bail!(
+                "Missing src for dependency {}:{}",
+                package.info.id.dependency_id_color(),
+                package.info.version.dependency_version_color()
+            );
+        }
+
+        let exposed_headers = src_path.join(&package.shared_dir);
+
+        if package.info.additional_data.headers_only.unwrap_or(false) {
+            return Ok(PackageFiles {
+                headers: exposed_headers,
+                binary: None,
+            });
+        }
+
+        // get so name or release so name
+
+        let use_release_name = package.info.additional_data.debug_so_link.is_none()
+            || package.info.additional_data.static_link.is_some();
+
+        // get so name or release so name
+        let name = match use_release_name {
+            true => package
+                .info
+                .get_so_name2()
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            false => {
+                // lib{name}.debug.so
+                let bin = package.info.get_so_name2().with_extension("debug.so");
+
+                bin.file_name().unwrap().to_string_lossy().to_string()
+            }
+        };
+
+        let binary = libs_path.join(&name);
+
+        if !binary.exists() {
+            bail!(
+                "Missing binary {name} for {}:{}",
+                package.info.id.dependency_id_color(),
+                package.info.version.dependency_version_color()
+            );
+        }
+
+        Ok(PackageFiles {
+            headers: exposed_headers,
+            binary: Some(binary),
+        })
+    }
+
     pub fn collect_deps(
         package: &PackageConfig,
         restored_deps: &[SharedPackageConfig],
@@ -296,17 +415,11 @@ impl FileRepository {
             .map(|p| (&p.config.info.id, p))
             .collect();
 
-        let user_config = get_combine_config();
-        let base_path = user_config.cache.as_ref().unwrap();
-
         // validate exists dependencies
         let missing_dependencies: Vec<_> = restored_dependencies_map
             .iter()
             .filter(|(_, r)| {
-                !base_path
-                    .join(&r.config.info.id)
-                    .join(r.config.info.version.to_string())
-                    .exists()
+                !Self::get_package_cache_path(&r.config.info.id, &r.config.info.version).exists()
             })
             .map(|(_, r)| format!("{}:{}", r.config.info.id, r.config.info.version))
             .collect();
@@ -316,6 +429,8 @@ impl FileRepository {
         }
 
         let extern_dir = workspace_dir.join(&package.dependencies_dir);
+
+        ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
 
         // delete if needed
         if extern_dir.exists() {
@@ -328,69 +443,93 @@ impl FileRepository {
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
 
         // direct deps (binaries)
-        for referenced_dep in &package.dependencies {
-            let shared_dep = restored_dependencies_map.get(&referenced_dep.id).unwrap();
-            let dep_cache_path = base_path
-                .join(&referenced_dep.id)
-                .join(shared_dep.config.info.version.to_string());
-            let libs_path = dep_cache_path.join("lib");
 
-            // skip header only deps
-            if shared_dep
+        let deps: Vec<_> = restored_deps
+            .iter()
+            .map(|p| Self::collect_files_of_package(&p.config).map(|f| (p, f)))
+            .try_collect()?;
+
+        let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) =
+            // partition by direct dependencies and indirect
+            deps.into_iter().partition(|(dep, _)| {
+                package
+                    .dependencies
+                    .iter()
+                    .any(|d| d.id == dep.config.info.id)
+            });
+
+        for (direct_dep, direct_dep_files) in direct_deps {
+            let project_deps_headers_target =
+                extern_headers.join(direct_dep.config.info.id.clone());
+
+            let exposed_headers = direct_dep_files.headers;
+            let not_header_only = direct_dep
                 .config
                 .info
                 .additional_data
                 .headers_only
                 .unwrap_or(false)
+                .not();
+            let src_binary = not_header_only
+                // not header only
+                .then(|| {
+                    direct_dep_files.binary.wrap_err_with(|| {
+                        format!(
+                            "Binary not found for direct package {}:{}",
+                            direct_dep.config.info.id.dependency_id_color(),
+                            direct_dep.config.version.dependency_version_color()
+                        )
+                    })
+                })
+                .transpose()?;
+
+            if let Some(src_binary) = src_binary.as_ref()
+                && !src_binary.exists()
             {
-                continue;
-            }
-
-            // Not header only
-            let data = &shared_dep.config.info.additional_data;
-            // get so name or release so name
-            let name = match data.use_release.unwrap_or(false) || data.debug_so_link.is_none() {
-                true => shared_dep.config.info.get_so_name(),
-                false => format!("debug_{}", shared_dep.config.info.get_so_name()),
-            };
-
-            let src_binary = libs_path.join(&name);
-
-            if !src_binary.exists() {
                 bail!(
-                    "Missing binary {name} for {}:{}",
-                    referenced_dep.id,
-                    shared_dep.config.info.version
+                    "Missing binary {} for {}:{}",
+                    src_binary.file_name().unwrap_or_default().to_string_lossy(),
+                    direct_dep.config.info.id.dependency_id_color(),
+                    direct_dep.config.version.dependency_version_color()
+                );
+            }
+            if !exposed_headers.exists() {
+                bail!(
+                    "Missing header files for {}:{}",
+                    direct_dep.config.info.id.dependency_id_color(),
+                    direct_dep.config.version.dependency_version_color()
                 );
             }
 
+            if let Some(src_binary) = src_binary {
+                let file_name = src_binary.file_name().expect("Failed to get file name");
+
+                paths.insert(src_binary.clone(), extern_binaries.join(file_name));
+            }
+
             paths.insert(
-                src_binary,
-                extern_binaries.join(shared_dep.config.info.get_so_name()),
+                exposed_headers,
+                project_deps_headers_target.join(&direct_dep.config.shared_dir),
             );
         }
 
         // Get headers of all dependencies restored
-        for (restored_id, restored_dep) in &restored_dependencies_map {
-            let dep_cache_path = base_path
-                .join(restored_id)
-                .join(restored_dep.config.info.version.to_string());
-            let src_path = dep_cache_path.join("src");
+        for (indirect_dep, indirect_dep_files) in indirect_deps {
+            let project_deps_headers_target =
+                extern_headers.join(indirect_dep.config.info.id.clone());
 
-            if !src_path.exists() {
+            let exposed_headers = indirect_dep_files.headers;
+            if !exposed_headers.exists() {
                 bail!(
-                    "Missing src for dependency {}:{}",
-                    restored_id,
-                    restored_dep.config.info.version.to_string()
+                    "Missing header files for {}:{}",
+                    indirect_dep.config.info.id.dependency_id_color(),
+                    indirect_dep.config.version.dependency_version_color()
                 );
             }
 
-            let exposed_headers = src_path.join(&restored_dep.config.shared_dir);
-            let project_deps_headers_target = extern_headers.join(restored_id);
-
             paths.insert(
                 exposed_headers,
-                project_deps_headers_target.join(&restored_dep.config.shared_dir),
+                project_deps_headers_target.join(&indirect_dep.config.shared_dir),
             );
         }
 
@@ -402,9 +541,10 @@ impl FileRepository {
                 .get(&referenced_dependency.id)
                 .unwrap();
 
-            let dep_cache_path = base_path
-                .join(&referenced_dependency.id)
-                .join(shared_dep.config.info.version.to_string());
+            let dep_cache_path = Self::get_package_cache_path(
+                &referenced_dependency.id,
+                &shared_dep.config.info.version,
+            );
             let src_path = dep_cache_path.join("src");
 
             let extern_headers_dep = extern_headers.join(&referenced_dependency.id);
@@ -429,6 +569,29 @@ impl FileRepository {
         paths.retain(|src, _| src.exists());
 
         Ok(paths)
+    }
+
+    pub fn remove_package_versions(&mut self, package: &String) -> Result<()> {
+        self.artifacts.remove(package);
+        let packages_path = Self::get_package_versions_cache_path(package);
+        if !packages_path.exists() {
+            return Ok(());
+        }
+        std::fs::remove_dir_all(packages_path)?;
+        Ok(())
+    }
+    pub fn remove_package(&mut self, package: &String, version: &Version) -> Result<()> {
+        self.artifacts
+            .get_mut(package)
+            .ok_or_eyre(format!("No package found {package}/{version}"))?
+            .remove(version);
+
+        let packages_path = Self::get_package_cache_path(package, version);
+        if !packages_path.exists() {
+            return Ok(());
+        }
+        std::fs::remove_dir_all(packages_path)?;
+        Ok(())
     }
 }
 
@@ -470,17 +633,16 @@ impl Repository for FileRepository {
         let exist_in_db = self
             .get_artifact(&config.info.id, &config.info.version)
             .is_some();
-        let exists_in_cache = get_combine_config()
-            .cache
-            .as_ref()
-            .unwrap()
-            .join(&config.info.id)
-            .join(config.info.version.to_string())
-            .exists();
-        Ok(exist_in_db && exists_in_cache)
+        let file = FileRepository::collect_files_of_package(config);
+
+        Ok(exist_in_db && file.is_ok())
     }
 
     fn write_repo(&self) -> Result<()> {
         self.write()
+    }
+
+    fn is_online(&self) -> bool {
+        false
     }
 }

@@ -1,0 +1,40 @@
+{
+  "version": "0.4.0",
+  "sharedDir": "shared",
+  "dependenciesDir": "extern",
+  "info": {
+    "name": "package1",
+    "id": "package1",
+    "version": "0.1.0",
+    "url": null,
+    "additionalData": {}
+  },
+  "workspace": {
+    "scripts": {},
+    "qmodIncludeDirs": [],
+    "qmodIncludeFiles": [],
+    "qmodOutput": null
+  },
+  "dependencies": [
+    {
+      "id": "scotland2",
+      "versionRange": "=0.1.4",
+      "additionalData": {}
+    },
+    {
+      "id": "fmt",
+      "versionRange": "=11.0.2",
+      "additionalData": {}
+    },
+    {
+      "id": "beatsaber-hook",
+      "versionRange": "^5.1.9",
+      "additionalData": {}
+    },
+    {
+      "id": "libcurl",
+      "versionRange": "^8.7.1",
+      "additionalData": {}
+    }
+  ]
+}

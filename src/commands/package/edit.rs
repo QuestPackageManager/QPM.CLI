@@ -5,7 +5,7 @@ use semver::Version;
 use crate::{
     commands::Command,
     models::package::PackageConfigExtensions,
-    repository::multi::MultiDependencyRepository,
+    repository::{self},
     utils::cmake::{write_define_cmake, write_extern_cmake},
 };
 
@@ -24,6 +24,9 @@ pub struct EditArgs {
     ///Edit the version property of the package
     #[clap(long)]
     pub version: Option<Version>,
+
+    #[clap(long, default_value = "false")]
+    offline: bool,
 }
 
 impl Command for EditArgs {
@@ -57,7 +60,7 @@ impl Command for EditArgs {
             write_define_cmake(&shared_package)?;
             write_extern_cmake(
                 &shared_package,
-                &MultiDependencyRepository::useful_default_new()?,
+                &repository::useful_default_new(self.offline)?,
             )?;
         }
         Ok(())

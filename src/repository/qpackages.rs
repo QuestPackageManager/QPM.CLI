@@ -1,3 +1,4 @@
+use bytes::{BufMut, BytesMut};
 use color_eyre::{
     eyre::{anyhow, bail, Context},
     Result,
@@ -6,18 +7,17 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use semver::Version;
 use std::{
-    cell::UnsafeCell,
-    collections::HashMap,
     fs::{self, File},
-    io::{Cursor, Write},
+    io::{BufWriter, Cursor},
     path::Path,
 };
 use zip::ZipArchive;
 
 use serde::Deserialize;
 
-use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
+use qpm_package::{
+    extensions::package_metadata::PackageMetadataExtensions,
+    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
 };
 
 use crate::{
@@ -35,11 +35,7 @@ use super::Repository;
 const API_URL: &str = "https://qpackages.com";
 
 #[derive(Default)]
-pub struct QPMRepository {
-    // interior mutability
-    packages_cache: UnsafeCell<HashMap<String, HashMap<Version, SharedPackageConfig>>>,
-    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>,
-}
+pub struct QPMRepository {}
 
 impl QPMRepository {
     fn run_request<T>(path: &str) -> Result<Option<T>>
@@ -56,14 +52,24 @@ impl QPMRepository {
     /// Requests the appriopriate package info from qpackage.com
     pub fn get_versions(id: &str) -> Result<Option<Vec<PackageVersion>>> {
         Self::run_request(&format!("{id}?limit=0"))
+            .with_context(|| format!("Getting list of versions for {}", id.dependency_id_color()))
     }
 
     pub fn get_shared_package(id: &str, ver: &Version) -> Result<Option<SharedPackageConfig>> {
-        Self::run_request(&format!("{id}/{ver}"))
+        Self::run_request(&format!("{id}/{ver}")).with_context(|| {
+            format!(
+                "Getting shared package config {}:{}",
+                id.dependency_id_color(),
+                ver.version_id_color()
+            )
+        })
     }
 
     pub fn get_packages() -> Result<Vec<String>> {
-        Ok(Self::run_request("")?.unwrap())
+        let vec = Self::run_request("")
+            .context("qpackages.com packages list failed")?
+            .ok_or_eyre("No packages found?")?;
+        Ok(vec)
     }
 
     pub fn publish_package(package: &SharedPackageConfig, auth: &str) -> Result<()> {
@@ -104,8 +110,8 @@ impl QPMRepository {
 
         println!(
             "Checking cache for dependency {} {}",
-            config.info.id.bright_red(),
-            config.info.version.bright_green()
+            config.info.id.dependency_id_color(),
+            config.info.version.version_id_color()
         );
         let user_config = get_combine_config();
         let base_path = user_config
@@ -119,29 +125,34 @@ impl QPMRepository {
         let lib_path = base_path.join("lib");
         let tmp_path = base_path.join("tmp");
 
-        if src_path.join("qpm.shared.json").exists() {
+        let so_path = lib_path.join(config.info.get_so_name2());
+        let debug_bin_name = config.info.get_so_name2().with_extension("debug.so");
+        let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
+
+        let src_exists = src_path.join("qpm.shared.json").exists();
+        if src_exists {
             // ensure is valid
-            SharedPackageConfig::read(src_path).with_context(|| {
+            SharedPackageConfig::read(&src_path).with_context(|| {
                 format!(
                     "Failed to get config {}:{} in cache",
-                    config.info.id, config.info.version
+                    config.info.id.dependency_id_color(),
+                    config.info.version.version_id_color()
                 )
             })?;
-            return Ok(());
         }
-
-        let so_path = lib_path.join(config.info.get_so_name());
-        let debug_so_path = lib_path.join(format!("debug_{}", config.info.get_so_name()));
 
         // Downloads the repo / zip file into src folder w/ subfolder taken into account
         if !src_path.exists() {
             // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
             if tmp_path.exists() {
-                fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
+                fs::remove_dir_all(&tmp_path).with_context(|| {
+                    format!("Failed to remove existing tmp folder {tmp_path:?}")
+                })?;
             }
 
             // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
-            fs::create_dir_all(src_path.parent().unwrap()).context("Failed to create lib path")?;
+            fs::create_dir_all(&base_path)
+                .with_context(|| format!("Failed to create lib path {base_path:?}"))?;
             let url = config.info.url.as_ref().unwrap();
             if url.contains("github.com") {
                 // github url!
@@ -149,14 +160,18 @@ impl QPMRepository {
                     url.clone(),
                     config.info.additional_data.branch_name.as_ref(),
                     &tmp_path,
-                )?;
+                )
+                .context("Clone")?;
             } else {
                 // not a github url, assume it's a zip
                 let response = agent::get_bytes(url)?;
 
                 let buffer = Cursor::new(response);
                 // Extract to tmp folder
-                ZipArchive::new(buffer)?.extract(&tmp_path)?;
+                ZipArchive::new(buffer)
+                    .context("Reading zip")?
+                    .extract(&tmp_path)
+                    .context("Zip extraction")?;
             }
             // the only way the above if else would break is if someone put a link to a zip file on github in the url slot
             // if you are reading this and think of doing that so I have to fix this, fuck you
@@ -176,7 +191,7 @@ impl QPMRepository {
                 // only log this on debug builds
                 #[cfg(debug_assertions)]
                 println!(
-                    "from: {}\nto: {}",
+                    "Moving from: {}\nto: {}",
                     sub_package_path.display().bright_yellow(),
                     src_path.display().bright_yellow()
                 );
@@ -194,17 +209,25 @@ impl QPMRepository {
                     }
                 }
                 // HACK: renaming seems to work, idk if it works for actual subfolders?
-                fs::rename(&sub_package_path, &src_path).context("Failed to move folder")?;
+                fs::rename(&sub_package_path, &src_path)
+                    .context("Failed to move folder")
+                    .with_suggestion(|| {
+                        format!(
+                            "Check if a process is locking the folder: \n{}",
+                            sub_package_path.display().file_path_color()
+                        )
+                    })?;
             } else {
-                bail!("Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo");
+                bail!(
+                    "Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo"
+                );
             }
 
             // clear up tmp folder if it still exists
             if tmp_path.exists() {
                 std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
             }
-            let package_path = src_path;
-            let downloaded_package = SharedPackageConfig::read(package_path);
+            let downloaded_package = SharedPackageConfig::read(src_path);
 
             match downloaded_package {
                 Ok(downloaded_package) =>
@@ -213,14 +236,14 @@ impl QPMRepository {
                     if downloaded_package.config.info.version != config.info.version {
                         bail!(
                             "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                            config.info.id.bright_red(),
+                            config.info.id.dependency_id_color(),
                             downloaded_package
                                 .config
                                 .info
                                 .version
                                 .to_string()
-                                .bright_green(),
-                            config.info.version.to_string().bright_green(),
+                                .version_id_color(),
+                            config.info.version.to_string().version_id_color(),
                         )
                     }
                 }
@@ -236,32 +259,78 @@ impl QPMRepository {
 
         if !lib_path.exists() {
             fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
-            // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
-            let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
-                if !path.exists() || File::open(path).is_err() {
-                    if let Some(url) = url_opt {
-                        // so_link existed, download
-                        if url.contains("github.com") {
-                            // github url!
-                            git::get_release(url, path)?;
-                        } else {
-                            let bytes = download_file_report(url, |_, _| {})?;
+        }
 
-                            let mut file = File::create(path)?;
+        // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
+        let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
+            // only download if file doesn't exist already
+            if path.exists() {
+                #[cfg(debug_assertions)]
+                println!(
+                    "{} already exists, skipping download",
+                    path.display().bright_yellow()
+                );
+                return Ok(());
+            }
+            let Some(url) = url_opt else { return Ok(()) };
 
-                            file.write_all(&bytes)
-                                .context("Failed to write out downloaded bytes")?;
-                        }
-                    }
+            let temp_path = path.with_added_extension("temp");
+
+            if temp_path.exists() {
+                std::fs::remove_file(&temp_path)
+                    .with_context(|| format!("Failed to remove tmp file {temp_path:?}"))?;
+            }
+
+            if !temp_path.exists() || File::open(&temp_path).is_err() {
+                println!(
+                    "Downloading {} from {} to {}",
+                    path.file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .download_file_name_color(),
+                    url_opt.unwrap().version_id_color(),
+                    path.as_os_str()
+                        .to_string_lossy()
+                        .alternate_dependency_version_color()
+                );
+                // so_link existed, download
+                if url.contains("github.com") {
+                    // github url!
+                    git::get_release(url, &temp_path)?;
+                } else {
+                    let mut file = BufWriter::new(File::create(&temp_path)?);
+                    download_file_report(url, &mut file, |_, _| {})
+                        .context("Failed to write out downloaded bytes")?;
                 }
-                Ok(())
-            };
+            }
 
-            download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
-            download_binary(
-                &debug_so_path,
-                config.info.additional_data.debug_so_link.as_ref(),
-            )?;
+            std::fs::rename(&temp_path, path)
+                .with_context(|| format!("Unable to rename {temp_path:?} to {path:?}"))?;
+
+            if path.exists() {
+                #[cfg(debug_assertions)]
+                println!("{} downloaded successfully", path.display().bright_green());
+            }
+
+            Ok(())
+        };
+
+        download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
+        download_binary(
+            &debug_so_path,
+            config.info.additional_data.debug_so_link.as_ref(),
+        )?;
+
+        if config.info.additional_data.so_link.is_none()
+            && config.info.additional_data.debug_so_link.is_none()
+            && config.info.additional_data.static_link.is_none()
+            && !config.info.additional_data.headers_only.unwrap_or(false)
+        {
+            eprintln!(
+                "No binaries are provided for {}:{} but is also not header only!",
+                config.info.id.dependency_id_color(),
+                config.info.version.version_id_color()
+            );
         }
         Ok(())
     }
@@ -272,13 +341,8 @@ impl Repository for QPMRepository {
         Self::get_packages()
     }
 
+    /// Sorted descending order
     fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
-        let cache = self.versions_cache.get_safe().get(id);
-
-        if let Some(c) = cache {
-            return Ok(Some(c.clone()));
-        }
-
         let versions = Self::get_versions(id)?.map(|versions| {
             versions
                 .into_iter()
@@ -287,37 +351,11 @@ impl Repository for QPMRepository {
                 .collect_vec()
         });
 
-        if let Some(versions) = &versions {
-            self.versions_cache
-                .get_mut_safe()
-                .entry(id.to_string())
-                .insert_entry(versions.clone());
-        }
-
         Ok(versions)
     }
 
     fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
-        let cache = self
-            .packages_cache
-            .get_safe()
-            .get(id)
-            .and_then(|f| f.get(version));
-
-        if let Some(c) = cache {
-            return Ok(Some(c.clone()));
-        }
-
         let config = Self::get_shared_package(id, version)?;
-
-        if let Some(config) = &config {
-            self.packages_cache
-                .get_mut_safe()
-                .entry(config.config.info.id.clone())
-                .or_default()
-                .entry(config.config.info.version.clone())
-                .insert_entry(config.clone());
-        }
 
         Ok(config)
     }
@@ -327,7 +365,13 @@ impl Repository for QPMRepository {
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        self.download_package(config)?;
+        self.download_package(config).with_context(|| {
+            format!(
+                "QPackages {}:{}",
+                config.info.id.dependency_id_color(),
+                config.info.version.version_id_color()
+            )
+        })?;
 
         Ok(true)
     }
@@ -335,20 +379,8 @@ impl Repository for QPMRepository {
     fn write_repo(&self) -> Result<()> {
         Ok(())
     }
-}
-trait UnsafeCellExt<T>: Sized {
-    fn get_safe(&self) -> &T;
 
-    #[allow(clippy::mut_from_ref)]
-    fn get_mut_safe(&self) -> &mut T;
-}
-
-impl<T> UnsafeCellExt<T> for UnsafeCell<T> {
-    fn get_safe(&self) -> &T {
-        unsafe { &*self.get() }
-    }
-
-    fn get_mut_safe(&self) -> &mut T {
-        unsafe { &mut *self.get() }
+    fn is_online(&self) -> bool {
+        true
     }
 }

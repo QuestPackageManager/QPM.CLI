@@ -3,19 +3,23 @@ use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 
 use crate::{
-    models::package::PackageConfigExtensions, repository::multi::MultiDependencyRepository,
+    models::package::PackageConfigExtensions,
+    repository::{self},
     resolver::dependency::resolve,
 };
 
 use super::Command;
 
 #[derive(Args)]
-pub struct CollapseCommand {}
+pub struct CollapseCommand {
+    #[clap(long, default_value = "false")]
+    offline: bool,
+}
 
 impl Command for CollapseCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let binding = MultiDependencyRepository::useful_default_new()?;
+        let binding = repository::useful_default_new(self.offline)?;
         let resolved = resolve(&package, &binding)?;
         for shared_package in resolved {
             println!(

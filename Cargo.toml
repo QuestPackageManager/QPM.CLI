@@ -1,65 +1,115 @@
 [package]
 name = "qpm_cli"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/QuestPackageManager/QPM.CLI"
 
+rust-version = "1.85"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 # Rename binary
 [[bin]]
-name = "qpm-rust"
+name = "qpm"
 path = "src/main.rs"
 
+[lib]
+required-features = []
+
+
 [features]
-default = ["templatr", "ureq"]
+default = ["templatr", "network_test", "cli", "gitoxide"]
 templatr = ["dep:templatr"]
+
 reqwest = ["dep:reqwest"]
 ureq = ["dep:ureq"]
 
+cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:pbr"]
+gitoxide = ["dep:gix"]
+network_test = []
+
 [build-dependencies]
-vergen = "7"
+vergen = { version = "8", features = [
+    "build",
+    "git",
+    "gitcl",
+], optional = true }
+# if you wish to disable certain features
 color-eyre = { version = "0.6", default-features = false }
+
+[dev-dependencies]
+trycmd = { version = "0.15" }
 
 [dependencies]
 #qpm
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
+qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
+pathdiff = "0.2"
 
 # No need for tracing support
 color-eyre = { version = "0.6", default-features = false }
 # progress bar
-pbr = "*" #{ git = "https://github.com/a8m/pb.git" }
-
-git2 = "0.16"
+pbr = { version = "*", optional = true } #{ git = "https://github.com/a8m/pb.git" }
 
 bytes = "*"
-reqwest = { version = "0.11", features = ["blocking", "json"], optional = true}
-ureq = { version = "2", features = ["json"], optional = true}
-clap = { version = "4", features = ["derive"] }
+ureq = { version = "2", features = ["json"], optional = true }
+reqwest = { version = "0.12", features = [
+    "blocking",
+    "json",
+    "gzip",
+    "deflate",
+    "brotli",
+    "rustls-tls",
+], default-features = false, optional = true }
+
+clap = { version = "4", features = ["derive"], optional = true }
+clap_complete = { version = "4", optional = true }
+
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde-xml-rs = "0.6"
+serde-xml-rs = "0.7"
 semver = { version = "1.0", features = ["serde"] }
 cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser.git", features = [
     "serde",
 ] }
-thiserror = "1"
-pubgrub = "0.2"
-owo-colors = "3"
-dirs = "4.0.0"
-keyring = "1"
-zip = "0.6"
+pubgrub = "0.3"
+owo-colors = "4"
+dirs = "6.0.0"
+keyring = "3"
+
+gix = { version = "*", features = [
+    "command",
+    "attributes",
+    "progress-tree",
+    "worktree-mutation",
+    "blocking-network-client",
+    "blocking-http-transport-reqwest-rust-tls",
+], optional = true, default-features = false }
+
+# Use PR with symlink fix for Unix systems.
+zip = "2"
+
 walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
-itertools = "0.10"
-stopwatch = "0.0.7"
+itertools = "0.14"
+schemars = { version = "0.8", features = ["semver"] }
+
+[target.aarch64-apple-darwin.dependencies]
+# Allow cross compiles
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
+[target.x86_64-apple-darwin.dependencies]
+# Statically link openssl
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
 
 [profile.release]
 opt-level = 3
 lto = true
+strip = "symbols"
+
 
 [profile.dev.package.backtrace]
 opt-level = 3

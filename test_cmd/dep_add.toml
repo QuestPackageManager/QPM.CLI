@@ -1,0 +1,12 @@
+bin.name = "qpm"
+args = "dependency add beatsaber-hook --version 5.1.9"
+
+fs.sandbox = true
+binary = true
+
+# status.code = 0
+# stdin = ""
+# # stdout doesn't have stable order
+# stderr = """
+# argument `foo` is not found
+# """

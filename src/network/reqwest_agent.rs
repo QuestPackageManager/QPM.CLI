@@ -1,21 +1,28 @@
-use std::{sync, time::Duration};
+use std::{
+    env,
+    io::{ErrorKind, Read, Write},
+    sync,
+    thread::sleep,
+    time::Duration,
+};
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{
+    Result,
+    eyre::{Context, ensure},
+};
 
 use crate::models::config::get_combine_config;
 
 static AGENT: sync::OnceLock<reqwest::blocking::Client> = sync::OnceLock::new();
 
 pub fn get_agent() -> &'static reqwest::blocking::Client {
+    let timeout = get_combine_config().timeout.unwrap_or(5000);
+
     AGENT.get_or_init(|| {
         reqwest::blocking::ClientBuilder::new()
-            .connect_timeout(Duration::from_millis(
-                get_combine_config().timeout.unwrap().into(),
-            ))
-            .tcp_nodelay(true)
-            .tcp_keepalive(Some(Duration::from_millis(
-                get_combine_config().timeout.unwrap().into(),
-            )))
+            .connect_timeout(Duration::from_millis(timeout.into()))
+            .tcp_keepalive(Duration::from_secs(5))
+            .tcp_nodelay(false)
             .https_only(true)
             .user_agent(format!("questpackagemanager-rust2/{}", env!("CARGO_PKG_VERSION")).as_str())
             .build()
@@ -23,7 +30,7 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
     })
 }
 
-pub fn download_file<F>(url: &str, _callback: F) -> Result<Vec<u8>>
+pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
@@ -31,41 +38,79 @@ where
 
     request.timeout_mut().take(); // Set to none
 
-    let response = get_agent().execute(request)
+    let mut response = get_agent()
+        .execute(request)
         .with_context(|| format!("Unable to download file {url}"))?
         .error_for_status()?;
 
-    Ok(response.bytes()?.into())
+    let expected_amount = response.content_length().unwrap_or(0) as usize;
+    let mut written: usize = 0;
 
-    // TODO: Fix
-    // let mut bytes = Vec::with_capacity(response.content_length().unwrap_or(0) as usize);
-    // let mut read_bytes = vec![0u8; 4 * 1024];
+    let mut temp_buf = vec![0u8; 1024];
 
-    // loop {
-    //     let read = response.read(&mut read_bytes)?;
-    //     bytes.append(&mut read_bytes);
+    loop {
+        let read = response.read(&mut temp_buf);
 
-    //     callback(bytes.len(), bytes.capacity());
-    //     if read == 0 {
-    //         println!("Done!");
-    //         break;
-    //     }
-    // }
+        match read {
+            // EOF
+            Ok(0) => break,
 
-    // Ok(bytes)
+            Ok(amount) => {
+                written += amount;
+                buffer.write_all(&temp_buf[0..amount])?;
+                callback(written, expected_amount);
+            }
+            Err(e) if e.kind() == ErrorKind::Interrupted => {
+                sleep(Duration::from_millis(1));
+            }
+            Err(e) => {
+                return Err(e)
+                    .with_context(|| format!("Failed to continue reading bytes from {url}"));
+            }
+        }
+    }
+
+    ensure!(
+        written == expected_amount,
+        "Read: 0x{written:x} Expected: 0x{expected_amount:x}"
+    );
+
+    Ok(expected_amount)
 }
 
 #[inline(always)]
-pub fn download_file_report<F>(url: &str, mut callback: F) -> Result<Vec<u8>>
+#[cfg(not(feature = "cli"))]
+pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, callback: F) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
-    // let mut progress_bar = ProgressBar::new(1000);
+    download_file(url, buffer, callback)
+}
 
-    // progress_bar.finish_println("");
-    download_file(url, |current, expected| {
-        // progress_bar.set((current / expected) as u64 * 1000);
+#[inline(always)]
+#[cfg(feature = "cli")]
+pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
+where
+    F: FnMut(usize, usize),
+{
+    use pbr::ProgressBar;
+
+    let mut progress_bar = ProgressBar::new(0);
+    progress_bar.set_units(pbr::Units::Bytes);
+
+    if env::var("CI") == Ok("true".to_string()) {
+        progress_bar.set_max_refresh_rate(Some(Duration::from_millis(500)));
+    }
+
+    let result = download_file(url, buffer, |current, expected| {
+        progress_bar.total = expected as u64;
+        progress_bar.set(current as u64);
 
         callback(current, expected)
-    })
+    });
+
+    progress_bar.finish_println("Finished download!");
+    println!();
+
+    result
 }

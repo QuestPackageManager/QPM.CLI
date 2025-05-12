@@ -1,0 +1,15 @@
+{
+  "_QPVersion": "1.1.0",
+  "name": "${mod_name}",
+  "id": "${mod_id}",
+  "modloader": "Scotland2",
+  "author": "---",
+  "version": "${version}",
+  "description": "${mod_id}, version ${version}!",
+  "dependencies": [],
+  "modFiles": ["modFile1"],
+  "lateModFiles": ["lateModFile1"],
+  "libraryFiles": ["libraryFile1"],
+  "fileCopies": [],
+  "copyExtensions": []
+}

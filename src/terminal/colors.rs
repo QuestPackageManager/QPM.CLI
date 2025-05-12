@@ -28,7 +28,9 @@ pub trait QPMColor: OwoColorize {
     }
 
     #[inline(always)]
-    fn alternate_dependency_version_color(&self) -> FgColorDisplay<owo_colors::colors::Yellow, Self> {
+    fn alternate_dependency_version_color(
+        &self,
+    ) -> FgColorDisplay<owo_colors::colors::Yellow, Self> {
         self.yellow()
     }
 }

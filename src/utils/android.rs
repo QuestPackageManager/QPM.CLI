@@ -4,7 +4,7 @@ use std::{
     io::{Cursor},
 };
 
-use bytes::Bytes;
+use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
 use owo_colors::OwoColorize;
 use semver::{BuildMetadata, Prerelease, Version};
@@ -38,27 +38,50 @@ pub fn get_ndk_packages(manifest: &AndroidRepositoryManifest) -> Vec<&RemotePack
 }
 
 pub fn get_ndk_version(ndk: &RemotePackage) -> Version {
+    let build = BuildMetadata::new(&format!(
+        "preview-{}",
+        &ndk.revision.preview.unwrap_or(0).to_string()
+    ))
+    .unwrap();
+
     Version {
         major: ndk.revision.major.unwrap_or(0),
         minor: ndk.revision.minor.unwrap_or(0),
         patch: ndk.revision.micro.unwrap_or(0),
-        pre: Prerelease::new(&ndk.revision.preview.unwrap_or(0).to_string()).unwrap(),
-        build: BuildMetadata::default(),
+        pre: Prerelease::EMPTY,
+        build,
     }
 }
 
-pub fn get_ndk_str_versions(manifest: &AndroidRepositoryManifest) -> HashMap<&str, &RemotePackage> {
-    manifest
-        .remote_package
-        .iter()
-        .filter_map(|p| {
-            // if NDK and compatible with host machine
-            (p.path.starts_with("ndk;") && get_host_archive(p).is_some())
-                .then(|| (p.path.split_once(';').unwrap().1, p))
+#[inline(always)]
+pub fn get_ndk_str_versions(
+    manifest: &AndroidRepositoryManifest,
+) -> HashMap<Version, &RemotePackage> {
+    get_ndk_str_versions_str(manifest)
+        .into_iter()
+        .map(|(s, p)| {
+            (
+                Version::parse(s)
+                    .unwrap_or_else(|e| panic!("Unable to parse version string {s}: {e}")),
+                p,
+            )
         })
         .collect()
 }
+pub fn get_ndk_str_versions_str(
+    manifest: &AndroidRepositoryManifest,
+) -> HashMap<&str, &RemotePackage> {
+    manifest
+        .remote_package
+        .iter()
+        .filter(|&p| (p.path.starts_with("ndk;") && get_host_archive(p).is_some()))
+        .map(|p| (p.path.split_once(';').unwrap().1, p))
+        .collect()
+}
 
+///
+/// Gets the archive matching the triplet for the current OS
+///
 pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
     let os = if cfg!(target_os = "linux") {
         "linux"
@@ -82,7 +105,7 @@ pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
     })
 }
 
-pub fn download_ndk_version(ndk: &RemotePackage) -> Result<()> {
+pub fn download_ndk_version(ndk: &RemotePackage, show_progress: bool) -> Result<PathBuf> {
     let archive = get_host_archive(ndk).expect("Could not find ndk for current os and arch");
 
     let archive_url = format!("{ANDROID_DL_URL}/{}", archive.complete.url);
@@ -95,25 +118,38 @@ pub fn download_ndk_version(ndk: &RemotePackage) -> Result<()> {
 
     let dir = get_combine_config()
         .ndk_download_path
-        .as_ref()
+        .clone()
         .expect("No NDK download path set");
     let _name = &archive.complete.url;
 
-    let bytes: Bytes = download_file_report(&archive_url, |_, _| {})?.into();
-
+    let mut bytes = BytesMut::new().writer();
+    match show_progress {
+        true => {
+            download_file_report(&archive_url, &mut bytes, |_, _| {})?;
+        }
+        false => {
+            download_file(&archive_url, &mut bytes, |_, _| {})?;
+        }
+    }
     println!("Extracting ndk");
-    let buffer = Cursor::new(bytes);
+    let buffer = Cursor::new(bytes.into_inner());
 
     // Extract to tmp folde
     let mut archive = ZipArchive::new(buffer)?;
-    let final_path = dir.join(archive.by_index(0)?.name());
+    let extract_path = dir.join(archive.by_index(0)?.name());
 
-    archive.extract(dir)?;
+    archive.extract(&dir)?;
 
     println!(
         "Downloaded {} to {}",
         get_ndk_version(ndk).green(),
-        final_path.to_str().unwrap().file_path_color()
+        extract_path.to_str().unwrap().file_path_color()
     );
-    Ok(())
+
+    // Rename to use friendly NDK version name
+    let final_path = dir.join(get_ndk_version(ndk).to_string());
+
+    fs::rename(&extract_path, &final_path)?;
+
+    Ok(final_path)
 }

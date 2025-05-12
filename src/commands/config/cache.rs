@@ -31,9 +31,9 @@ impl CacheCommand {
                     // if it's relative, that is bad, do not accept!
                     if path_data.is_relative() {
                         println!(
-                        "Path input {} is relative, this is not allowed! pass in absolute paths!",
-                        path.display().bright_yellow()
-                    );
+                            "Path input {} is relative, this is not allowed! pass in absolute paths!",
+                            path.display().bright_yellow()
+                        );
                     // if it's a path to a file, that's not usable, do not accept!
                     } else if path_data.is_file() {
                         println!(
@@ -43,7 +43,10 @@ impl CacheCommand {
                     } else {
                         // if we can not create the folder, that is bad, do not accept!
                         if let Err(err) = fs::create_dir_all(&path) {
-                            println!("Creating dir {} failed! does qpm have permission to create that directory?", path.display().bright_yellow());
+                            println!(
+                                "Creating dir {} failed! does qpm have permission to create that directory?",
+                                path.display().bright_yellow()
+                            );
                             println!("Not setting cache path due to: {}", err.bright_red());
                             return Ok(());
                         }
@@ -62,7 +65,10 @@ impl CacheCommand {
                             config.cache = Some(path);
                             return Ok(());
                         } else {
-                            println!("Failed to set cache path to {}, since opening a test file there was not succesful", path.display().bright_yellow());
+                            println!(
+                                "Failed to set cache path to {}, since opening a test file there was not succesful",
+                                path.display().bright_yellow()
+                            );
                         }
                     }
                 } else if let Some(path) = config.cache.as_ref() {

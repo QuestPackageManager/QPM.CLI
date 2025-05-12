@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Lauriethefish/QuestPatcher.QMod/refs/heads/main/QuestPatcher.QMod/Resources/qmod.schema.json",
+  "_QPVersion": "1.1.0",
+  "name": "package1",
+  "id": "package1",
+  "modloader": "Scotland2",
+  "author": "---",
+  "version": "0.1.0",
+  "description": "package1, version 0.1.0!",
+  "dependencies": [],
+  "modFiles": [
+    "modFile1"
+  ],
+  "lateModFiles": [
+    "lateModFile1"
+  ],
+  "libraryFiles": [
+    "libraryFile1"
+  ],
+  "fileCopies": [],
+  "copyExtensions": []
+}

@@ -2,8 +2,8 @@ use std::{env, fs::File};
 
 use clap::Args;
 use color_eyre::{
-    eyre::{anyhow, bail},
     Help, Result,
+    eyre::{anyhow, bail},
 };
 use owo_colors::OwoColorize;
 
@@ -42,28 +42,36 @@ impl Command for DoctorCommand {
         let ninja = look_path("ninja")?;
         let adb = look_path("adb")?;
 
-        let qpm_rust = look_path("qpm-rust")?;
+        let qpm = look_path("qpm")?;
 
         if !cmake {
-            bail!("CMake is not installed in path!")
+            eprintln!(
+                "CMake is not installed in path! Use winget or your OS package manager to install CMake."
+            )
         } else {
             println!("Cmake found!");
         }
 
         if !ninja {
-            bail!("Ninja is not installed in path!")
+            eprintln!(
+                "Ninja is not installed in path! Use {} to download ninja",
+                "qpm download ninja".yellow()
+            )
         } else {
             println!("Ninja found!");
         }
 
-        if !qpm_rust {
-            bail!("QPM-Rust not found in path!")
+        if !qpm {
+            eprintln!("Qpm not found in path!")
         } else {
-            println!("QPM-Rust found!");
+            println!("Qpm found!");
         }
 
         if !adb {
-            bail!("ADB not installed in path")
+            eprintln!(
+                "ADB not installed in path. Use {} to download ADB",
+                "qpm download adb".yellow()
+            )
         } else {
             println!("ADB found!");
         }
@@ -73,7 +81,9 @@ impl Command for DoctorCommand {
 
             if ndk_path.is_ok() {
                 println!("NDK {} found in path!", ndk_path.unwrap());
-            } else if let Err(err) = ndk_path && File::open("./ndkpath.txt").is_err() {
+            } else if let Err(err) = ndk_path
+                && File::open("./ndkpath.txt").is_err()
+            {
                 return Err(anyhow!(
                     "No ndkpath.txt or ANDROID_NDK_HOME environment variable found!"
                 )
@@ -81,8 +91,11 @@ impl Command for DoctorCommand {
             }
         };
 
-        println!("{}", "Everything looks good!".green());
-
+        if cmake && adb && qpm && ninja {
+            println!("{}", "Everything looks good!".green());
+        } else {
+            bail!("Some functionality is missing")
+        }
         Ok(())
     }
 }

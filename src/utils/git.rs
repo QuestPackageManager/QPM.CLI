@@ -6,8 +6,8 @@ use std::{
 };
 
 use color_eyre::{
-    eyre::{bail, Context},
-    Result,
+    Result, Section,
+    eyre::{Context, bail},
 };
 use owo_colors::OwoColorize;
 //use duct::cmd;
@@ -32,7 +32,7 @@ pub fn check_git() -> Result<()> {
             #[cfg(windows)]
             bail!(
                 "Please make sure git ({}) is installed and on path, then try again!",
-                "https://git-scm.com/download/windows".bright_yellow()
+                "https://git-scm.com/download/win".bright_yellow()
             );
             #[cfg(target_os = "linux")]
             bail!(
@@ -146,7 +146,10 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         println!("No branch name found, cloning default branch");
     }
 
-    let mut child = git.spawn()?;
+    let mut child = git
+        .spawn()
+        .context("Git clone package")
+        .with_suggestion(|| format!("File a bug report. Used the following command: {:#?}", git))?;
 
     match child.wait() {
         Ok(e) => {

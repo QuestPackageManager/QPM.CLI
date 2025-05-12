@@ -1,17 +1,20 @@
-#![feature(once_cell)]
-#![feature(entry_insert)]
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
 #![feature(let_chains)]
-#![feature(is_some_and)]
-#![feature(option_result_contains)]
 #![feature(exit_status_error)]
+#![feature(if_let_guard)]
+#![feature(path_add_extension)]
 
-use clap::Parser;
+use std::io;
+
+use clap::{CommandFactory, Parser};
+use clap_complete::{Generator, Shell, generate};
 use color_eyre::Result;
 use commands::Command;
 
+#[cfg(feature = "cli")]
 pub mod commands;
+
 pub mod models;
 pub mod network;
 pub mod repository;
@@ -43,7 +46,17 @@ fn main() -> Result<()> {
             "/issues/new"
         ))
         .install()?;
-    commands::MainCommand::parse().execute()?;
+    let command_result = commands::Opt::parse();
+
+    if let Some(generator) = command_result.generator {
+        let mut cmd = commands::Opt::command();
+        eprintln!("Generating completion file for {generator:?}...");
+        print_completions(generator, &mut cmd);
+        suggest_completion_location(generator);
+    }
+    if let Some(command) = command_result.command {
+        command.execute()?;
+    }
 
     Ok(())
 }

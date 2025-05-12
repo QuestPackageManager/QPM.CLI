@@ -1,12 +1,15 @@
 use std::{
     env,
     fs::{self, File},
-    io::{BufWriter, Write},
+    io::{BufReader, BufWriter, Cursor, Read, Write},
 };
 
+use bytes::{BufMut, BytesMut};
 use clap::{Args, Subcommand};
-use color_eyre::{eyre::bail, Help};
+use color_eyre::{Help, eyre::bail};
+use itertools::Itertools;
 use owo_colors::OwoColorize;
+use zip::ZipArchive;
 
 use crate::{
     network::{agent::download_file_report, github},
@@ -23,7 +26,8 @@ pub struct VersionCommand {
 
 #[derive(Subcommand, Debug, Clone, PartialEq, PartialOrd)]
 enum VersionOperation {
-    Latest(LatestOperationArgs),
+    #[clap(alias("latest"))]
+    Check(LatestOperationArgs),
     Current,
     Update(LatestOperationArgs),
 }
@@ -37,7 +41,7 @@ struct LatestOperationArgs {
 impl Command for VersionCommand {
     fn execute(self) -> color_eyre::Result<()> {
         match self.op {
-            VersionOperation::Latest(b) => {
+            VersionOperation::Check(b) => {
                 let base_branch = env!("VERGEN_GIT_BRANCH");
                 let base_commit = env!("VERGEN_GIT_SHA");
 
@@ -57,54 +61,67 @@ impl Command for VersionCommand {
                         .alternate_dependency_version_color()
                 );
 
-                let diff = github::get_github_commit_diff(base_commit, &input_branch)?;
+                if latest_branch.commit.sha == base_commit {
+                    println!("Using the latest version");
+                    return Ok(());
+                }
 
-                if diff.ahead_by > 0 {
+                let diff: github::GithubCommitDiffResponse =
+                    github::get_github_commit_diff(base_commit, &input_branch)?;
+
+                if diff.behind_by > 0 {
                     bail!("Selected an older branch")
                 }
 
                 println!(
-                    "Current QPM-Rust build is behind {} commits",
-                    diff.ahead_by.version_id_color()
+                    "Current QPM-RS build is behind {} commits",
+                    diff.behind_by.version_id_color()
                 );
-                if diff.ahead_by > 0 {
-                    println!("Changelog:");
+                println!("Changelog:");
 
-                    for commit in diff.commits {
-                        println!("- {}", commit.commit.message);
-                    }
+                for commit in diff.commits {
+                    println!("- {}", commit.commit.message);
                 }
             }
 
             VersionOperation::Current => {
                 println!("{}@{}", env!("VERGEN_GIT_BRANCH"), env!("VERGEN_GIT_SHA"))
             }
+
             VersionOperation::Update(u) => {
                 let base_branch = env!("VERGEN_GIT_BRANCH");
                 let base_commit = env!("VERGEN_GIT_SHA");
-
-                let input_branch = u.branch.unwrap_or(env!("VERGEN_GIT_BRANCH").to_string());
-                let latest_branch = github::get_github_branch(&input_branch)?;
 
                 println!(
                     "Running branch {}@{}",
                     base_branch.dependency_version_color(),
                     base_commit.version_id_color()
                 );
-                println!(
-                    "Downloading {}",
-                    latest_branch
-                        .commit
-                        .sha
-                        .alternate_dependency_version_color()
-                );
+
+                let download_url = match u.branch {
+                    Some(input_branch) => {
+                        let latest_branch = github::get_github_branch(&input_branch)?;
+
+                        if base_commit == latest_branch.commit.sha {
+                            println!("Already running commit");
+                            return Ok(());
+                        }
+                        github::download_github_artifact_url(&input_branch)
+                    }
+                    None => github::nightly_github_artifact_url(),
+                };
+
+                println!("Downloading {}", download_url);
 
                 let path = env::current_exe()?;
                 let tmp_path = path.with_extension("tmp");
-                let bytes = download_file_report(
-                    &github::download_github_artifact_url(&input_branch),
-                    |_, _| {},
-                )?;
+                let mut bytes = BytesMut::with_capacity(1024 * 1024 * 10).writer();
+                download_file_report(&download_url, &mut bytes, |_, _| {})?;
+
+                let cursor = Cursor::new(bytes.into_inner());
+                let mut zip = ZipArchive::new(cursor)?;
+                let buf_reader = BufReader::new(zip.by_index(0)?);
+                let bytes = buf_reader.bytes();
 
                 println!("Finished downloading, writing to temp file");
                 let tmp_file = File::create(&tmp_path)?;
@@ -112,7 +129,8 @@ impl Command for VersionCommand {
                 fs::set_permissions(&tmp_path, perms)?;
 
                 let mut buf_tmp_write = BufWriter::new(tmp_file);
-                buf_tmp_write.write_all(&bytes)?;
+
+                buf_tmp_write.write_all(&bytes.try_collect::<_, Vec<u8>, _>()?)?;
 
                 let suggestion = format!(
                     "Try renaming manually.\nmv \"{}\" \"{}\" {}",

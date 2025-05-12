@@ -1,13 +1,18 @@
 use std::{
     fs::{self, File},
+    io::BufReader,
     path::{Path, PathBuf},
-    sync, io::BufReader,
+    sync,
 };
 
-use color_eyre::Result;
+use color_eyre::{Result, eyre::Context};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
 
 use crate::utils::json;
+
+use super::schemas::{SchemaLinks, WithSchema};
 
 static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
 
@@ -15,16 +20,23 @@ pub fn get_combine_config() -> &'static UserConfig {
     COMBINED_CONFIG.get_or_init(|| UserConfig::read_combine().unwrap())
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Hash, PartialEq, Eq)]
 #[allow(non_snake_case)]
 #[serde(rename_all = "camelCase")]
+#[schemars(description = "User configuration for QPM-RS")]
 pub struct UserConfig {
+    /// Path where cache is stored
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache: Option<PathBuf>,
+
+    /// Timeout for http requests
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<u32>,
+
+    /// Whether to symlink or copy files
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symlink: Option<bool>,
+
     /// Path where ndk downloads are stored
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ndk_download_path: Option<PathBuf>,
@@ -40,7 +52,7 @@ impl UserConfig {
     }
 
     pub fn global_config_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-Rust")
+        dirs::config_dir().unwrap().join("QPM-RS")
     }
 
     pub fn read_global() -> Result<Self> {
@@ -52,8 +64,12 @@ impl UserConfig {
             return Ok(def);
         }
 
-        let file = File::open(Self::global_config_path())?;
+        let path = Self::global_config_path();
+
+        let file = File::open(&path)
+            .with_context(|| format!("Unable to open global config file at {path:?}"))?;
         json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to deserialize global config file at {path:?}"))
     }
 
     pub fn read_workspace() -> Result<Option<Self>> {
@@ -62,8 +78,15 @@ impl UserConfig {
             return Ok(None);
         }
 
-        let file = File::options().read(true).open(path)?;
-        Ok(Some(json::json_from_reader_fast(BufReader::new(file))?))
+        let file = File::options()
+            .read(true)
+            .open(&path)
+            .with_context(|| format!("Unable to open workspace config file at {path:?}"))?;
+
+        let config = json::json_from_reader_fast(BufReader::new(file))
+            .with_context(|| format!("Unable to deserialize workspace config file at {path:?}"))?;
+
+        Ok(Some(config))
     }
 
     pub fn write(&self, workspace: bool) -> Result<()> {
@@ -73,8 +96,16 @@ impl UserConfig {
             Self::global_config_path()
         };
 
-        let mut file = File::create(path)?;
-        serde_json::to_writer_pretty(&mut file, self)?;
+        let mut file = File::create(&path)
+            .with_context(|| format!("Unable to write config file at {path:?}"))?;
+        serde_json::to_writer_pretty(
+            &mut file,
+            &WithSchema {
+                schema: SchemaLinks::USER_CONFIG,
+                value: self,
+            },
+        )
+        .with_context(|| format!("Unable to serialize global config file at {path:?}"))?;
 
         Ok(())
     }
@@ -93,24 +124,32 @@ impl UserConfig {
             None => global,
         })
     }
+
+    pub fn get_ndk_installed(&self) -> WalkDir {
+        let dir = get_combine_config()
+            .ndk_download_path
+            .as_ref()
+            .expect("No NDK download path set");
+        WalkDir::new(dir).max_depth(1)
+    }
 }
 
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
             symlink: Some(true),
-            cache: Some(dirs::data_dir().unwrap().join("QPM-Rust").join("cache")),
-            timeout: Some(5000),
-            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-Rust").join("ndk")),
+            cache: Some(dirs::data_dir().unwrap().join("QPM-RS").join("cache")),
+            timeout: Some(60000),
+            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-RS").join("ndk")),
         }
     }
 }
 
 #[inline]
 pub fn get_keyring() -> keyring::Entry {
-    keyring::Entry::new("qpm", "github")
+    keyring::Entry::new("qpm", "github").unwrap()
 }
 #[inline]
 pub fn get_publish_keyring() -> keyring::Entry {
-    keyring::Entry::new("qpm", "publish")
+    keyring::Entry::new("qpm", "publish").unwrap()
 }
