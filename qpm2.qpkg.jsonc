@@ -3,10 +3,15 @@
     // per triplet
     "android/arm64/shared": {
         // path to the shared binary
-        "path": "android/arm64/shared/libfoo.so",
+        "files": [
+            "android/arm64/shared/libfoo.so",
+            "android/arm64/shared/libfoo_dependency.so"
+        ]
     },
     "android/arm64/static": {
         // path to the static binary
-        "path": "libfoo.a",
+        "files": [
+            "libfoo.a"
+        ]
     },
 }
