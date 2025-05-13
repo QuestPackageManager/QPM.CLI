@@ -1,0 +1,85 @@
+{
+  // proof of concept for qpm2
+  "id": "foo",
+  "version": "0.0.1",
+  // directories that will be exported to the .qpkg
+
+  // restore location for dependencies
+  "dependenciesDirectory": "extern",
+  "sharedDirectories": ["include"],
+  "workspace": {
+    // scripts to run before building
+    "scripts": {
+      "build": ["echo 'prebuild script'"]
+    },
+    // directories to search for including files
+    "qmodSearchDirs": ["include"],
+    // files to include in the build
+    "qmodIncludeFiles": ["README.md"],
+    // output directory for the build
+    "qmodOutput": null
+  },
+  // additional data to be included in the .qpkg
+  "additionalData": {
+    "description": "A test package",
+    "author": "Your Name",
+    "license": "MIT"
+  },
+  "triplet": {
+    // applies settings to all triplets. Overrides can be set in the triplet section
+    // and will be merged with the default settings
+    // Overriden keys are NOT merged with the default settings, and will be replaced
+    // with the new value
+    "default": {
+      "dependencies": {
+        // dependencies that will be included in the .qpkg
+        "beatsaber-hook": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/shared"
+        },
+        "flamingo": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/static"
+        },
+        "chroma": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/headerOnly",
+          // if true, this dependency will be included in the dependency tree
+          // by consumers
+          "export": true,
+          // if true, this dependency will be included in the qmod
+          // either as a shared library or as qmod link
+          "qmodExport": true
+        }
+      },
+      "env": {
+        "QMOD_PACKAGE_ID": "foo",
+        "QMOD_PACKAGE_VERSION": "0.0.1"
+      }
+    },
+    "android/arm64/shared": {
+      "dependencies": {
+        "custom-json-data": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/shared"
+        }
+      }
+    },
+    "android/arm64/static": {
+      "dependencies": {
+        "curl": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/static"
+        }
+      }
+    },
+    "android/arm64/headerOnly": {
+      "dependencies": {
+        "chroma": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/headerOnly"
+        }
+      }
+    }
+  }
+}
