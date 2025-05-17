@@ -176,7 +176,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let mut zip = zip::ZipWriter::new(&mut zip_file);
 
     let options =
-        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated).compression_level(Some(9));
     for file in combined_files {
         println!("Adding file {}", file.to_string_lossy().green());
 
