@@ -17,8 +17,12 @@ required-features = []
 
 
 [features]
-default = ["templatr", "network_test", "cli", "gitoxide"]
+default = ["templatr", "network_test", "cli", "gitoxide", "reqwest"]
 templatr = ["dep:templatr"]
+
+reqwest = ["dep:reqwest"]
+ureq = ["dep:ureq"]
+
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:pbr"]
 gitoxide = ["dep:gix"]
 network_test = []
@@ -49,6 +53,7 @@ color-eyre = { version = "0.6", default-features = false }
 pbr = { version = "*", optional = true } #{ git = "https://github.com/a8m/pb.git" }
 
 bytes = "*"
+ureq = { version = "2", features = ["json"], optional = true }
 reqwest = { version = "0.12", features = [
     "blocking",
     "json",
@@ -56,7 +61,7 @@ reqwest = { version = "0.12", features = [
     "deflate",
     "brotli",
     "rustls-tls",
-], default-features = false }
+], default-features = false, optional = true }
 
 clap = { version = "4", features = ["derive"], optional = true }
 clap_complete = { version = "4", optional = true }
@@ -80,7 +85,7 @@ gix = { version = "*", features = [
     "worktree-mutation",
     "blocking-network-client",
     "blocking-http-transport-reqwest-rust-tls",
-], optional = true, default-features = false}
+], optional = true, default-features = false }
 
 # Use PR with symlink fix for Unix systems.
 zip = "2"
@@ -90,6 +95,7 @@ symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.14"
 schemars = { version = "0.8", features = ["semver"] }
+thiserror = "2.0.12"
 
 [target.aarch64-apple-darwin.dependencies]
 # Allow cross compiles

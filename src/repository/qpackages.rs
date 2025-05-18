@@ -1,13 +1,12 @@
-use bytes::{BufMut, BytesMut};
 use color_eyre::{
     Result, Section,
-    eyre::{Context, OptionExt, bail},
+    eyre::{Context, OptionExt, anyhow, bail},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use reqwest::StatusCode;
 use semver::Version;
 use std::{
+    collections::HashMap,
     fs::{self, File},
     io::{BufWriter, Cursor},
     path::Path,
@@ -23,7 +22,7 @@ use qpm_package::{
 
 use crate::{
     models::{config::get_combine_config, package::PackageConfigExtensions},
-    network::agent::{download_file_report, get_agent},
+    network::agent::{self, download_file_report},
     terminal::colors::QPMColor,
     utils::git,
 };
@@ -42,22 +41,9 @@ impl QPMRepository {
     {
         let url = format!("{API_URL}/{path}");
 
-        let response = get_agent()
-            .get(&url)
-            .send()
-            .with_context(|| format!("Unable to make request to qpackages.com {url}"))?;
-
-        if response.status() == StatusCode::NOT_FOUND {
-            return Ok(None);
-        }
-
-        response.error_for_status_ref()?;
-
-        let result: T = response
-            .json()
-            .with_context(|| format!("Into json failed for http request for {url}"))?;
-
-        Ok(Some(result))
+        let response =
+            agent::get_opt::<T>(&url).context("Unable to make request to qpackages.com")?;
+        Ok(response)
     }
 
     /// Requests the appriopriate package info from qpackage.com
@@ -89,20 +75,21 @@ impl QPMRepository {
             API_URL, &package.config.info.id, &package.config.info.version
         );
 
-        let resp = get_agent()
-            .post(&url)
-            .header("Authorization", auth)
-            .json(&package)
-            .send()
-            .with_context(|| format!("Failed to publish to {url}"))?;
+        let mut headers = HashMap::new();
+        headers.insert("Authorization", auth);
 
-        if resp.status() == StatusCode::UNAUTHORIZED {
-            bail!(
-                "Could not publish to {}: Unauthorized! Did you provide the correct key?",
-                API_URL
-            );
-        }
-        resp.error_for_status()?;
+        match agent::post(&url, package, &headers) {
+            Ok(o) => Ok(o),
+            Err(e) => match e {
+                agent::AgentError::Unauthorized => Err(anyhow!(
+                    "Could not publish to {}: Unauthorized! Did you provide the correct key?",
+                    API_URL
+                )
+                .wrap_err(e)),
+                _ => Err(anyhow!("Error").wrap_err(e)),
+            },
+        }?;
+
         Ok(())
     }
 
@@ -174,13 +161,9 @@ impl QPMRepository {
                 .context("Clone")?;
             } else {
                 // not a github url, assume it's a zip
-                let mut bytes = BytesMut::new().writer();
+                let response = agent::get_bytes(url)?;
 
-                download_file_report(url, &mut bytes, |_, _| {})
-                    .with_context(|| format!("Failed while downloading {}", url.blue()))?;
-
-                let buffer = Cursor::new(bytes.get_ref());
-
+                let buffer = Cursor::new(response);
                 // Extract to tmp folder
                 ZipArchive::new(buffer)
                     .context("Reading zip")?

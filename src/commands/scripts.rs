@@ -1,4 +1,4 @@
-use std::{path::Path, process::Stdio};
+use std::process::Stdio;
 
 use clap::Args;
 

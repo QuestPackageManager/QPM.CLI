@@ -12,7 +12,7 @@ use crate::{
         android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
         config::get_combine_config,
     },
-    network::agent::{download_file, download_file_report, get_agent},
+    network::agent::{self, download_file, download_file_report},
     terminal::colors::QPMColor,
 };
 
@@ -20,9 +20,9 @@ const ANDROID_REPO_MANIFEST: &str = "https://dl.google.com/android/repository/re
 const ANDROID_DL_URL: &str = "https://dl.google.com/android/repository";
 
 pub fn get_android_manifest() -> Result<AndroidRepositoryManifest> {
-    let response = get_agent().get(ANDROID_REPO_MANIFEST).send()?;
+    let response = agent::get_str(ANDROID_REPO_MANIFEST)?;
 
-    Ok(serde_xml_rs::from_reader(response)?)
+    Ok(serde_xml_rs::from_str(&response)?)
 }
 
 pub fn get_ndk_packages(manifest: &AndroidRepositoryManifest) -> Vec<&RemotePackage> {
