@@ -111,7 +111,7 @@ impl Command for VersionCommand {
                     None => github::nightly_github_artifact_url(),
                 };
 
-                println!("Downloading {}", download_url);
+                println!("Downloading {download_url}");
 
                 let path = env::current_exe()?;
                 let tmp_path = path.with_extension("tmp");

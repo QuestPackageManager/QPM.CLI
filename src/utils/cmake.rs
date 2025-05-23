@@ -173,52 +173,50 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             .dependencies
             .iter()
             .find(|el| el.id == shared_dep.dependency.id)
+            && let Some(extra_files) = &dep.additional_data.extra_files
         {
-            if let Some(extra_files) = &dep.additional_data.extra_files {
-                for path_str in extra_files.iter() {
-                    let path =
-                        PathBuf::new().join(format!("extern/includes/{}/{}", &dep.id, path_str));
-                    let extern_path = std::path::PathBuf::new().join(format!(
-                        "includes/{}/{}",
-                        &shared_dep.dependency.id, path_str
-                    ));
-                    if path.is_file() {
-                        write!(
-                            result,
-                            "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
-                            extern_path.display()
-                        )?;
-                    } else {
-                        let listname = format!(
-                            "{}_{}_local_extra",
-                            path_str.replace(['/', '\\', '-'], "_"),
-                            shared_dep.dependency.id.replace('-', "_")
-                        );
+            for path_str in extra_files.iter() {
+                let path = PathBuf::new().join(format!("extern/includes/{}/{}", &dep.id, path_str));
+                let extern_path = std::path::PathBuf::new().join(format!(
+                    "includes/{}/{}",
+                    &shared_dep.dependency.id, path_str
+                ));
+                if path.is_file() {
+                    write!(
+                        result,
+                        "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
+                        extern_path.display()
+                    )?;
+                } else {
+                    let listname = format!(
+                        "{}_{}_local_extra",
+                        path_str.replace(['/', '\\', '-'], "_"),
+                        shared_dep.dependency.id.replace('-', "_")
+                    );
 
-                        writeln!(
-                            result,
-                            "RECURSE_FILES({}_c ${{EXTERN_DIR}}/{}/*.c)",
-                            listname,
-                            extern_path.display()
-                        )?;
+                    writeln!(
+                        result,
+                        "RECURSE_FILES({}_c ${{EXTERN_DIR}}/{}/*.c)",
+                        listname,
+                        extern_path.display()
+                    )?;
 
-                        writeln!(
-                            result,
-                            "RECURSE_FILES({}_cpp ${{EXTERN_DIR}}/{}/*.cpp)",
-                            listname,
-                            extern_path.display()
-                        )?;
+                    writeln!(
+                        result,
+                        "RECURSE_FILES({}_cpp ${{EXTERN_DIR}}/{}/*.cpp)",
+                        listname,
+                        extern_path.display()
+                    )?;
 
-                        writeln!(
-                            result,
-                            "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
-                        )?;
+                    writeln!(
+                        result,
+                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_c}})"
+                    )?;
 
-                        writeln!(
-                            result,
-                            "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
-                        )?;
-                    }
+                    writeln!(
+                        result,
+                        "target_sources(${{COMPILE_ID}} PRIVATE ${{{listname}_cpp}})"
+                    )?;
                 }
             }
         }

@@ -6,7 +6,7 @@ fn trycmd() {
     // #[cfg(not(test))]
     let bin = trycmd::cargo::cargo_bin("qpm");
 
-    assert!(bin.exists(), "Binary not found: {:?}", bin);
+    assert!(bin.exists(), "Binary not found: {bin:?}");
 
     trycmd::TestCases::new()
         .default_bin_path(bin)

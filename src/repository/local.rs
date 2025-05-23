@@ -152,7 +152,7 @@ impl FileRepository {
                 .info
                 .get_so_name2()
                 .with_extension("debug.so");
-            
+
             let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
 
             if let Some(binary_path_unwrapped) = &binary_path {

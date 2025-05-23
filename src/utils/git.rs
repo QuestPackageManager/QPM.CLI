@@ -127,10 +127,10 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
 
 pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
     check_git()?;
-    if let Ok(token_unwrapped) = get_keyring().get_password() {
-        if let Some(gitidx) = url.find("github.com") {
-            url.insert_str(gitidx, &format!("{token_unwrapped}@"));
-        }
+    if let Ok(token_unwrapped) = get_keyring().get_password()
+        && let Some(gitidx) = url.find("github.com")
+    {
+        url.insert_str(gitidx, &format!("{token_unwrapped}@"));
     }
 
     if url.ends_with('/') {
@@ -159,7 +159,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
     let mut child = git
         .spawn()
         .context("Git clone package")
-        .with_suggestion(|| format!("File a bug report. Used the following command: {:#?}", git))?;
+        .with_suggestion(|| format!("File a bug report. Used the following command: {git:#?}"))?;
 
     match child.wait() {
         Ok(e) => {

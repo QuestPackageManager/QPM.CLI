@@ -94,9 +94,7 @@ fn resolve() -> Result<()> {
         .find(|b| b.id.contains("paper"));
     assert_ne!(paper_dep, None);
 
-    let paper = resolved
-        .iter()
-        .find(|b| b.config.info.id.contains("paper"));
+    let paper = resolved.iter().find(|b| b.config.info.id.contains("paper"));
 
     assert_ne!(paper, None);
 
