@@ -37,7 +37,7 @@ trycmd = { version = "0.15" }
 
 [dependencies]
 #qpm
-qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", tag = "v0.1.0"}
+qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", tag = "v0.1.0" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
@@ -80,10 +80,19 @@ gix = { version = "*", features = [
     "worktree-mutation",
     "blocking-network-client",
     "blocking-http-transport-reqwest-rust-tls",
-], optional = true, default-features = false}
+], optional = true, default-features = false }
 
 # Use PR with symlink fix for Unix systems.
-zip = "4"
+zip = { version = "4", default-features = false, features = [
+    "zstd",
+    "nt-time",
+    "deflate",
+    "deflate-flate2",
+    "deflate-zopfli",
+    "deflate64",
+    "lzma",
+    "bzip2",
+] }
 
 walkdir = "2"
 symlink = "0.1.0"
