@@ -83,7 +83,7 @@ gix = { version = "*", features = [
 ], optional = true, default-features = false}
 
 # Use PR with symlink fix for Unix systems.
-zip = "2"
+zip = "4"
 
 walkdir = "2"
 symlink = "0.1.0"
