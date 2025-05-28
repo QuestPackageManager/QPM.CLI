@@ -17,10 +17,9 @@ required-features = []
 
 
 [features]
-default = ["templatr", "network_test", "cli", "gitoxide"]
+default = ["templatr", "network_test", "cli"]
 templatr = ["dep:templatr"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:pbr"]
-gitoxide = ["dep:gix"]
 network_test = []
 
 [build-dependencies]
@@ -37,7 +36,7 @@ trycmd = { version = "0.15" }
 
 [dependencies]
 #qpm
-qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git" }
+qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "qpm2" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
@@ -73,17 +72,16 @@ owo-colors = "4"
 dirs = "6.0.0"
 keyring = "3"
 
-gix = { version = "*", features = [
-    "command",
-    "attributes",
-    "progress-tree",
-    "worktree-mutation",
-    "blocking-network-client",
-    "blocking-http-transport-reqwest-rust-tls",
-], optional = true, default-features = false}
-
-# Use PR with symlink fix for Unix systems.
-zip = "2"
+zip = { version = "4", default-features = false, features = [
+    "zstd",
+    "nt-time",
+    "deflate",
+    "deflate-flate2",
+    "deflate-zopfli",
+    "deflate64",
+    "lzma",
+    "bzip2",
+] }
 
 walkdir = "2"
 symlink = "0.1.0"
