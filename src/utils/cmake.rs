@@ -6,8 +6,7 @@ use std::{
 
 use color_eyre::{Result, eyre::Context};
 use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::dependency::SharedPackageConfig,
+    extensions::package_metadata::PackageMetadataExtensions, models::shared_package::SharedPackageConfig,
 };
 
 use crate::repository::Repository;
@@ -25,7 +24,7 @@ macro_rules! concatln {
 }
 
 pub fn write_cmake(shared_package: &SharedPackageConfig, repo: &impl Repository) -> Result<()> {
-    let cmake_opt = shared_package.config.info.additional_data.cmake;
+    let cmake_opt = shared_package.config.cmake;
 
     if cmake_opt.is_none() && Path::new("./CMakeLists.txt").exists() {
         eprintln!(
@@ -62,9 +61,9 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
             .get_package(&shared_dep.dependency.id, &shared_dep.version)
             .context("Unable to get shared package")?
             .unwrap();
-        let package_id = shared_package.config.info.id;
+        let package_id = shared_package.config.id;
 
-        if let Some(compile_options) = shared_package.config.info.additional_data.compile_options {
+        if let Some(compile_options) = shared_package.config.additional_data.compile_options {
             any = true;
             // TODO: Must ${{COMPILE_ID}} be changed to {package_id}?
 
@@ -264,19 +263,19 @@ pub fn make_defines_string(dep: &SharedPackageConfig) -> Result<String> {
     )
     .to_string();
 
-    writeln!(result, "\nset(MOD_VERSION \"{}\")", dep.config.info.version)?;
+    writeln!(result, "\nset(MOD_VERSION \"{}\")", dep.config.version)?;
     result.push_str("# take the mod name and just remove spaces, that will be MOD_ID, if you don't like it change it after the include of this file\n");
     writeln!(
         result,
         "set(MOD_ID \"{}\")\n",
-        dep.config.info.name.replace(' ', "")
+        dep.config.name.replace(' ', "")
     )?;
     result.push_str("# derived from override .so name or just id_version\n");
 
     writeln!(
         result,
         "set(COMPILE_ID \"{}\")",
-        dep.config.info.get_module_id()
+        dep.config.get_module_id()
     )?;
 
     result.push_str(

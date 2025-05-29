@@ -1,13 +1,15 @@
-use std::{collections::HashSet, fs::File, io::BufReader, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::BufReader,
+    path::Path,
+};
 
 use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
 use itertools::Itertools;
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{
-        dependency::{Dependency, SharedDependency, SharedPackageConfig},
-        package::PackageConfig,
-    },
+use qpm_package::models::{
+    package::{PackageConfig, PackageTripletSettings, TripletId},
+    shared_package::{SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
@@ -41,9 +43,9 @@ pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
         config: PackageConfig,
         repository: &impl Repository,
-    ) -> Result<(Self, Vec<SharedPackageConfig>)>;
+    ) -> Result<(Self, HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>)>;
 
-    fn to_mod_json(self) -> ModJson;
+    fn to_mod_json(self, triplet: &TripletId) -> ModJson;
 
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()>;
 }
@@ -156,40 +158,56 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     fn resolve_from_package(
         config: PackageConfig,
         repository: &impl Repository,
-    ) -> Result<(Self, Vec<SharedPackageConfig>)> {
-        let resolved_deps = resolve(&config, repository)?.collect_vec();
+    ) -> Result<(Self, HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>)> {
+        let triplet_dependencies: HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>> = config
+            .triplet
+            .specific_triplets
+            .iter()
+            .map(|(triplet_id, triplet)| -> color_eyre::Result<_> {
+                let resolved = resolve(&config, repository, triplet_id)?.collect_vec();
+        
+                Ok((triplet_id.clone(), resolved))
+            })
+            .try_collect()?;
 
         Ok((
             SharedPackageConfig {
                 config,
-                restored_dependencies: resolved_deps
+                locked_triplet: triplet_dependencies
                     .iter()
-                    .map(|d| SharedDependency {
-                        dependency: Dependency {
-                            id: d.config.info.id.clone(),
-                            version_range: VersionReq::parse(&format!(
-                                "={}",
-                                d.config.info.version
-                            ))
-                            .expect("Unable to parse version"),
-                            additional_data: d.config.info.additional_data.clone(),
-                        },
-                        version: d.config.info.version.clone(),
+                    .map(|(triplet_id, dependencies)| {
+                        (
+                            triplet_id.clone(),
+                            SharedTriplet {
+                                restored_dependencies: dependencies
+                                    .iter()
+                                    .map(|(dep, dep_triplet)| {
+                                        (
+                                            dep.config.id.clone(),
+                                            SharedTripletDependencyInfo {
+                                                restored_version: dep.config.version.clone(),
+                                                triplet: dep_triplet.clone(),
+                                            },
+                                        )
+                                    })
+                                    .collect(),
+                            },
+                        )
                     })
                     .collect(),
             },
-            resolved_deps,
+            triplet_dependencies,
         ))
     }
 
-    fn to_mod_json(self) -> ModJson {
+    fn to_mod_json(self, triplet: &TripletId) -> ModJson {
         //        Self {
         //     id: dep.id,
         //     version_range: dep.version_range,
         //     mod_link: dep.additional_data.mod_link,
         // }
 
-        let local_deps = &self.config.dependencies;
+        let local_deps = &self.config.triplet.specific_triplets[triplet];
 
         // Only bundle mods that are not specifically excluded in qpm.json or if they're not header-only
         let restored_deps: Vec<_> = self

@@ -17,8 +17,7 @@ use zip::ZipArchive;
 use serde::Deserialize;
 
 use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
+    extensions::package_metadata::PackageMetadataExtensions, models::{package::PackageConfig, shared_package::SharedPackageConfig},
 };
 
 use crate::{
@@ -86,7 +85,7 @@ impl QPMRepository {
     pub fn publish_package(package: &SharedPackageConfig, auth: &str) -> Result<()> {
         let url = format!(
             "{}/{}/{}",
-            API_URL, &package.config.info.id, &package.config.info.version
+            API_URL, &package.config.id, &package.config.version
         );
 
         let resp = get_agent()
@@ -120,23 +119,23 @@ impl QPMRepository {
 
         println!(
             "Checking cache for dependency {} {}",
-            config.info.id.dependency_id_color(),
-            config.info.version.version_id_color()
+            config.id.dependency_id_color(),
+            config.version.version_id_color()
         );
         let user_config = get_combine_config();
         let base_path = user_config
             .cache
             .as_ref()
             .unwrap()
-            .join(&config.info.id)
-            .join(config.info.version.to_string());
+            .join(&config.id)
+            .join(config.version.to_string());
 
         let src_path = base_path.join("src");
         let lib_path = base_path.join("lib");
         let tmp_path = base_path.join("tmp");
 
-        let so_path = lib_path.join(config.info.get_so_name2());
-        let debug_bin_name = config.info.get_so_name2().with_extension("debug.so");
+        let so_path = lib_path.join(config.get_so_name2());
+        let debug_bin_name = config.get_so_name2().with_extension("debug.so");
         let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
 
         let src_exists = src_path.join("qpm.shared.json").exists();
@@ -145,8 +144,8 @@ impl QPMRepository {
             SharedPackageConfig::read(&src_path).with_context(|| {
                 format!(
                     "Failed to get config {}:{} in cache",
-                    config.info.id.dependency_id_color(),
-                    config.info.version.version_id_color()
+                    config.id.dependency_id_color(),
+                    config.version.version_id_color()
                 )
             })?;
         }
@@ -160,15 +159,15 @@ impl QPMRepository {
                 })?;
             }
 
-            // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
+            // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
             fs::create_dir_all(&base_path)
                 .with_context(|| format!("Failed to create lib path {base_path:?}"))?;
-            let url = config.info.url.as_ref().unwrap();
+            let url = config.url.as_ref().unwrap();
             if url.contains("github.com") {
                 // github url!
                 git::clone(
                     url.clone(),
-                    config.info.additional_data.branch_name.as_ref(),
+                    config.additional_data.branch_name.as_ref(),
                     &tmp_path,
                 )
                 .context("Clone")?;
@@ -190,7 +189,7 @@ impl QPMRepository {
             // the only way the above if else would break is if someone put a link to a zip file on github in the url slot
             // if you are reading this and think of doing that so I have to fix this, fuck you
 
-            let sub_package_path = match &config.info.additional_data.sub_folder {
+            let sub_package_path = match &config.additional_data.sub_folder {
                 Some(sub_folder) => {
                     // the package exists in a subfolder of the downloaded thing, just move the subfolder to src
                     tmp_path.join(sub_folder)
@@ -247,25 +246,24 @@ impl QPMRepository {
                 Ok(downloaded_package) =>
                 // check if downloaded config is the same version as expected, if not, panic
                 {
-                    if downloaded_package.config.info.version != config.info.version {
+                    if downloaded_package.config.version != config.version {
                         bail!(
                             "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                            config.info.id.dependency_id_color(),
+                            config.id.dependency_id_color(),
                             downloaded_package
                                 .config
-                                .info
                                 .version
                                 .to_string()
                                 .version_id_color(),
-                            config.info.version.to_string().version_id_color(),
+                            config.version.to_string().version_id_color(),
                         )
                     }
                 }
 
                 Err(e) => println!(
                     "Unable to validate shared package of {}:{} due to: \"{}\", continuing",
-                    config.info.name.dependency_id_color(),
-                    config.info.version.dependency_version_color(),
+                    config.name.dependency_id_color(),
+                    config.version.dependency_version_color(),
                     e.red()
                 ),
             }
@@ -275,7 +273,7 @@ impl QPMRepository {
             fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
         }
 
-        // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
+        // libs didn't exist or the release object didn't exist, we need to download from packageconfig.additional_data.so_link and packageconfig.additional_data.debug_so_link
         let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
             // only download if file doesn't exist already
             if path.exists() {
@@ -329,21 +327,21 @@ impl QPMRepository {
             Ok(())
         };
 
-        download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
+        download_binary(&so_path, config.additional_data.so_link.as_ref())?;
         download_binary(
             &debug_so_path,
-            config.info.additional_data.debug_so_link.as_ref(),
+            config.additional_data.debug_so_link.as_ref(),
         )?;
 
-        if config.info.additional_data.so_link.is_none()
-            && config.info.additional_data.debug_so_link.is_none()
-            && config.info.additional_data.static_link.is_none()
-            && !config.info.additional_data.headers_only.unwrap_or(false)
+        if config.additional_data.so_link.is_none()
+            && config.additional_data.debug_so_link.is_none()
+            && config.additional_data.static_link.is_none()
+            && !config.additional_data.headers_only.unwrap_or(false)
         {
             eprintln!(
                 "No binaries are provided for {}:{} but is also not header only!",
-                config.info.id.dependency_id_color(),
-                config.info.version.version_id_color()
+                config.id.dependency_id_color(),
+                config.version.version_id_color()
             );
         }
         Ok(())
@@ -382,8 +380,8 @@ impl Repository for QPMRepository {
         self.download_package(config).with_context(|| {
             format!(
                 "QPackages {}:{}",
-                config.info.id.dependency_id_color(),
-                config.info.version.version_id_color()
+                config.id.dependency_id_color(),
+                config.version.version_id_color()
             )
         })?;
 

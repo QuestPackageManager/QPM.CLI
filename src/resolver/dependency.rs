@@ -6,6 +6,7 @@ use std::{
     time::Instant,
 };
 
+use super::semver::{VersionWrapper, req_to_range};
 use crate::{
     models::package::SharedPackageConfigExtensions,
     repository::{Repository, local::FileRepository},
@@ -21,9 +22,12 @@ use pubgrub::{
     DefaultStringReporter, Dependencies, DependencyProvider, PackageResolutionStatistics,
     PubGrubError, Reporter,
 };
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
-
-use super::semver::{VersionWrapper, req_to_range};
+use qpm_package::models::{
+    package::{
+        DependencyId, PackageConfig, PackageTripletDependency, PackageTripletSettings, TripletDependencyMap, TripletId
+    },
+    shared_package::{SharedPackageConfig, SharedTriplet},
+};
 pub struct PackageDependencyResolver<'a, 'b, R>
 where
     R: Repository,
@@ -31,8 +35,23 @@ where
     root: &'a PackageConfig,
     repo: &'b R,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+struct PubgrubDependencyTarget(pub DependencyId, pub TripletId);
+
+impl Display for PubgrubDependencyTarget {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}:{}",
+            self.0.0.dependency_id_color(),
+            self.1.0.triplet_id_color()
+        )
+    }
+}
+
 impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> {
-    type P = String;
+    type P = PubgrubDependencyTarget;
     type V = VersionWrapper;
     type VS = pubgrub::Ranges<VersionWrapper>;
     type M = String;
@@ -49,20 +68,22 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
     fn get_dependencies(
         &self,
-        package: &String,
+        package: &PubgrubDependencyTarget,
         version: &VersionWrapper,
     ) -> Result<Dependencies<Self::P, Self::VS, Self::M>, PubgrubErrorWrapper> {
         // Root dependencies
-        if package == &self.root.info.id && version == &self.root.info.version {
+        if package.0 == self.root.id && version == &self.root.version {
             // resolve dependencies of root
-            let deps = self
-                .root
+            let triplet = self.root.triplet.specific_triplets[&package.1];
+
+            let deps = triplet
                 .dependencies
                 .iter()
-                .map(|dep| {
-                    let id = &dep.id;
+                .map(|(dep_id, dep)| {
+                    let pubgrub_dep = PubgrubDependencyTarget(dep_id.clone(), dep.triplet);
+
                     let range = req_to_range(dep.version_range.clone());
-                    (id.clone(), range)
+                    (pubgrub_dep, range)
                 })
                 .collect();
             return Ok(Dependencies::Available(deps));
@@ -71,9 +92,8 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         // Find dependencies of dependencies
         let pkg = self
             .repo
-            .get_package(package, &version.clone().into())
-            .with_context(|| format!("Could not find package {package} with version {version}"))?
-            .unwrap();
+            .get_package(&package.0, &version.clone().into())?
+            .with_context(|| format!("Could not find package {package} with version {version}"))?;
 
         let deps = pkg
             .config
@@ -92,14 +112,14 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
     fn choose_version(
         &self,
-        package: &String,
+        package: &PubgrubDependencyTarget,
         range: &pubgrub::Ranges<VersionWrapper>,
     ) -> Result<Option<VersionWrapper>, PubgrubErrorWrapper> {
-        if *package == self.root.info.id {
-            return Ok(Some(self.root.info.version.clone().into()));
+        if package.0 == self.root.id {
+            return Ok(Some(self.root.version.clone().into()));
         }
 
-        let Some(dependencies) = self.repo.get_package_versions(package)? else {
+        let Some(dependencies) = self.repo.get_package_versions(&package.0)? else {
             return Ok(None);
         };
 
@@ -117,12 +137,12 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         range: &Self::VS,
         package_statistics: &PackageResolutionStatistics,
     ) -> Self::Priority {
-        if *package == self.root.info.id {
+        if package.0 == self.root.id {
             return (0, Reverse(0));
         }
 
         // Get versions available for the package, if none return default priority
-        let Ok(Some(versions)) = self.repo.get_package_versions(package) else {
+        let Ok(Some(versions)) = self.repo.get_package_versions(&package.0) else {
             return (package_statistics.conflict_count(), Reverse(0));
         };
 
@@ -146,20 +166,22 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 pub fn resolve<'a>(
     root: &'a PackageConfig,
     repository: &'a impl Repository,
-) -> Result<impl Iterator<Item = SharedPackageConfig> + 'a> {
+    triplet: &TripletId,
+) -> Result<impl Iterator<Item = (SharedPackageConfig, TripletId)> + 'a> {
     let resolver = PackageDependencyResolver {
         root,
         repo: repository,
     };
     let time = Instant::now();
-    let result = match pubgrub::resolve(&resolver, root.info.id.clone(), root.info.version.clone())
-    {
+    let target = PubgrubDependencyTarget(root.id.clone(), triplet.clone());
+    let result = match pubgrub::resolve(&resolver, target, root.version.clone()) {
         Ok(deps) => Ok(deps.into_iter().filter_map(move |(id, version)| {
-            if id == root.info.id && version == root.info.version {
+            if id.0 == root.id && version == root.version {
                 return None;
             }
 
-            repository.get_package(&id, &version.into()).unwrap()
+            let package = repository.get_package(&id.0, &version.into()).unwrap()?;
+            Some((package, id.1))
         })),
 
         Err(PubGrubError::NoSolution(tree)) => {
@@ -185,18 +207,14 @@ pub fn restore<P: AsRef<Path>>(
     for dep in resolved_deps {
         println!(
             "Pulling {}:{}",
-            &dep.config.info.id.dependency_id_color(),
-            &dep.config
-                .info
-                .version
-                .to_string()
-                .dependency_version_color()
+            &dep.config.id.0.dependency_id_color(),
+            &dep.config.version.to_string().dependency_version_color()
         );
         repository.download_to_cache(&dep.config).with_context(|| {
             format!(
                 "Requesting {}:{}",
-                dep.config.info.id.dependency_id_color(),
-                dep.config.info.version.version_id_color()
+                dep.config.id.0.dependency_id_color(),
+                dep.config.version.version_id_color()
             )
         })?;
         repository.add_to_db_cache(dep.clone(), true)?;
@@ -216,23 +234,26 @@ pub fn restore<P: AsRef<Path>>(
 pub fn locked_resolve<'a, R: Repository>(
     root: &'a SharedPackageConfig,
     repository: &'a R,
+    triplet: &'a SharedTriplet,
 ) -> Result<impl Iterator<Item = SharedPackageConfig> + 'a> {
     // TODO: ensure restored dependencies take precedence over
-    Ok(root
+    Ok(triplet
         .restored_dependencies
         .iter()
-        .map(|d| {
+        .map(|(dep_id, dep)| {
             repository
-                .get_package(&d.dependency.id, &d.version)
+                .get_package(&dep_id, &dep.restored_version)
                 .unwrap_or_else(|e| {
                     panic!(
                         "Encountered an issue resolving for package {}:{}, {e}",
-                        d.dependency.id, d.version
+                        dep_id.0, dep.restored_version
                     )
                 })
-                .unwrap_or_else(|| panic!("No package found for {}:{}", d.dependency.id, d.version))
+                .unwrap_or_else(|| {
+                    panic!("No package found for {}:{}", dep_id.0, dep.restored_version)
+                })
         })
-        .dedup_by(|x, y| x.config.info.id == y.config.info.id))
+        .dedup_by(|x, y| x.config.id == y.config.id))
 }
 
 pub struct PubgrubErrorWrapper(color_eyre::Report);
