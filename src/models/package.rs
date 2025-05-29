@@ -43,7 +43,10 @@ pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
         config: PackageConfig,
         repository: &impl Repository,
-    ) -> Result<(Self, HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>)>;
+    ) -> Result<(
+        Self,
+        HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>,
+    )>;
 
     fn to_mod_json(self, triplet: &TripletId) -> ModJson;
 
@@ -158,17 +161,21 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     fn resolve_from_package(
         config: PackageConfig,
         repository: &impl Repository,
-    ) -> Result<(Self, HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>)> {
-        let triplet_dependencies: HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>> = config
-            .triplet
-            .specific_triplets
-            .iter()
-            .map(|(triplet_id, triplet)| -> color_eyre::Result<_> {
-                let resolved = resolve(&config, repository, triplet_id)?.collect_vec();
-        
-                Ok((triplet_id.clone(), resolved))
-            })
-            .try_collect()?;
+    ) -> Result<(
+        Self,
+        HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>,
+    )> {
+        let triplet_dependencies: HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>> =
+            config
+                .triplet
+                .specific_triplets
+                .iter()
+                .map(|(triplet_id, triplet)| -> color_eyre::Result<_> {
+                    let resolved = resolve(&config, repository, triplet_id)?.collect_vec();
+
+                    Ok((triplet_id.clone(), resolved))
+                })
+                .try_collect()?;
 
         Ok((
             SharedPackageConfig {
@@ -303,10 +310,10 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             .collect();
 
         ModJson {
-            name: self.config.info.name.clone(),
-            id: self.config.info.id.clone(),
+            name: self.config.name.clone(),
+            id: self.config.id.clone(),
             porter: None,
-            version: self.config.info.version.to_string(),
+            version: self.config.version.to_string(),
             package_id: None,
             package_version: None,
             description: None,
@@ -314,14 +321,14 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             is_library: None,
             dependencies: mods,
             // TODO: Change
-            late_mod_files: vec![self.config.info.get_so_name().to_str().unwrap().to_string()],
+            late_mod_files: vec![self.config.get_so_name().to_str().unwrap().to_string()],
             library_files: libs,
             ..Default::default()
         }
     }
 
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()> {
-        let Some(toolchain_path) = self.config.info.additional_data.toolchain_out.as_ref() else {
+        let Some(toolchain_path) = self.config.additional_data.toolchain_out.as_ref() else {
             return Ok(());
         };
 

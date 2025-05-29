@@ -1,7 +1,7 @@
 use clap::Args;
 use color_eyre::eyre::{Context, anyhow, bail};
 use owo_colors::OwoColorize;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 
 use crate::{
     models::{config::get_publish_keyring, package::PackageConfigExtensions},
@@ -21,7 +21,7 @@ pub struct PublishCommand {
 impl Command for PublishCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        if package.info.url.is_none() {
+        if package.url.is_none() {
             bail!("Package without url can not be published!");
         }
 
@@ -68,7 +68,7 @@ impl Command for PublishCommand {
         }
 
         // check if url is set to download headers
-        if shared_package.config.info.url.is_none() {
+        if shared_package.config.url.is_none() {
             bail!(
                 "info.url is null, please make sure to init this with the base link to your repo, e.g. '{}'",
                 "https://github.com/RedBrumbler/QuestPackageManager-Rust".bright_yellow()
@@ -77,11 +77,11 @@ impl Command for PublishCommand {
         // check if this is header only, if it's not header only check if the so_link is set, if not, panic
         if !shared_package
             .config
-            .info
+            
             .additional_data
             .headers_only
             .unwrap_or(false)
-            && shared_package.config.info.additional_data.so_link.is_none()
+            && shared_package.config.additional_data.so_link.is_none()
         {
             bail!(
                 "soLink is not set in the package config, but this package is not header only, please make sure to either add the soLink or to make the package header only."
@@ -105,8 +105,8 @@ impl Command for PublishCommand {
 
         println!(
             "Package {} v{} published!",
-            shared_package.config.info.id.dependency_id_color(),
-            shared_package.config.info.version.version_id_color()
+            shared_package.config.id.dependency_id_color(),
+            shared_package.config.version.version_id_color()
         );
 
         Ok(())

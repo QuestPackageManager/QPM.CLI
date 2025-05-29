@@ -7,7 +7,7 @@ use color_eyre::{
     eyre::{ContextCompat, Result, bail, eyre},
 };
 use itertools::Itertools;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 use semver::Version;
 
 use crate::{
@@ -117,7 +117,7 @@ impl Command for RestoreCommand {
                                     d.version.version_id_color()
                                 )
                             })?;
-                        d.dependency.additional_data = package.config.info.additional_data;
+                        d.dependency.additional_data = package.config.additional_data;
                         Ok(())
                     })?;
                 dependency::locked_resolve(shared_package, &repo)?.collect_vec()

@@ -4,6 +4,10 @@ use color_eyre::{
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
+use qpm_package::models::{
+    package::{DependencyId, PackageConfig},
+    shared_package::SharedPackageConfig,
+};
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -13,11 +17,6 @@ use std::{
     io::{BufReader, Write},
     ops::Not,
     path::{Path, PathBuf},
-};
-
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
 };
 
 use crate::{
@@ -44,18 +43,22 @@ pub struct PackageFiles {
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
 pub struct FileRepository {
     #[serde(default)]
-    pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
+    pub artifacts: HashMap<DependencyId, HashMap<Version, SharedPackageConfig>>,
 }
 
 impl FileRepository {
     pub fn get_artifacts_from_id(
         &self,
-        id: &str,
+        id: &DependencyId,
     ) -> Option<&HashMap<Version, SharedPackageConfig>> {
         self.artifacts.get(id)
     }
 
-    pub fn get_artifact(&self, id: &str, version: &Version) -> Option<&SharedPackageConfig> {
+    pub fn get_artifact(
+        &self,
+        id: &DependencyId,
+        version: &Version,
+    ) -> Option<&SharedPackageConfig> {
         match self.artifacts.get(id) {
             Some(artifacts) => artifacts.get(version),
             None => None,
@@ -68,14 +71,14 @@ impl FileRepository {
         package: SharedPackageConfig,
         overwrite_existing: bool,
     ) -> Result<()> {
-        if !self.artifacts.contains_key(&package.config.info.id) {
+        if !self.artifacts.contains_key(&package.config.id) {
             self.artifacts
-                .insert(package.config.info.id.clone(), HashMap::new());
+                .insert(package.config.id.clone(), HashMap::new());
         }
 
-        let id_artifacts = self.artifacts.get_mut(&package.config.info.id).unwrap();
+        let id_artifacts = self.artifacts.get_mut(&package.config.id).unwrap();
 
-        let entry = id_artifacts.entry(package.config.info.version.clone());
+        let entry = id_artifacts.entry(package.config.version.clone());
 
         match entry {
             Entry::Occupied(mut e) => {
@@ -124,16 +127,16 @@ impl FileRepository {
     ) -> Result<()> {
         println!(
             "Adding cache for local dependency {} {}",
-            package.config.info.id.bright_red(),
-            package.config.info.version.bright_green()
+            package.config.id.bright_red(),
+            package.config.version.bright_green()
         );
         let config = get_combine_config();
         let cache_path = config
             .cache
             .as_ref()
             .unwrap()
-            .join(&package.config.info.id)
-            .join(package.config.info.version.to_string());
+            .join(&package.config.id.0)
+            .join(package.config.version.to_string());
 
         let tmp_path = cache_path.join("tmp");
         let src_path = cache_path.join("src");
@@ -146,13 +149,9 @@ impl FileRepository {
 
         if binary_path.is_some() || debug_binary_path.is_some() {
             let lib_path = cache_path.join("lib");
-            let so_path = lib_path.join(package.config.info.get_so_name2());
-            let debug_bin_name = package
-                .config
-                .info
-                .get_so_name2()
-                .with_extension("debug.so");
-            
+            let so_path = lib_path.join(package.config.get_so_name2());
+            let debug_bin_name = package.config.get_so_name2().with_extension("debug.so");
+
             let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
 
             if let Some(binary_path_unwrapped) = &binary_path {
@@ -168,7 +167,7 @@ impl FileRepository {
 
         copy_things(
             &original_shared_path,
-            &src_path.join(&package.config.shared_dir),
+            &src_path.join(&package.config.shared_directories),
         )?;
         copy_things(&project_folder.join("qpm.json"), &src_path.join("qpm.json"))?;
         copy_things(
@@ -186,17 +185,12 @@ impl FileRepository {
             let downloaded_package = SharedPackageConfig::read(package_path)?;
 
             // check if downloaded config is the same version as expected, if not, panic
-            if downloaded_package.config.info.version != package.config.info.version {
+            if downloaded_package.config.version != package.config.version {
                 bail!(
                     "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                    package.config.info.id.bright_red(),
-                    downloaded_package
-                        .config
-                        .info
-                        .version
-                        .to_string()
-                        .bright_green(),
-                    package.config.info.version.to_string().bright_green(),
+                    package.config.id.bright_red(),
+                    downloaded_package.config.version.to_string().bright_green(),
+                    package.config.version.to_string().bright_green(),
                 )
             }
         }
@@ -321,28 +315,28 @@ impl FileRepository {
     }
 
     #[inline]
-    pub fn get_package_versions_cache_path(id: &str) -> PathBuf {
+    pub fn get_package_versions_cache_path(id: &DependencyId) -> PathBuf {
         let user_config = get_combine_config();
         let base_path = user_config.cache.as_ref().unwrap();
 
         // cache/{id}
-        base_path.join(id)
+        base_path.join(id.0)
     }
 
     #[inline]
-    pub fn get_package_cache_path(id: &str, version: &Version) -> PathBuf {
+    pub fn get_package_cache_path(id: &DependencyId, version: &Version) -> PathBuf {
         // cache/{id}/{version}
         Self::get_package_versions_cache_path(id).join(version.to_string())
     }
 
     pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
-        let dep_cache_path = Self::get_package_cache_path(&package.info.id, &package.info.version);
+        let dep_cache_path = Self::get_package_cache_path(&package.id, &package.version);
 
         if !dep_cache_path.exists() {
             bail!(
                 "Missing cache for dependency {}:{}",
-                package.info.id.dependency_id_color(),
-                package.info.version.dependency_version_color()
+                package.id.dependency_id_color(),
+                package.version.dependency_version_color()
             );
         }
 
@@ -352,14 +346,14 @@ impl FileRepository {
         if !src_path.exists() {
             bail!(
                 "Missing src for dependency {}:{}",
-                package.info.id.dependency_id_color(),
-                package.info.version.dependency_version_color()
+                package.id.dependency_id_color(),
+                package.version.dependency_version_color()
             );
         }
 
         let exposed_headers = src_path.join(&package.shared_dir);
 
-        if package.info.additional_data.headers_only.unwrap_or(false) {
+        if package.additional_data.headers_only.unwrap_or(false) {
             return Ok(PackageFiles {
                 headers: exposed_headers,
                 binary: None,
@@ -368,13 +362,12 @@ impl FileRepository {
 
         // get so name or release so name
 
-        let use_release_name = package.info.additional_data.debug_so_link.is_none()
-            || package.info.additional_data.static_link.is_some();
+        let use_release_name = package.additional_data.debug_so_link.is_none()
+            || package.additional_data.static_link.is_some();
 
         // get so name or release so name
         let name = match use_release_name {
             true => package
-                .info
                 .get_so_name2()
                 .file_name()
                 .unwrap()
@@ -382,7 +375,7 @@ impl FileRepository {
                 .to_string(),
             false => {
                 // lib{name}.debug.so
-                let bin = package.info.get_so_name2().with_extension("debug.so");
+                let bin = package.get_so_name2().with_extension("debug.so");
 
                 bin.file_name().unwrap().to_string_lossy().to_string()
             }
@@ -393,8 +386,8 @@ impl FileRepository {
         if !binary.exists() {
             bail!(
                 "Missing binary {name} for {}:{}",
-                package.info.id.dependency_id_color(),
-                package.info.version.dependency_version_color()
+                package.id.dependency_id_color(),
+                package.version.dependency_version_color()
             );
         }
 
@@ -410,18 +403,16 @@ impl FileRepository {
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
         // let package = shared_package.config;
-        let restored_dependencies_map: HashMap<&String, &SharedPackageConfig> = restored_deps
-            .iter()
-            .map(|p| (&p.config.info.id, p))
-            .collect();
+        let restored_dependencies_map: HashMap<&DependencyId, &SharedPackageConfig> =
+            restored_deps.iter().map(|p| (&p.config.id, p)).collect();
 
         // validate exists dependencies
         let missing_dependencies: Vec<_> = restored_dependencies_map
             .iter()
             .filter(|(_, r)| {
-                !Self::get_package_cache_path(&r.config.info.id, &r.config.info.version).exists()
+                !Self::get_package_cache_path(&r.config.id, &r.config.version).exists()
             })
-            .map(|(_, r)| format!("{}:{}", r.config.info.id, r.config.info.version))
+            .map(|(_, r)| format!("{}:{}", r.config.id, r.config.version))
             .collect();
 
         if !missing_dependencies.is_empty() {
@@ -455,17 +446,15 @@ impl FileRepository {
                 package
                     .dependencies
                     .iter()
-                    .any(|d| d.id == dep.config.info.id)
+                    .any(|d| d.id == dep.config.id)
             });
 
         for (direct_dep, direct_dep_files) in direct_deps {
-            let project_deps_headers_target =
-                extern_headers.join(direct_dep.config.info.id.clone());
+            let project_deps_headers_target = extern_headers.join(direct_dep.config.id.clone());
 
             let exposed_headers = direct_dep_files.headers;
             let not_header_only = direct_dep
                 .config
-                .info
                 .additional_data
                 .headers_only
                 .unwrap_or(false)
@@ -476,7 +465,7 @@ impl FileRepository {
                     direct_dep_files.binary.wrap_err_with(|| {
                         format!(
                             "Binary not found for direct package {}:{}",
-                            direct_dep.config.info.id.dependency_id_color(),
+                            direct_dep.config.id.dependency_id_color(),
                             direct_dep.config.version.dependency_version_color()
                         )
                     })
@@ -489,14 +478,14 @@ impl FileRepository {
                 bail!(
                     "Missing binary {} for {}:{}",
                     src_binary.file_name().unwrap_or_default().to_string_lossy(),
-                    direct_dep.config.info.id.dependency_id_color(),
+                    direct_dep.config.id.dependency_id_color(),
                     direct_dep.config.version.dependency_version_color()
                 );
             }
             if !exposed_headers.exists() {
                 bail!(
                     "Missing header files for {}:{}",
-                    direct_dep.config.info.id.dependency_id_color(),
+                    direct_dep.config.id.dependency_id_color(),
                     direct_dep.config.version.dependency_version_color()
                 );
             }
@@ -515,14 +504,13 @@ impl FileRepository {
 
         // Get headers of all dependencies restored
         for (indirect_dep, indirect_dep_files) in indirect_deps {
-            let project_deps_headers_target =
-                extern_headers.join(indirect_dep.config.info.id.clone());
+            let project_deps_headers_target = extern_headers.join(indirect_dep.config.id.clone());
 
             let exposed_headers = indirect_dep_files.headers;
             if !exposed_headers.exists() {
                 bail!(
                     "Missing header files for {}:{}",
-                    indirect_dep.config.info.id.dependency_id_color(),
+                    indirect_dep.config.id.dependency_id_color(),
                     indirect_dep.config.version.dependency_version_color()
                 );
             }
@@ -541,10 +529,8 @@ impl FileRepository {
                 .get(&referenced_dependency.id)
                 .unwrap();
 
-            let dep_cache_path = Self::get_package_cache_path(
-                &referenced_dependency.id,
-                &shared_dep.config.info.version,
-            );
+            let dep_cache_path =
+                Self::get_package_cache_path(&referenced_dependency.id, &shared_dep.config.version);
             let src_path = dep_cache_path.join("src");
 
             let extern_headers_dep = extern_headers.join(&referenced_dependency.id);
@@ -557,7 +543,7 @@ impl FileRepository {
                         bail!(
                             "Missing extra {extra} for dependency {}:{}",
                             referenced_dependency.id,
-                            shared_dep.config.info.version.to_string()
+                            shared_dep.config.version.to_string()
                         );
                     }
 
@@ -571,7 +557,7 @@ impl FileRepository {
         Ok(paths)
     }
 
-    pub fn remove_package_versions(&mut self, package: &String) -> Result<()> {
+    pub fn remove_package_versions(&mut self, package: &DependencyId) -> Result<()> {
         self.artifacts.remove(package);
         let packages_path = Self::get_package_versions_cache_path(package);
         if !packages_path.exists() {
@@ -580,7 +566,7 @@ impl FileRepository {
         std::fs::remove_dir_all(packages_path)?;
         Ok(())
     }
-    pub fn remove_package(&mut self, package: &String, version: &Version) -> Result<()> {
+    pub fn remove_package(&mut self, package: &DependencyId, version: &Version) -> Result<()> {
         self.artifacts
             .get_mut(package)
             .ok_or_eyre(format!("No package found {package}/{version}"))?
@@ -596,25 +582,26 @@ impl FileRepository {
 }
 
 impl Repository for FileRepository {
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
         Ok(self.get_artifacts_from_id(id).map(|artifacts| {
             artifacts
                 .keys()
-                .map(|version| PackageVersion {
-                    id: id.to_string(),
-                    version: version.clone(),
-                })
-                .sorted_by(|a, b| a.version.cmp(&b.version))
+                .sorted()
                 .rev() // highest first
+                .cloned()
                 .collect()
         }))
     }
 
-    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
+    fn get_package(
+        &self,
+        id: &DependencyId,
+        version: &Version,
+    ) -> Result<Option<SharedPackageConfig>> {
         Ok(self.get_artifact(id, version).cloned())
     }
 
-    fn get_package_names(&self) -> Result<Vec<String>> {
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
         Ok(self.artifacts.keys().cloned().collect())
     }
 
@@ -630,9 +617,7 @@ impl Repository for FileRepository {
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        let exist_in_db = self
-            .get_artifact(&config.info.id, &config.info.version)
-            .is_some();
+        let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
         let file = FileRepository::collect_files_of_package(config);
 
         Ok(exist_in_db && file.is_ok())

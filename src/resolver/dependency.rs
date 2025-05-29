@@ -11,11 +11,9 @@ use crate::{
     models::package::SharedPackageConfigExtensions,
     repository::{Repository, local::FileRepository},
     terminal::colors::QPMColor,
-    utils::cmake::write_cmake,
 };
 use color_eyre::{
-    Result,
-    eyre::{Context, bail},
+    eyre::{bail, Context, ContextCompat}, Result
 };
 use itertools::Itertools;
 use pubgrub::{
@@ -125,7 +123,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
         let chosen = dependencies
             .iter()
-            .map(|version| VersionWrapper::from(version.version.clone()))
+            .map(|version| VersionWrapper::from(version.clone()))
             .find(|version| range.contains(version));
 
         Ok(chosen)
@@ -149,7 +147,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         // Count versions that satisfy the range constraint
         let version_count = versions
             .iter()
-            .filter(|v| range.contains(&v.version.clone().into()))
+            .filter(|v| range.contains(&VersionWrapper(v.clone().clone())))
             .count();
 
         // If no versions satisfy the constraint, use maximum priority
@@ -225,7 +223,6 @@ pub fn restore<P: AsRef<Path>>(
     println!("Copying now");
     FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
 
-    write_cmake(shared_package, repository)?;
     shared_package.try_write_toolchain(repository)?;
 
     Ok(())

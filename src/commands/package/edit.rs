@@ -1,12 +1,11 @@
 use clap::Args;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{package::{DependencyId, PackageConfig}, shared_package::SharedPackageConfig};
 use semver::Version;
 
 use crate::{
     commands::Command,
     models::package::PackageConfigExtensions,
     repository::{self},
-    utils::cmake::{write_define_cmake, write_extern_cmake},
 };
 
 #[derive(Args, Debug, Clone)]
@@ -55,13 +54,6 @@ impl Command for EditArgs {
             let mut shared_package = SharedPackageConfig::read(".")?;
             shared_package.config = package;
             shared_package.write(".")?;
-
-            // HACK: Not sure if this is a proper way of doing this but it seems logical
-            write_define_cmake(&shared_package)?;
-            write_extern_cmake(
-                &shared_package,
-                &repository::useful_default_new(self.offline)?,
-            )?;
         }
         Ok(())
     }
@@ -69,20 +61,16 @@ impl Command for EditArgs {
 
 fn package_set_id(package: &mut PackageConfig, id: String) {
     println!("Setting package id: {id}");
-    package.info.id = id;
+    package.id = DependencyId(id);
 }
 
-fn package_set_name(package: &mut PackageConfig, name: String) {
-    println!("Setting package name: {name}");
-    package.info.name = name;
-}
 
 fn package_set_url(package: &mut PackageConfig, url: String) {
     println!("Setting package url: {url}");
-    package.info.url = Option::Some(url);
+    package.url = Option::Some(url);
 }
 
 fn package_set_version(package: &mut PackageConfig, version: Version) {
     println!("Setting package version: {version}");
-    package.info.version = version;
+    package.version = version;
 }

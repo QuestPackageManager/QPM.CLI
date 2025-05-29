@@ -17,7 +17,7 @@ use zip::ZipArchive;
 use serde::Deserialize;
 
 use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions, models::{package::PackageConfig, shared_package::SharedPackageConfig},
+    extensions::package_metadata::PackageMetadataExtensions, models::{package::{DependencyId, PackageConfig}, shared_package::SharedPackageConfig},
 };
 
 use crate::{
@@ -60,12 +60,12 @@ impl QPMRepository {
     }
 
     /// Requests the appriopriate package info from qpackage.com
-    pub fn get_versions(id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    pub fn get_versions(id: &DependencyId) -> Result<Option<Vec<Version>>> {
         Self::run_request(&format!("{id}?limit=0"))
             .with_context(|| format!("Getting list of versions for {}", id.dependency_id_color()))
     }
 
-    pub fn get_shared_package(id: &str, ver: &Version) -> Result<Option<SharedPackageConfig>> {
+    pub fn get_shared_package(id: &DependencyId, ver: &Version) -> Result<Option<SharedPackageConfig>> {
         Self::run_request(&format!("{id}/{ver}")).with_context(|| {
             format!(
                 "Getting shared package config {}:{}",
@@ -75,7 +75,7 @@ impl QPMRepository {
         })
     }
 
-    pub fn get_packages() -> Result<Vec<String>> {
+    pub fn get_packages() -> Result<Vec<DependencyId>> {
         let vec = Self::run_request("")
             .context("qpackages.com packages list failed")?
             .ok_or_eyre("No packages found?")?;
@@ -127,7 +127,7 @@ impl QPMRepository {
             .cache
             .as_ref()
             .unwrap()
-            .join(&config.id)
+            .join(&config.id.0)
             .join(config.version.to_string());
 
         let src_path = base_path.join("src");
@@ -262,7 +262,7 @@ impl QPMRepository {
 
                 Err(e) => println!(
                     "Unable to validate shared package of {}:{} due to: \"{}\", continuing",
-                    config.name.dependency_id_color(),
+                    config.id.dependency_id_color(),
                     config.version.dependency_version_color(),
                     e.red()
                 ),
@@ -349,16 +349,16 @@ impl QPMRepository {
 }
 
 impl Repository for QPMRepository {
-    fn get_package_names(&self) -> Result<Vec<String>> {
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
         Self::get_packages()
     }
 
     /// Sorted descending order
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
         let versions = Self::get_versions(id)?.map(|versions| {
             versions
                 .into_iter()
-                .sorted_by(|a, b| a.version.cmp(&b.version))
+                .sorted_by(|a, b| a.cmp(&b))
                 .rev()
                 .collect_vec()
         });
@@ -366,7 +366,7 @@ impl Repository for QPMRepository {
         Ok(versions)
     }
 
-    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<SharedPackageConfig>> {
         let config = Self::get_shared_package(id, version)?;
 
         Ok(config)

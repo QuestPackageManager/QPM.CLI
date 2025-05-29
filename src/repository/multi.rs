@@ -1,9 +1,8 @@
 use color_eyre::{Result, eyre::bail};
 use itertools::Itertools;
 
-use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-};
+use qpm_package::models::{package::{DependencyId, PackageConfig}, shared_package::SharedPackageConfig};
+use semver::Version;
 
 use super::Repository;
 
@@ -24,16 +23,16 @@ impl MultiDependencyRepository {
 ///
 impl Repository for MultiDependencyRepository {
     // get versions of all repositories
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
         // double flat map???? rust weird
         // TODO: Propagate error
-        let result: Vec<PackageVersion> = self
+        let result: Vec<Version> = self
             .repositories
             .iter()
             .filter_map(|r| r.get_package_versions(id).expect("Failed to get versions"))
             .flatten()
             .unique()
-            .sorted_by(|a, b| a.version.cmp(&b.version))
+            .sorted_by(|a, b| a.cmp(&b))
             .rev() // highest first
             .collect();
 
@@ -62,7 +61,7 @@ impl Repository for MultiDependencyRepository {
     // get package from the first repository that has it
     fn get_package(
         &self,
-        id: &str,
+        id: &DependencyId,
         version: &semver::Version,
     ) -> Result<Option<SharedPackageConfig>> {
         let opt = self
@@ -77,13 +76,13 @@ impl Repository for MultiDependencyRepository {
         }
     }
 
-    fn get_package_names(&self) -> Result<Vec<String>> {
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
         Ok(self
             .repositories
             .iter()
             .flat_map(|r| r.get_package_names().expect("Unable to get package names"))
             .unique()
-            .collect::<Vec<String>>())
+            .collect())
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
@@ -91,7 +90,7 @@ impl Repository for MultiDependencyRepository {
             .repositories
             .iter_mut()
             .filter(|r| {
-                r.get_package(&config.info.id, &config.info.version)
+                r.get_package(&config.id, &config.version)
                     .expect("Unable to get package")
                     .is_some()
             })
@@ -103,8 +102,8 @@ impl Repository for MultiDependencyRepository {
             Some(v) => Ok(v),
             None => bail!(
                 "No repository found that has package {}:{}",
-                config.info.id,
-                config.info.version
+                config.id,
+                config.version
             ),
         }
     }

@@ -2,7 +2,7 @@ use std::fs;
 
 use clap::Args;
 use color_eyre::Result;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::package::PackageConfig;
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
 

@@ -35,7 +35,7 @@ fn remove(p: &str) -> Result<()> {
 
 fn remove_dependencies_dir() -> Result<()> {
     let package = PackageConfig::read(".")?;
-    let extern_path = Path::new(&package.dependencies_dir);
+    let extern_path = Path::new(&package.dependencies_directory);
 
     if !extern_path.exists() {
         return Ok(());
@@ -101,6 +101,6 @@ fn remove_dependencies_dir() -> Result<()> {
         }
     }
 
-    fs::remove_dir_all(&package.dependencies_dir)?;
+    fs::remove_dir_all(&package.dependencies_directory)?;
     Ok(())
 }

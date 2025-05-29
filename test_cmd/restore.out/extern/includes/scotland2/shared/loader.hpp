@@ -332,7 +332,7 @@ struct MODLOADER_EXPORT ModData {
     copy_path[path_str.size()] = '/0';
 
     return CModResult{
-      .info = info.to_c(),
+       = info.to_c(),
       .path = copy_path,
       .handle = handle,
     };

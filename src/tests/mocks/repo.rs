@@ -36,12 +36,12 @@ pub fn build_artifact_and_depend(
     range: VersionReq,
 ) -> SharedPackageConfig {
     let dep = Dependency {
-        id: shared_dep.config.info.id.clone(),
+        id: shared_dep.config.id.clone(),
         version_range: range.clone(),
-        additional_data: shared_dep.config.info.additional_data.clone(),
+        additional_data: shared_dep.config.additional_data.clone(),
     };
     let p_dep = PackageDependency {
-        id: shared_dep.config.info.id.clone(),
+        id: shared_dep.config.id.clone(),
         version_range: range,
         additional_data: Default::default(),
     };
@@ -64,7 +64,7 @@ pub fn build_artifact_and_depend(
         },
         restored_dependencies: vec![SharedDependency {
             dependency: dep,
-            version: shared_dep.config.info.version.clone(),
+            version: shared_dep.config.version.clone(),
         }],
     }
 }
@@ -90,7 +90,7 @@ pub fn build_artifact_and_depends(
             dependencies: deps
                 .iter()
                 .map(|(shared_config, range)| PackageDependency {
-                    id: shared_config.config.info.id.clone(),
+                    id: shared_config.config.id.clone(),
                     version_range: range.clone(),
                     additional_data: Default::default(),
                 })
@@ -101,11 +101,11 @@ pub fn build_artifact_and_depends(
             .iter()
             .map(|(shared_config, range)| SharedDependency {
                 dependency: Dependency {
-                    id: shared_config.config.info.id.clone(),
+                    id: shared_config.config.id.clone(),
                     version_range: range.clone(),
-                    additional_data: shared_config.config.info.additional_data.clone(),
+                    additional_data: shared_config.config.additional_data.clone(),
                 },
-                version: shared_config.config.info.version.clone(),
+                version: shared_config.config.version.clone(),
             })
             .collect(),
     }
@@ -142,8 +142,8 @@ pub fn get_mock_repository() -> FileRepository {
         artifacts: [artifact1, artifact2, artifact3, artifact4, artifact5]
             .map(|a| {
                 (
-                    a.config.info.id.clone(),
-                    HashMap::from([(a.config.info.version.clone(), a)]),
+                    a.config.id.clone(),
+                    HashMap::from([(a.config.version.clone(), a)]),
                 )
             })
             .into_iter()

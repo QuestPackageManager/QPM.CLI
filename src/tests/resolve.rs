@@ -26,8 +26,8 @@ fn get_artifact() -> Result<()> {
     assert!(p.is_some());
     let unwrapped_p = p.unwrap();
 
-    assert_eq!(unwrapped_p.config.info.id, "artifact1");
-    assert_eq!(unwrapped_p.config.info.version, Version::new(0, 1, 0));
+    assert_eq!(unwrapped_p.config.id, "artifact1");
+    assert_eq!(unwrapped_p.config.version, Version::new(0, 1, 0));
     Ok(())
 }
 
@@ -43,7 +43,7 @@ fn resolve() -> Result<()> {
 
     println!(
         "Resolved deps: {:?}",
-        resolved.iter().map(|s| s.config.info.id.clone())
+        resolved.iter().map(|s| s.config.id.clone())
     );
     assert_eq!(resolved.len(), 3);
 
@@ -62,7 +62,7 @@ fn resolve_locked() -> Result<()> {
 
     println!(
         "Resolved deps: {:?}",
-        resolved.iter().map(|s| s.config.info.id.clone())
+        resolved.iter().map(|s| s.config.id.clone())
     );
     assert_eq!(resolved.len(), 3);
 

@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 use color_eyre::eyre::Context;
 use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{dependency::SharedPackageConfig, package::PackageConfig},
+    extensions::package_metadata::PackageMetadataExtensions, models::{package::PackageConfig, shared_package::SharedPackageConfig},
 };
 
 use crate::{
@@ -55,7 +54,7 @@ impl Command for InstallCommand {
 
         let header_only = shared_package
             .config
-            .info
+            
             .additional_data
             .headers_only
             .unwrap_or(false);
@@ -68,7 +67,7 @@ impl Command for InstallCommand {
                 binary_path = Some(
                     PathBuf::from(format!(
                         "./build/{}",
-                        shared_package.config.info.get_so_name().file_name().unwrap().to_string_lossy()
+                        shared_package.config.get_so_name().file_name().unwrap().to_string_lossy()
                     ))
                     .canonicalize().context("Failed to retrieve release binary for publishing since it is not header only")?,
                 );
@@ -78,7 +77,7 @@ impl Command for InstallCommand {
                 debug_binary_path = Some(
                     PathBuf::from(format!(
                         "./build/debug/{}",
-                        shared_package.config.info.get_so_name().file_name().unwrap().to_string_lossy()
+                        shared_package.config.get_so_name().file_name().unwrap().to_string_lossy()
                     ))
                     .canonicalize().context("Failed to retrieve debug binary for publishing since it is not header only")?,
                 );

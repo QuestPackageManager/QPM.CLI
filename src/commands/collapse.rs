@@ -24,8 +24,8 @@ impl Command for CollapseCommand {
         for shared_package in resolved {
             println!(
                 "{} --> {} ({} restored dependencies)",
-                &shared_package.config.info.id.bright_red(),
-                &shared_package.config.info.version.bright_green(),
+                &shared_package.config.id.bright_red(),
+                &shared_package.config.version.bright_green(),
                 shared_package
                     .restored_dependencies
                     .len()

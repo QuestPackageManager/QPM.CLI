@@ -5,10 +5,7 @@ use color_eyre::{
     eyre::{Context, bail},
 };
 use owo_colors::OwoColorize;
-use qpm_package::models::{
-    extra::PackageDependencyModifier,
-    package::{PackageConfig, PackageDependency},
-};
+use qpm_package::models::package::PackageConfig;
 use semver::VersionReq;
 
 use crate::{

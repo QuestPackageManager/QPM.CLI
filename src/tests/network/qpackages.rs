@@ -44,7 +44,7 @@ fn download_package_binary() -> Result<()> {
 
     let link = package
         .config
-        .info
+        
         .additional_data
         .so_link
         .ok_or_eyre("Binary SO not found")?;
@@ -69,8 +69,8 @@ fn get_artifact() -> Result<()> {
     assert_ne!(p, None);
     let unwrapped_p = p.unwrap();
 
-    assert_eq!(unwrapped_p.config.info.id, "beatsaber-hook");
-    assert_eq!(unwrapped_p.config.info.version, version);
+    assert_eq!(unwrapped_p.config.id, "beatsaber-hook");
+    assert_eq!(unwrapped_p.config.version, version);
     Ok(())
 }
 
@@ -96,7 +96,7 @@ fn resolve() -> Result<()> {
 
     let paper = resolved
         .iter()
-        .find(|b| b.config.info.id.contains("paper"));
+        .find(|b| b.config.id.contains("paper"));
 
     assert_ne!(paper, None);
 
@@ -104,12 +104,12 @@ fn resolve() -> Result<()> {
         paper_dep
             .unwrap()
             .version_range
-            .matches(&paper.unwrap().config.info.version)
+            .matches(&paper.unwrap().config.version)
     );
 
     println!(
         "Resolved deps: {:?}",
-        resolved.iter().map(|s| s.config.info.id.clone())
+        resolved.iter().map(|s| s.config.id.clone())
     );
 
     Ok(())

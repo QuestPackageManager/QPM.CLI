@@ -1,7 +1,7 @@
 use std::{fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
-use qpm_package::models::{dependency::SharedPackageConfig, extra::CompileOptions};
+use qpm_package::models::{extra::CompileOptions, shared_package::SharedPackageConfig};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -16,12 +16,6 @@ pub struct ToolchainData {
 
     /// Path to the extern directory
     pub extern_dir: PathBuf,
-
-    /// Output path for the binary
-    pub binary_out: Option<PathBuf>,
-
-    /// Output path for the debug binary
-    pub debug_binary_out: Option<PathBuf>,
 }
 
 pub fn write_toolchain_file(
@@ -36,11 +30,11 @@ pub fn write_toolchain_file(
         .filter_map(|s| {
             let shared_config = repo.get_package(&s.dependency.id, &s.version).ok()??;
 
-            let package_id = &shared_config.config.info.id;
+            let package_id = &shared_config.config.id;
 
             let prepend_path = |dir: &String| format!("{extern_dir}/includes/{package_id}/{dir}");
 
-            let mut compile_options = shared_config.config.info.additional_data.compile_options?;
+            let mut compile_options = shared_config.config.additional_data.compile_options?;
 
             // prepend path
             compile_options.include_paths = compile_options
@@ -97,9 +91,6 @@ pub fn write_toolchain_file(
     let toolchain = ToolchainData {
         compile_options,
         extern_dir: shared_config.config.dependencies_dir.clone(),
-        // TODO:
-        binary_out: None,
-        debug_binary_out: None,
     };
     let file = File::create(toolchain_path)?;
     serde_json::to_writer_pretty(

@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use qpm_package::extensions::package_metadata::PackageMetadataExtensions;
+use qpm_package::models::shared_package::SharedPackageConfig;
 use semver::VersionReq;
 
 use qpm_qmod::models::mod_json::ModJson;
@@ -9,7 +10,7 @@ use qpm_qmod::models::mod_json::ModJson;
 use crate::models::mod_json::{ModJsonExtensions, PreProcessingData};
 use crate::models::package::{PackageConfigExtensions, SharedPackageConfigExtensions};
 
-use qpm_package::models::dependency::SharedPackageConfig;
+
 
 use qpm_package::models::package::PackageConfig;
 
@@ -62,15 +63,15 @@ pub(crate) fn generate_qmod_manifest(
 
     let binary = shared_package
         .config
-        .info
+        
         .get_so_name()
         .file_name()
         .map(|s| s.to_string_lossy().to_string());
 
     let preprocess_data = PreProcessingData {
-        version: shared_package.config.info.version.to_string(),
-        mod_id: shared_package.config.info.id.clone(),
-        mod_name: shared_package.config.info.name.clone(),
+        version: shared_package.config.version.to_string(),
+        mod_id: shared_package.config.id.clone(),
+        mod_name: shared_package.config.name.clone(),
         binary,
     };
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;

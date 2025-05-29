@@ -8,6 +8,7 @@ use itertools::Itertools;
 
 use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
+use qpm_package::models::shared_package::SharedPackageConfig;
 use qpm_qmod::models::mod_json::ModJson;
 
 use crate::commands::qmod::manifest::{ManifestQmodOperationArgs, generate_qmod_manifest};
@@ -17,7 +18,7 @@ use crate::models::package::PackageConfigExtensions;
 use crate::models::schemas::{SchemaLinks, WithSchema};
 use crate::terminal::colors::QPMColor;
 
-use qpm_package::models::dependency::SharedPackageConfig;
+
 
 use qpm_package::models::package::PackageConfig;
 
@@ -118,7 +119,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let qmod_out = build_parameters
         .out_target
         .or(package.workspace.qmod_output)
-        .unwrap_or(format!("./{}", package.info.id).into());
+        .unwrap_or(format!("./{}", package.id).into());
 
     let look_for_files = |s: &str| {
         include_dirs
