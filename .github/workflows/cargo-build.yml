@@ -49,6 +49,12 @@ jobs:
             prefix: linux
             suffix: linux-x64
 
+          - os: ubuntu-latest
+            file-name: qpm
+            prefix: linux-static
+            suffix: linux-x64-static
+            target: x86_64-unknown-linux-musl
+
           - os: macos-13
             file-name: qpm
             prefix: macos-x64
@@ -92,13 +98,13 @@ jobs:
           brew install openssl@3
 
       - uses: actions-rs/toolchain@v1
-        if: matrix.target != ''
+        if: matrix.target != '' && matrix.target != 'x86_64-unknown-linux-musl'
         with:
           toolchain: nightly
           target: ${{ matrix.target }}
 
       - name: Double check
-        if: matrix.target != ''
+        if: matrix.target != '' && matrix.target != 'x86_64-unknown-linux-musl'
         run: |
           rustup target add ${{ matrix.target }}
           rustup show
@@ -111,11 +117,17 @@ jobs:
           args: --release
 
       - name: Cargo build target ${{ matrix.target }}
-        if: matrix.target != ''
+        if: matrix.target != '' && matrix.target != 'x86_64-unknown-linux-musl'
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target ${{ matrix.target }}
+
+      - name: Cargo build target ${{ matrix.target }}
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          cargo install cross
+          cross build --release --target ${{ matrix.target }}
 
       # Cargo CLI tests depend on build
       - name: Cargo test
@@ -125,7 +137,7 @@ jobs:
           command: test
           args: --release
 
-          # Windows
+      # Windows
       - name: Compress build
         if: matrix.file-name != '' && matrix.prefix != '' && startsWith(matrix.os, 'windows-')
         run: | 
