@@ -91,6 +91,11 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get install -y libdbus-1-dev
+
+      - name: Get musl utils
+        if: matrix.os == 'ubuntu-latest' && matrix.target != 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get install -y musl-utils
           
       - name: Get OpenSSL if MacOS
         if: startsWith(matrix.os, 'macos-')
@@ -104,7 +109,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Double check
-        if: matrix.target != '' && matrix.target != 'x86_64-unknown-linux-musl'
+        if: matrix.target != ''
         run: |
           rustup target add ${{ matrix.target }}
           rustup show
@@ -117,17 +122,11 @@ jobs:
           args: --release
 
       - name: Cargo build target ${{ matrix.target }}
-        if: matrix.target != '' && matrix.target != 'x86_64-unknown-linux-musl'
+        if: matrix.target != ''
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target ${{ matrix.target }}
-
-      - name: Cargo build target ${{ matrix.target }}
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          cargo install cross
-          cross build --release --target ${{ matrix.target }}
 
       # Cargo CLI tests depend on build
       - name: Cargo test
