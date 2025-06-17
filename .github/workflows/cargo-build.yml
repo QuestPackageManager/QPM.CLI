@@ -103,7 +103,7 @@ jobs:
           brew install openssl@3
 
       - uses: actions-rs/toolchain@v1
-        if: matrix.target != '' && matrix.target != 'x86_64-unknown-linux-musl'
+        if: matrix.target != ''
         with:
           toolchain: nightly
           target: ${{ matrix.target }}
