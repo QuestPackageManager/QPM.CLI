@@ -32,7 +32,8 @@ pub fn test_command(
         .success();
 
     // Check if we should update expected output
-    if std::env::var("QPM_TEST_UPDATE").is_ok() {
+    if std::env::var_os("QPM_TEST_UPDATE").is_some_and(|v| v == "1") {
+        println!("Updating expected output for args: {args:?}");
         if expected_dir.exists() {
             fs::remove_dir_all(expected_dir)
                 .wrap_err_with(|| format!("Failed to remove expected dir: {:?}", expected_dir))?;
