@@ -32,6 +32,7 @@ pub fn test_command(
         .wrap_err("Failed to find qpm binary")?
         .args(args)
         .current_dir(temp.path())
+        .env("QPM_DISABLE_GLOBAL_CONFIG", "1")  // Set test environment variable to disable global config
         .assert()
         .success();
 
@@ -85,6 +86,7 @@ pub fn test_command_check_files(
         .wrap_err("Failed to find qpm binary")?
         .args(args)
         .current_dir(temp.path())
+        .env("QPM_DISABLE_GLOBAL_CONFIG", "1")  // Set test environment variable to disable global config
         .assert()
         .success();
 

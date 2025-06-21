@@ -56,6 +56,11 @@ impl UserConfig {
     }
 
     pub fn read_global() -> Result<Self> {
+        // During tests, use a default configuration instead of reading from the global file
+        if std::env::var("QPM_DISABLE_GLOBAL_CONFIG").is_ok() {
+            return Ok(Self::default());
+        }
+
         fs::create_dir_all(Self::global_config_path().parent().unwrap())?;
 
         if !Self::global_config_path().exists() {
@@ -90,6 +95,11 @@ impl UserConfig {
     }
 
     pub fn write(&self, workspace: bool) -> Result<()> {
+        // During tests, don't write to the global configuration file
+        if !workspace && std::env::var("QPM_DISABLE_GLOBAL_CONFIG").is_ok() {
+            return Ok(());
+        }
+
         let path = if workspace {
             Path::new(".").join(Self::config_file_name())
         } else {
