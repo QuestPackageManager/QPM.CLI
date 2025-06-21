@@ -12,7 +12,7 @@
   },
   "workspace": {
     "scripts": {},
-    "ndk": "^27.2.12479018",
+    "ndk": "^26.3.11579264",
     "qmodIncludeDirs": [],
     "qmodIncludeFiles": [],
     "qmodOutput": null

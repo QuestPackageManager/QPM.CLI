@@ -1,4 +1,0 @@
-bin.name = "qpm"
-args = "ndk pin 27 --online --quiet"
-fs.sandbox = true
-binary = true

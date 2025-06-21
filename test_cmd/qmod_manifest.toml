@@ -1,3 +1,0 @@
-bin.name = "qpm"
-args = "qmod manifest"
-fs.sandbox = true
