@@ -106,8 +106,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     if build_parameters.clean {
         // Run clean script
         let clean_script = &package.workspace.get_clean();
-        if let Some(clean_script) = clean_script
-        {
+        if let Some(clean_script) = clean_script {
             println!("Running clean script");
             scripts::invoke_script(clean_script, &[], &package)?;
         }

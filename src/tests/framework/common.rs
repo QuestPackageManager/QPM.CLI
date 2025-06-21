@@ -18,7 +18,11 @@ pub fn test_command(
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
     // Copy input directory to temp directory using fs_extra
-    let copy_options = CopyOptions::new().overwrite(true).content_only(true);
+    // Use options that preserve line endings and binary content exactly
+    let copy_options = CopyOptions::new()
+        .overwrite(true)
+        .content_only(true)
+        .copy_inside(true); // Ensures directory structure is maintained
 
     dir::copy(input_dir, temp.path(), &copy_options)
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
@@ -36,12 +40,17 @@ pub fn test_command(
         println!("Updating expected output for args: {args:?}");
         if expected_dir.exists() {
             fs::remove_dir_all(expected_dir)
-                .wrap_err_with(|| format!("Failed to remove expected dir: {:?}", expected_dir))?;
+                .wrap_err_with(|| format!("Failed to remove expected dir: {expected_dir:?}"))?;
         }
         fs::create_dir_all(expected_dir)
-            .wrap_err_with(|| format!("Failed to create expected dir: {:?}", expected_dir))?;
-        dir::copy(temp.path(), expected_dir, &copy_options)
-            .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", temp.path(), expected_dir))?;
+            .wrap_err_with(|| format!("Failed to create expected dir: {expected_dir:?}"))?;
+        dir::copy(temp.path(), expected_dir, &copy_options).wrap_err_with(|| {
+            format!(
+                "Failed to copy from {:?} to {:?}",
+                temp.path(),
+                expected_dir
+            )
+        })?;
         return Ok(());
     }
 
@@ -62,7 +71,11 @@ pub fn test_command_check_files(
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
     // Copy input directory to temp directory using fs_extra
-    let copy_options = CopyOptions::new().overwrite(true).content_only(true);
+    // Use options that preserve line endings and binary content exactly
+    let copy_options = CopyOptions::new()
+        .overwrite(true)
+        .content_only(true)
+        .copy_inside(true); // Ensures directory structure is maintained
 
     dir::copy(input_dir, temp.path(), &copy_options)
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
@@ -100,7 +113,9 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
             continue;
         }
 
-        let rel_path = entry.path().strip_prefix(expected)
+        let rel_path = entry
+            .path()
+            .strip_prefix(expected)
             .wrap_err_with(|| format!("Failed to get relative path for {:?}", entry.path()))?;
         let actual_path = actual.join(rel_path);
 
@@ -113,7 +128,8 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
         let expected_content = fs::read(entry.path())
             .wrap_err_with(|| format!("Failed to read expected file: {:?}", entry.path()))?;
         let actual_content = fs::read(&actual_path)
-            .wrap_err_with(|| format!("Failed to read actual file: {:?}", actual_path))?;        ensure!(
+            .wrap_err_with(|| format!("Failed to read actual file: {actual_path:?}"))?;
+        ensure!(
             expected_content == actual_content,
             "File {:?} does not match",
             rel_path
