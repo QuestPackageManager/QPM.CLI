@@ -4,6 +4,7 @@ use assert_fs::prelude::*;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::ensure;
 use fs_extra::dir::{self, CopyOptions};
+use gix::bstr::ByteSlice;
 use predicates::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -32,7 +33,7 @@ pub fn test_command(
         .wrap_err("Failed to find qpm binary")?
         .args(args)
         .current_dir(temp.path())
-        .env("QPM_DISABLE_GLOBAL_CONFIG", "1")  // Set test environment variable to disable global config
+        .env("QPM_DISABLE_GLOBAL_CONFIG", "1") // Set test environment variable to disable global config
         .assert()
         .success();
 
@@ -86,7 +87,7 @@ pub fn test_command_check_files(
         .wrap_err("Failed to find qpm binary")?
         .args(args)
         .current_dir(temp.path())
-        .env("QPM_DISABLE_GLOBAL_CONFIG", "1")  // Set test environment variable to disable global config
+        .env("QPM_DISABLE_GLOBAL_CONFIG", "1") // Set test environment variable to disable global config
         .assert()
         .success();
 
@@ -127,14 +128,48 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
             "Path {rel_path:?} does not exist in actual directory"
         );
 
-        let expected_content = fs::read(entry.path())
+        // Read file contents as bytes to handle non-UTF8 content
+        let mut expected_content = fs::read(entry.path())
             .wrap_err_with(|| format!("Failed to read expected file: {:?}", entry.path()))?;
-        let actual_content = fs::read(&actual_path)
+        let mut actual_content = fs::read(&actual_path)
             .wrap_err_with(|| format!("Failed to read actual file: {actual_path:?}"))?;
+
+        // Normalize line endings in text files to ensure platform-independent comparison
+        // Convert all line endings to \n for comparison
+        expected_content = normalize_line_endings(expected_content);
+        actual_content = normalize_line_endings(actual_content);
+
+        // Helper function to normalize line endings to \n
+        fn normalize_line_endings(content: Vec<u8>) -> Vec<u8> {
+            // if not windows, just return the content
+            if cfg!(not(windows)) {
+                return content;
+            }
+
+            content.replace(b"\r\n", "\n").replace(b"\r", b"\n")
+            // let mut normalized = Vec::with_capacity(content.len());
+            // let mut i = 0;
+            // while i < content.len() {
+            //     if content[i] == b'\r' && i + 1 < content.len() && content[i + 1] == b'\n' {
+            //         // Replace CRLF with LF
+            //         normalized.push(b'\n');
+            //         i += 2;
+            //     } else if content[i] == b'\r' {
+            //         // Replace CR with LF
+            //         normalized.push(b'\n');
+            //         i += 1;
+            //     } else {
+            //         normalized.push(content[i]);
+            //         i += 1;
+            //     }
+            // }
+            // normalized
+        }
+
         ensure!(
             expected_content == actual_content,
-            "File {:?} does not match",
-            rel_path
+            "File {rel_path:?} does not match expected file at {:?}.",
+            entry.path()
         );
     }
 
