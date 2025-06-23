@@ -71,6 +71,12 @@ jobs:
             prefix: windows
             suffix: windows-x64
 
+          - os: windows-latest
+            file-name: qpm.exe
+            target: aarch64-pc-windows-msvc
+            prefix: windows-arm64
+            suffix: windows-arm64
+
     steps:
       - uses: actions/checkout@v4
 
