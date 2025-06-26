@@ -6,14 +6,13 @@ use color_eyre::{
 };
 use owo_colors::OwoColorize;
 use qpm_package::models::{
-    extra::PackageDependencyModifier,
-    package::{PackageConfig, PackageDependency},
+    dependency::SharedPackageConfig, extra::PackageDependencyModifier, package::{PackageConfig, PackageDependency}
 };
-use semver::VersionReq;
+use semver::{Version, VersionReq};
 
 use crate::{
-    models::package::PackageConfigExtensions,
-    repository::{self, Repository},
+    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    repository::{self, local::FileRepository, Repository},
     terminal::colors::QPMColor,
 };
 
@@ -31,6 +30,8 @@ pub enum DependencyOperation {
     Add(DependencyOperationAddArgs),
     /// Remove a dependency
     Remove(DependencyOperationRemoveArgs),
+    /// Download a dependency to the local cache
+    Download(DependencyOperationDownloadArgs),
     /// Sort the dependencies alphabetically
     Sort,
 }
@@ -57,6 +58,20 @@ pub struct DependencyOperationAddArgs {
 }
 
 #[derive(Args, Debug, Clone)]
+pub struct DependencyOperationDownloadArgs {
+    /// Id of the dependency as listed on qpackages
+    pub id: String,
+
+    /// version of the dependency that you want to download
+    #[clap(short, long)]
+    pub version: Option<Version>,
+
+    /// Resolve all dependencies of the package
+    #[clap(long, default_value = "false")]
+    pub recursive: bool,
+}
+
+#[derive(Args, Debug, Clone)]
 pub struct DependencyOperationRemoveArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
@@ -71,6 +86,7 @@ impl Command for DependencyCommand {
         match self.op {
             DependencyOperation::Add(a) => a.execute(),
             DependencyOperation::Remove(r) => remove_dependency(r),
+            DependencyOperation::Download(f) => download_dependency(f),
             DependencyOperation::Sort => reserialize_package(true),
         }
     }
@@ -167,5 +183,89 @@ fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<(
     }
 
     package.write(".")?;
+    Ok(())
+}
+
+fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Result<()> {
+    let mut repository = repository::useful_default_new(false)?;
+    let version = {
+        if (dependency_args.version.is_none()) {
+            let versions = repository.get_package_versions(&dependency_args.id);
+
+            if versions.is_err() || versions.as_ref().unwrap().iter().count() == 0 {
+                panic!(
+                    "Package {} does not seem to exist, please make sure you spelled it right.",
+                    dependency_args.id.dependency_id_color()
+                );
+            }
+
+            // return the latest version
+            versions.unwrap().unwrap().first().unwrap().version.clone()
+        } else {
+            dependency_args.version.unwrap()
+        }
+    };
+
+    let dep = repository.get_package(&dependency_args.id, &version);
+
+    if dep.is_err() || dep.as_ref().unwrap().is_none() {
+        panic!(
+            "Package {}:{} does not exist, please make sure you spelled it right.",
+            dependency_args.id.dependency_id_color(),
+            version.dependency_version_color()
+        );
+    }
+
+    let dep = dep.unwrap().unwrap();
+
+
+    if dependency_args.recursive {
+        if let Ok(resolved_deps) = SharedPackageConfig::resolve_from_package(dep.config.clone(), &repository) {
+            let resolved_deps = resolved_deps.1;
+
+                for dep in resolved_deps {
+                    println!(
+                        "Pulling {}:{}",
+                        dep.config.info.id.dependency_id_color(),
+                        dep.config
+                            .info
+                            .version
+                            .to_string()
+                            .dependency_version_color()
+                    );
+                    repository.download_to_cache(&dep.config).with_context(|| {
+                        format!(
+                            "Requesting {}:{}",
+                            dep.config.info.id.dependency_id_color(),
+                            dep.config.info.version.version_id_color()
+                        )
+                    })?;
+                    repository.add_to_db_cache(dep.clone(), true)?;
+                }
+
+                repository.write_repo()?;
+        }
+    }
+
+    println!(
+        "Pulling {}:{}",
+        dep.config.info.id.dependency_id_color(),
+        dep.config
+            .info
+            .version
+            .to_string()
+            .dependency_version_color()
+    );
+    repository.download_to_cache(&dep.config).with_context(|| {
+        format!(
+            "Requesting {}:{}",
+            dep.config.info.id.dependency_id_color(),
+            dep.config.info.version.version_id_color()
+        )
+    })?;
+    repository.add_to_db_cache(dep.clone(), true)?;
+
+    repository.write_repo()?;
+
     Ok(())
 }
