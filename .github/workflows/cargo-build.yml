@@ -226,16 +226,16 @@ jobs:
           target: ../
 
       - name: Install Inno Setup
-        if: matrix.file-name != '' && matrix.os == 'windows-latest'
+        if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
         run: "../is.exe /VERYSILENT /NORESTART /ALLUSERS"
 
       - name: Compile Installer
-        if: matrix.file-name != '' && matrix.os == 'windows-latest'
+        if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${{ needs.version.outputs.version }}" /f installer/installer.iss'
 
       - name: Artifact Upload
         uses: actions/upload-artifact@v4
-        if: matrix.file-name != '' && matrix.os == 'windows-latest'
+        if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
         with:
           name: release-installer-${{ matrix.prefix }}
           path: ./installer/qpm-installer.exe
