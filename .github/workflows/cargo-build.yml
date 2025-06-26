@@ -30,14 +30,45 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - name: Get version
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for accurate versioning
+          fetch-tags: true  # Fetch tags to determine version from tags
+
+      - name: Extract version
         id: version
+        shell: bash
         run: |
-          if [[ -z "${{ inputs.version }}" ]]; then
-            echo "version=1.0.0" | tee -a "$GITHUB_OUTPUT"
+          # Get the last tag that isn't bleeding
+          LAST_TAG=$((git tag --merged HEAD --sort=-creatordate | grep -v '^bleeding$' | head -n 1) || true)
+          echo "Last tag: $LAST_TAG"
+          
+          # Use version input or tag, fallback to default
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            FULL_VERSION="${{ github.event.inputs.version }}"
+            TAG=""
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            FULL_VERSION="${TAG#v}"
+          elif [[ -n "$LAST_TAG" ]]; then
+            FULL_VERSION="${LAST_TAG#v}"
+            TAG=""
           else
-            echo version=${{ inputs.version }} | tee -a "$GITHUB_OUTPUT"
+            FULL_VERSION="0.1.0"
+            TAG=""
           fi
+
+          VERSION="${FULL_VERSION%%[-+]*}"
+
+          # Get current commit short SHA
+          GIT_SHA=$(git rev-parse --short HEAD)
+
+          # Check if the workflow tag is empty or doesn't match the last tag
+          if [[ -z "$TAG" ]] || [[ ! "$TAG" != "$LAST_TAG" ]]; then
+            VERSION="${VERSION}+${GIT_SHA}"
+          fi
+  
+          echo "version=$VERSION" | tee -a "$GITHUB_OUTPUT"
   build:
     runs-on: ${{ matrix.os }}
     needs: [version]
@@ -113,6 +144,21 @@ jobs:
         run: |
           rustup target add ${{ matrix.target }}
           rustup show
+
+      - name: Set version in Cargo.toml
+        shell: bash
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          
+          if [[ "${{ matrix.os }}" == macos* ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+          fi
+
+          echo "Set version to $VERSION"
+          echo "-----------------------"
+          cat Cargo.toml
 
       - name: Cargo build
         if: matrix.target == ''
