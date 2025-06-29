@@ -32,6 +32,57 @@ mod dependency {
             Path::new("test_cmd/dep_update.out"),
         )
     }
+
+    #[test]
+    fn test_dependency_download_recursive() -> color_eyre::Result<()> {
+        common::test_command(
+            &[
+                "dependency",
+                "download",
+                "beatsaber-hook",
+                "--version",
+                "5.1.9",
+                "--recursive",
+            ],
+            Path::new("test_cmd/dep_download_recursive.in"),
+            Path::new("test_cmd/dep_download_recursive.out"),
+        )?;
+
+        let qpm_junk_path = Path::new("test_cmd/dep_download_recursive.out/qpm_junk/cache");
+        assert!(qpm_junk_path.exists(), "qpm_junk directory does not exist");
+
+        // Check that specific dependency folders exist
+        let libil2cpp_path = qpm_junk_path.join("libil2cpp");
+        let beatsaber_hook_path = qpm_junk_path.join("beatsaber-hook");
+        assert!(libil2cpp_path.exists(), "libil2cpp directory does not exist");
+        assert!(beatsaber_hook_path.exists(), "beatsaber-hook directory does not exist");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_dependency_download_specific() -> color_eyre::Result<()> {
+        common::test_command(
+            &[
+                "dependency",
+                "download",
+                "beatsaber-hook",
+                "--version",
+                "5.1.9",
+            ],
+            Path::new("test_cmd/dep_download_specific.in"),
+            Path::new("test_cmd/dep_download_specific.out"),
+        )?;
+
+        let qpm_junk_path = Path::new("test_cmd/dep_download_specific.out/qpm_junk/cache");
+        assert!(qpm_junk_path.exists(), "qpm_junk directory does not exist");
+
+        // Check that specific dependency folders exist
+        let beatsaber_hook_path = qpm_junk_path.join("beatsaber-hook");
+        assert!(beatsaber_hook_path.exists(), "beatsaber-hook directory does not exist");
+
+        Ok(())
+    }
 }
 
 /// This module contains the tests for the ndk command
@@ -102,31 +153,6 @@ mod restore {
             &["restore"],
             Path::new("test_cmd/restore.in"),
             Path::new("test_cmd/restore.out"),
-        )
-    }
-}
-
-/// This module contains the tests for the download command
-mod download {
-    use std::path::Path;
-
-    use crate::tests::framework::common;
-
-    #[test]
-    fn test_dependency_download_recursive() -> color_eyre::Result<()> {
-        common::test_command(
-            &["dependency", "download", "beatsaber-hook", "--version", "5.1.9", "--recursive"],
-            Path::new("test_cmd/dep_download_recursive.in"),
-            Path::new("test_cmd/dep_download_recursive.out"),
-        )
-    }
-
-    #[test]
-    fn test_dependency_download_specific() -> color_eyre::Result<()> {
-        common::test_command(
-            &["dependency", "download", "beatsaber-hook", "--version", "5.1.9"],
-            Path::new("test_cmd/dep_download_specific.in"),
-            Path::new("test_cmd/dep_download_specific.out"),
         )
     }
 }
