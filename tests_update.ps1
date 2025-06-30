@@ -5,5 +5,5 @@
 
 # Run all tests with assert_cmd and update fixtures
 $ENV:QPM_TEST_UPDATE="1"
-& cargo test --bin qpm -- tests::commands::all_commands -- --nocapture
+& cargo test --bin qpm -- commands -- --nocapture
 $ENV:QPM_TEST_UPDATE=""
