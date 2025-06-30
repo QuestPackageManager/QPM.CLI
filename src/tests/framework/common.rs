@@ -14,7 +14,7 @@ pub fn test_command(
     args: &[&str],
     input_dir: &Path,
     expected_dir: &Path,
-) -> color_eyre::Result<()> {
+) -> color_eyre::Result<TempDir> {
     // Create a temporary directory using assert_fs
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
@@ -53,14 +53,14 @@ pub fn test_command(
                 expected_dir
             )
         })?;
-        return Ok(());
+        return Ok(temp);
     }
 
     // Compare the output directory with the expected directory
     assert_directory_equal(expected_dir, &temp)
         .wrap_err_with(|| format!("Args {args:?} content directory did not match"))?;
 
-    Ok(())
+    Ok(temp)
 }
 
 /// Function to check for specific output files without comparing content
@@ -68,7 +68,7 @@ pub fn test_command_check_files(
     args: &[&str],
     input_dir: &Path,
     files_to_check: &[&str],
-) -> color_eyre::Result<()> {
+) -> color_eyre::Result<TempDir> {
     // Create a temporary directory
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
@@ -96,7 +96,7 @@ pub fn test_command_check_files(
         temp.child(file).assert(predicates::path::exists());
     }
 
-    Ok(())
+    Ok(temp)
 }
 
 /// Compare two directories to ensure they match
