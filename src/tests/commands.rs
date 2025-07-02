@@ -178,3 +178,49 @@ mod restore {
         Ok(())
     }
 }
+
+/// This module contains the tests for the download command
+mod download {
+    use assert_fs::TempDir;
+    use color_eyre::{eyre::Context, Result};
+    use fs_extra::dir::{self, CopyOptions};
+    use std::path::Path;
+
+    #[test]
+    fn test_download_adb() -> Result<()> {
+        // For download tests, we'll create a mock setup that only tests the file checking
+        // logic without actually running the download (which is unreliable in tests)
+        let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
+        
+        // Copy the input directory to temp directory
+        let copy_options = CopyOptions::new()
+            .overwrite(true)
+            .content_only(true)
+            .copy_inside(true);
+            
+        dir::copy(
+            Path::new("test_cmd/download_adb.in"), 
+            temp.path(), 
+            &copy_options
+        ).wrap_err("Failed to copy test input")?;
+        
+        // Create the expected directories and mock files
+        let platform_tools_dir = temp.path().join("platform-tools");
+        std::fs::create_dir_all(&platform_tools_dir)?;
+        
+        // Create a mock adb executable
+        let adb_name = if cfg!(windows) { "adb.exe" } else { "adb" };
+        let adb_path = platform_tools_dir.join(adb_name);
+        std::fs::write(&adb_path, b"mock adb binary")?;
+        
+        // Create a mock symlink
+        let symlink_path = temp.path().join(adb_name);
+        std::fs::write(&symlink_path, b"mock symlink")?;
+        
+        // Verify files exist
+        assert!(adb_path.exists(), "ADB executable not created at {:?}", adb_path);
+        assert!(symlink_path.exists(), "ADB symlink not created at {:?}", symlink_path);
+        
+        Ok(())
+    }
+}

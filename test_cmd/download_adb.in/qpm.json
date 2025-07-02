@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.Package/refs/heads/main/qpm.schema.json",
+  "version": "0.4.0",
+  "sharedDir": "shared",
+  "dependenciesDir": "extern",
+  "info": {
+    "name": "TestPackage",
+    "id": "test-package",
+    "version": "0.1.0",
+    "url": null,
+    "additionalData": {}
+  },
+  "workspace": {
+    "scripts": {},
+    "ndk": "^26.0.0"
+  },
+  "dependencies": []
+}
