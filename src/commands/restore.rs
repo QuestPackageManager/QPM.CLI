@@ -7,7 +7,10 @@ use color_eyre::{
     eyre::{ContextCompat, Result, bail, eyre},
 };
 use itertools::Itertools;
-use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
+use qpm_package::models::{
+    package::{PackageConfig, TripletId},
+    shared_package::SharedPackageConfig,
+};
 use semver::Version;
 
 use crate::{
@@ -26,6 +29,9 @@ use super::Command;
 
 #[derive(Args, Default)]
 pub struct RestoreCommand {
+    /// The triplet to restore
+    triplet: String,
+
     #[clap(default_value = "false", long, short)]
     update: bool,
 
@@ -64,17 +70,23 @@ impl Command for RestoreCommand {
             .then(|| SharedPackageConfig::read("."))
             .transpose()?;
 
+        let triplet_id = TripletId(self.triplet);
+        let triplet = package
+            .triplet
+            .get_triplet_settings(&triplet_id)
+            .with_context(|| format!("Triplet {} not found", triplet_id.triplet_id_color()))?;
+
+        let shared_triplet = shared_package_opt
+            .as_ref()
+            .and_then(|sp| sp.locked_triplet.get(&triplet_id));
+
         let mut repo = repository::useful_default_new(self.offline)?;
 
         // only update if:
         // manually
         // no shared.qpm.json
         // dependencies have been updated
-        let unlocked = self.update
-            || shared_package_opt.is_none()
-            || shared_package_opt.as_ref().is_some_and(|shared_package| {
-                shared_package.config.dependencies != package.dependencies
-            });
+        let unlocked = self.update || is_modified(&shared_package_opt, &triplet_id, &triplet);
 
         if !unlocked && is_ignored() {
             eprintln!(
@@ -95,43 +107,39 @@ impl Command for RestoreCommand {
         let resolved_deps = match &mut shared_package_opt {
             // locked resolve
             // only if shared_package is Some() and locked
-            Some(shared_package) if !unlocked => {
+            Some(shared_package)
+                if !unlocked && shared_package.locked_triplet.contains_key(&triplet_id) =>
+            {
                 // if the same, restore as usual
                 println!("Using lock file for restoring");
 
                 // update config
                 shared_package.config = package;
-                // make additional data use cached data
-                shared_package
-                    .restored_dependencies
-                    .iter_mut()
-                    .try_for_each(|d| -> color_eyre::Result<()> {
-                        let package = repo
-                            .get_package(&d.dependency.id, &d.version)
-                            .ok()
-                            .flatten()
-                            .with_context(|| {
-                                format!(
-                                    "Unable to fetch {}:{}",
-                                    d.dependency.id.dependency_id_color(),
-                                    d.version.version_id_color()
-                                )
-                            })?;
-                        d.dependency.additional_data = package.config.additional_data;
-                        Ok(())
-                    })?;
-                dependency::locked_resolve(shared_package, &repo)?.collect_vec()
+                let shared_triplet = shared_package
+                    .locked_triplet
+                    .get(&triplet_id)
+                    .expect("Locked triplet should exist");
+
+                dependency::locked_resolve(shared_package, &repo, &shared_triplet)?.collect_vec()
             }
             // Unlocked resolve
             _ => {
                 println!("Resolving packages");
 
-                let (spc_result, restored_deps) =
+                let (spc_result, mut restored_deps) =
                     SharedPackageConfig::resolve_from_package(package, &repo)?;
+
                 // update shared_package
                 shared_package_opt = Some(spc_result);
 
+                // get triplet restored dependencies
+                // transform the iterator into a vector
                 restored_deps
+                    .remove(&triplet_id)
+                    .expect("Triplet should exist in restored_deps")
+                    .into_iter()
+                    .map(|(dep, _triplet_id)| dep)
+                    .collect()
             }
         };
 
@@ -148,6 +156,38 @@ impl Command for RestoreCommand {
 
         Ok(())
     }
+}
+
+fn is_modified(
+    shared_package_opt: &Option<SharedPackageConfig>,
+    triplet_id: &TripletId,
+    triplet: &qpm_package::models::package::PackageTripletSettings,
+) -> bool {
+    let Some(shared_package) = shared_package_opt else {
+        return true;
+    };
+
+    let Some(locked_triplet) = shared_package.locked_triplet.get(&triplet_id) else {
+        return true;
+    };
+
+    if locked_triplet.restored_dependencies.keys().len() != triplet.dependencies.len() {
+        return true;
+    }
+
+    for (dep_id, dep) in triplet.dependencies.iter() {
+        let Some(locked_dep) = locked_triplet.restored_dependencies.get(dep_id) else {
+            return true;
+        };
+        if dep.triplet != locked_dep.triplet {
+            return true;
+        }
+        if !dep.version_range.matches(&locked_dep.restored_version) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
