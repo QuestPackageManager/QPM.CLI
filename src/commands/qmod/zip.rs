@@ -57,6 +57,11 @@ pub struct ZipQmodOperationArgs {
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
 
+    /// Run the clean script before building
+    #[clap(long = "clean", default_value = "false")]
+    pub(crate) clean: bool,
+
+    /// Don't run the build script
     #[clap(long = "skip_build", default_value = "false")]
     pub(crate) skip_build: bool,
 
@@ -99,13 +104,22 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         },
     )?;
 
+    if build_parameters.clean {
+        // Run clean script
+        let clean_script = &package.workspace.get_clean();
+        if let Some(clean_script) = clean_script {
+            println!("Running clean script");
+            scripts::invoke_script(clean_script, &[], &package)?;
+        }
+    }
+
     // Run build script
     let build_script = &package.workspace.get_build();
-    if let Some(build_script) = build_script {
-        if !build_parameters.skip_build {
-            println!("Running build script");
-            scripts::invoke_script(build_script, &[], &package)?;
-        }
+    if let Some(build_script) = build_script
+        && !build_parameters.skip_build
+    {
+        println!("Running build script");
+        scripts::invoke_script(build_script, &[], &package)?;
     }
 
     let include_dirs = build_parameters
@@ -176,8 +190,9 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
 
     let mut zip = zip::ZipWriter::new(&mut zip_file);
 
-    let options =
-        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .compression_level(Some(9));
     for file in combined_files {
         println!("Adding file {}", file.to_string_lossy().green());
 

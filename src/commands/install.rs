@@ -84,16 +84,16 @@ impl Command for InstallCommand {
             }
         }
 
-        if let Some(p) = &debug_binary_path {
-            if !p.exists() {
-                println!("Could not find debug binary {p:?}, skipping")
-            }
+        if let Some(p) = &debug_binary_path
+            && !p.exists()
+        {
+            println!("Could not find debug binary {p:?}, skipping")
         }
 
-        if let Some(p) = &binary_path {
-            if !p.exists() {
-                println!("Could not find binary {p:?}, skipping")
-            }
+        if let Some(p) = &binary_path
+            && !p.exists()
+        {
+            println!("Could not find binary {p:?}, skipping")
         }
 
         let mut file_repo = FileRepository::read()?;

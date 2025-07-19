@@ -1,4 +1,0 @@
-bin.name = "qpm"
-args = "dependency add beatsaber-hook --version 5.1.9"
-fs.sandbox = true
-binary = true

@@ -34,7 +34,8 @@ use super::Repository;
 // All files must exist
 pub struct PackageFiles {
     pub headers: PathBuf,
-    pub binary: Option<PathBuf>,
+    pub release_binary: Option<PathBuf>,
+    pub debug_binary: Option<PathBuf>,
     // pub extras: Vec<PathBuf>,
 }
 
@@ -140,6 +141,7 @@ impl FileRepository {
 
         let tmp_path = cache_path.join("tmp");
         let src_path = cache_path.join("src");
+        let lib_path = cache_path.join("lib");
 
         if src_path.exists() {
             fs::remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
@@ -147,20 +149,22 @@ impl FileRepository {
 
         fs::create_dir_all(&src_path).context("Failed to create lib path")?;
 
-        if binary_path.is_some() || debug_binary_path.is_some() {
-            let lib_path = cache_path.join("lib");
-            let so_path = lib_path.join(package.config.get_so_name2());
-            let debug_bin_name = package.config.get_so_name2().with_extension("debug.so");
+        if let Some(binary_path_unwrapped) = &binary_path {
+            let so_path = lib_path.join(package.config.info.get_so_name2());
+
+            copy_things(binary_path_unwrapped, &so_path)?;
+        }
+
+        if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
+            let debug_bin_name = package
+                .config
+                .info
+                .get_so_name2()
+                .with_extension("debug.so");
 
             let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
 
-            if let Some(binary_path_unwrapped) = &binary_path {
-                copy_things(binary_path_unwrapped, &so_path)?;
-            }
-
-            if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
-                copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
-            }
+            copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
         }
 
         let original_shared_path = project_folder.join(&package.config.shared_dir);
@@ -329,6 +333,8 @@ impl FileRepository {
         Self::get_package_versions_cache_path(id).join(version.to_string())
     }
 
+    /// Collects all files of a package from the cache.
+    /// Returns a `PackageFiles` struct containing the paths to the headers, release binary, and debug binary.
     pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
         let dep_cache_path = Self::get_package_cache_path(&package.id, &package.version);
 
@@ -356,47 +362,54 @@ impl FileRepository {
         if package.additional_data.headers_only.unwrap_or(false) {
             return Ok(PackageFiles {
                 headers: exposed_headers,
-                binary: None,
+                debug_binary: None,
+                release_binary: None,
             });
         }
 
         // get so name or release so name
 
-        let use_release_name = package.additional_data.debug_so_link.is_none()
-            || package.additional_data.static_link.is_some();
-
         // get so name or release so name
-        let name = match use_release_name {
-            true => package
-                .get_so_name2()
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-            false => {
-                // lib{name}.debug.so
-                let bin = package.get_so_name2().with_extension("debug.so");
+        let release_bin_name = package
+            .info
+            .get_so_name2()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
 
-                bin.file_name().unwrap().to_string_lossy().to_string()
-            }
-        };
+        let debug_bin_name = package
+            .info
+            .get_so_name2()
+            .with_extension("debug.so")
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
 
-        let binary = libs_path.join(&name);
+        let release_binary = libs_path.join(&release_bin_name);
+        let debug_binary = libs_path.join(&debug_bin_name);
 
-        if !binary.exists() {
+        if !release_binary.exists() && !debug_binary.exists() {
             bail!(
-                "Missing binary {name} for {}:{}",
-                package.id.dependency_id_color(),
-                package.version.dependency_version_color()
+                "Missing binary {release_bin_name}/{debug_bin_name:?} for {}:{}",
+                package.info.id.dependency_id_color(),
+                package.info.version.dependency_version_color()
             );
         }
 
+        let release_binary = release_binary.exists().then_some(release_binary);
+        let debug_binary = debug_binary.exists().then_some(debug_binary);
+
         Ok(PackageFiles {
             headers: exposed_headers,
-            binary: Some(binary),
+            debug_binary,
+            release_binary,
         })
     }
 
+    /// Collects all dependencies of a package from the cache.
+    /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
         package: &PackageConfig,
         restored_deps: &[SharedPackageConfig],
@@ -459,29 +472,26 @@ impl FileRepository {
                 .headers_only
                 .unwrap_or(false)
                 .not();
-            let src_binary = not_header_only
+            let release_binary = not_header_only
                 // not header only
-                .then(|| {
-                    direct_dep_files.binary.wrap_err_with(|| {
-                        format!(
-                            "Binary not found for direct package {}:{}",
-                            direct_dep.config.id.dependency_id_color(),
-                            direct_dep.config.version.dependency_version_color()
-                        )
-                    })
-                })
-                .transpose()?;
+                .then_some(direct_dep_files.release_binary)
+                .flatten();
 
-            if let Some(src_binary) = src_binary.as_ref()
-                && !src_binary.exists()
+            let debug_binary = not_header_only
+                .then_some(direct_dep_files.debug_binary)
+                .flatten();
+
+            if not_header_only
+                && ((release_binary.is_none() || !release_binary.as_ref().unwrap().exists())
+                    && (debug_binary.is_none() || !debug_binary.as_ref().unwrap().exists()))
             {
                 bail!(
-                    "Missing binary {} for {}:{}",
-                    src_binary.file_name().unwrap_or_default().to_string_lossy(),
-                    direct_dep.config.id.dependency_id_color(),
+                    "Missing binary for {}:{}",
+                    direct_dep.config.info.id.dependency_id_color(),
                     direct_dep.config.version.dependency_version_color()
                 );
             }
+
             if !exposed_headers.exists() {
                 bail!(
                     "Missing header files for {}:{}",
@@ -490,7 +500,13 @@ impl FileRepository {
                 );
             }
 
-            if let Some(src_binary) = src_binary {
+            if let Some(src_binary) = release_binary {
+                let file_name = src_binary.file_name().expect("Failed to get file name");
+
+                paths.insert(src_binary.clone(), extern_binaries.join(file_name));
+            }
+
+            if let Some(src_binary) = debug_binary {
                 let file_name = src_binary.file_name().expect("Failed to get file name");
 
                 paths.insert(src_binary.clone(), extern_binaries.join(file_name));

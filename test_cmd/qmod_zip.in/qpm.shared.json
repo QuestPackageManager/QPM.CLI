@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.Package/refs/heads/main/qpm.shared.schema.json",
   "config": {
     "version": "0.4.0",
     "sharedDir": "shared",
@@ -15,19 +16,34 @@
     "workspace": {
       "scripts": {},
       "qmodIncludeDirs": [
-        "includ1"
+        "includ1",
+        "./extern/libs"
       ],
       "qmodIncludeFiles": [
         "file1"
       ],
-      "qmodOutput": "qmod.zip"
+      "qmodOutput": "qmod_made.zip"
     },
     "dependencies": [
       {
         "id": "scotland2",
         "versionRange": "^0.1.4",
         "additionalData": {
-          "includeQmod": false
+          "includeQmod": true
+        }
+      },
+      {
+        "id": "libcurl",
+        "versionRange": "^8.7.1",
+        "additionalData": {
+          "includeQmod": true
+        }
+      },
+      {
+        "id": "zip",
+        "versionRange": "^1.7.4",
+        "additionalData": {
+          "includeQmod": true
         }
       }
     ]
@@ -35,16 +51,42 @@
   "restoredDependencies": [
     {
       "dependency": {
-        "id": "scotland2",
-        "versionRange": "=0.1.4",
+        "id": "zip",
+        "versionRange": "=1.7.4",
         "additionalData": {
-          "soLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.4/libsl2.so",
-          "debugSoLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.4/debug_libsl2.so",
-          "overrideSoName": "libsl2.so",
-          "branchName": "version/v0_1_4"
+          "soLink": "https://github.com/RedBrumbler/quest-zip/releases/download/v1.7.4/libzip.so.so",
+          "debugSoLink": "https://github.com/RedBrumbler/quest-zip/releases/download/v1.7.4/debug_libzip.so",
+          "overrideSoName": "libzip.so",
+          "branchName": "version-v1.7.4"
         }
       },
-      "version": "0.1.4"
+      "version": "1.7.4"
+    },
+    {
+      "dependency": {
+        "id": "scotland2",
+        "versionRange": "=0.1.6",
+        "additionalData": {
+          "soLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.6/libsl2.so",
+          "debugSoLink": "https://github.com/sc2ad/scotland2/releases/download/v0.1.6/debug_libsl2.so",
+          "overrideSoName": "libsl2.so",
+          "branchName": "version/v0_1_6"
+        }
+      },
+      "version": "0.1.6"
+    },
+    {
+      "dependency": {
+        "id": "libcurl",
+        "versionRange": "=8.7.1",
+        "additionalData": {
+          "staticLinking": true,
+          "soLink": "https://github.com/darknight1050/openssl-curl-android/releases/download/v8.7.1/libcurl.a",
+          "overrideSoName": "libcurl.a",
+          "branchName": "version-v8.7.1"
+        }
+      },
+      "version": "8.7.1"
     }
   ]
 }

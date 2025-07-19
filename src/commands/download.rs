@@ -88,9 +88,14 @@ impl Command for Download {
                 archive.extract(final_path)?;
                 // add symlink from platform-tools/adb to adb
                 let adb_name = if cfg!(windows) { "adb.exe" } else { "adb" };
+                // Check if the symlink already exists, remove it if it does
+                let symlink_path = final_path.join(adb_name);
+                if symlink_path.exists() {
+                    std::fs::remove_file(&symlink_path)?;
+                }
                 symlink::symlink_file(
                     final_path.join("platform-tools").join(adb_name),
-                    final_path.join(adb_name),
+                    symlink_path,
                 )?;
             }
         }
