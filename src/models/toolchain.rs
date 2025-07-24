@@ -1,7 +1,7 @@
 use std::{fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
-use qpm_package::models::{extra::CompileOptions, shared_package::SharedPackageConfig};
+use qpm_package::models::shared_package::SharedPackageConfig;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,7 @@ pub fn write_toolchain_file(
     repo: &impl Repository,
     toolchain_path: &std::path::PathBuf,
 ) -> Result<()> {
-    let extern_dir = &shared_config.config.dependencies_dir.display();
+    let extern_dir = &shared_config.config.dependencies_directory.display();
     let compile_options = shared_config
         .restored_dependencies
         .iter()
@@ -90,7 +90,7 @@ pub fn write_toolchain_file(
 
     let toolchain = ToolchainData {
         compile_options,
-        extern_dir: shared_config.config.dependencies_dir.clone(),
+        extern_dir: shared_config.config.dependencies_directory.clone(),
     };
     let file = File::create(toolchain_path)?;
     serde_json::to_writer_pretty(

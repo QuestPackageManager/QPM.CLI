@@ -13,7 +13,8 @@ use crate::{
     terminal::colors::QPMColor,
 };
 use color_eyre::{
-    eyre::{bail, Context, ContextCompat}, Result
+    Result,
+    eyre::{Context, ContextCompat, bail},
 };
 use itertools::Itertools;
 use pubgrub::{
@@ -21,16 +22,16 @@ use pubgrub::{
     PubGrubError, Reporter,
 };
 use qpm_package::models::{
-    package::{
-        DependencyId, PackageConfig, PackageTripletDependency, PackageTripletSettings, TripletDependencyMap, TripletId
-    },
+    package::{DependencyId, PackageConfig},
     shared_package::{SharedPackageConfig, SharedTriplet},
+    triplet::TripletId,
 };
 pub struct PackageDependencyResolver<'a, 'b, R>
 where
     R: Repository,
 {
     root: &'a PackageConfig,
+    root_triplet: &'a TripletId,
     repo: &'b R,
 }
 
@@ -66,19 +67,27 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
     fn get_dependencies(
         &self,
-        package: &PubgrubDependencyTarget,
+        package_triplet: &PubgrubDependencyTarget,
         version: &VersionWrapper,
     ) -> Result<Dependencies<Self::P, Self::VS, Self::M>, PubgrubErrorWrapper> {
         // Root dependencies
-        if package.0 == self.root.id && version == &self.root.version {
+        if package_triplet.0 == self.root.id
+            && package_triplet.1 == *self.root_triplet
+            && version == &self.root.version
+        {
             // resolve dependencies of root
-            let triplet = self.root.triplet.specific_triplets[&package.1];
+            let triplet = self
+                .root
+                .triplets
+                .specific_triplets
+                .get(&package_triplet.1)
+                .expect("Root triplet should always exist in the root package's triplets");
 
             let deps = triplet
                 .dependencies
                 .iter()
                 .map(|(dep_id, dep)| {
-                    let pubgrub_dep = PubgrubDependencyTarget(dep_id.clone(), dep.triplet);
+                    let pubgrub_dep = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
 
                     let range = req_to_range(dep.version_range.clone());
                     (pubgrub_dep, range)
@@ -88,20 +97,32 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         }
 
         // Find dependencies of dependencies
-        let pkg = self
+        let target_pkg = self
             .repo
-            .get_package(&package.0, &version.clone().into())?
-            .with_context(|| format!("Could not find package {package} with version {version}"))?;
+            .get_package(&package_triplet.0, &version.clone().into())?
+            .with_context(|| {
+                format!("Could not find package {package_triplet} with version {version}")
+            })?;
 
-        let deps = pkg
-            .config
-            .dependencies
-            .into_iter()
-            // remove any private dependencies
-            .filter(|dep| !dep.additional_data.is_private.unwrap_or(false))
-            .map(|dep| {
-                let id = dep.id;
-                let range = req_to_range(dep.version_range);
+        let target_triplet = target_pkg
+            .locked_triplet
+            .get(&package_triplet.1)
+            .with_context(|| {
+                format!(
+                    "Could not find triplet {} for package {}",
+                    package_triplet.1.triplet_id_color(),
+                    package_triplet.0.dependency_id_color()
+                )
+            })?;
+
+        let deps = target_triplet
+            .restored_dependencies
+            .iter()
+            // remove any private dependencies from the list
+            .filter(|(_, dep)| !dep.triplet.export)
+            .map(|(dep_id, dep)| {
+                let id = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.triplet.clone());
+                let range = req_to_range(dep.triplet.version_range.clone());
                 (id, range)
             })
             .collect();
@@ -168,6 +189,7 @@ pub fn resolve<'a>(
 ) -> Result<impl Iterator<Item = (SharedPackageConfig, TripletId)> + 'a> {
     let resolver = PackageDependencyResolver {
         root,
+        root_triplet: triplet,
         repo: repository,
     };
     let time = Instant::now();

@@ -357,7 +357,7 @@ impl FileRepository {
             );
         }
 
-        let exposed_headers = src_path.join(&package.shared_dir);
+        let exposed_headers = src_path.join(&package.shared_directories);
 
         if package.additional_data.headers_only.unwrap_or(false) {
             return Ok(PackageFiles {

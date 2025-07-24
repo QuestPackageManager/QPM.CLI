@@ -52,7 +52,7 @@ impl UserConfig {
     }
 
     pub fn global_config_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-RS")
+        dirs::config_dir().unwrap().join("QPM-RS2")
     }
 
     pub fn read_global() -> Result<Self> {

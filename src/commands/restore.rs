@@ -7,10 +7,7 @@ use color_eyre::{
     eyre::{ContextCompat, Result, bail, eyre},
 };
 use itertools::Itertools;
-use qpm_package::models::{
-    package::{PackageConfig, TripletId},
-    shared_package::SharedPackageConfig,
-};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig, triplet::{PackageTriplet, TripletId}};
 use semver::Version;
 
 use crate::{
@@ -72,13 +69,9 @@ impl Command for RestoreCommand {
 
         let triplet_id = TripletId(self.triplet);
         let triplet = package
-            .triplet
+            .triplets
             .get_triplet_settings(&triplet_id)
             .with_context(|| format!("Triplet {} not found", triplet_id.triplet_id_color()))?;
-
-        let shared_triplet = shared_package_opt
-            .as_ref()
-            .and_then(|sp| sp.locked_triplet.get(&triplet_id));
 
         let mut repo = repository::useful_default_new(self.offline)?;
 
@@ -161,7 +154,7 @@ impl Command for RestoreCommand {
 fn is_modified(
     shared_package_opt: &Option<SharedPackageConfig>,
     triplet_id: &TripletId,
-    triplet: &qpm_package::models::package::PackageTripletSettings,
+    triplet: &PackageTriplet,
 ) -> bool {
     let Some(shared_package) = shared_package_opt else {
         return true;

@@ -8,8 +8,8 @@ use std::{
 use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
 use itertools::Itertools;
 use qpm_package::models::{
-    package::{PackageConfig, PackageTripletSettings, TripletId},
-    shared_package::{SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo},
+    package::PackageConfig,
+    shared_package::{SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo}, triplet::TripletId,
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
@@ -167,7 +167,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     )> {
         let triplet_dependencies: HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>> =
             config
-                .triplet
+                .triplets
                 .specific_triplets
                 .iter()
                 .map(|(triplet_id, triplet)| -> color_eyre::Result<_> {
@@ -214,7 +214,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         //     mod_link: dep.additional_data.mod_link,
         // }
 
-        let local_deps = &self.config.triplet.specific_triplets[triplet];
+        let local_deps = &self.config.triplets.specific_triplets[triplet];
 
         // Only bundle mods that are not specifically excluded in qpm.json or if they're not header-only
         let restored_deps: Vec<_> = self
