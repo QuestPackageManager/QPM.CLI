@@ -44,7 +44,6 @@ fn download_package_binary() -> Result<()> {
 
     let link = package
         .config
-        
         .additional_data
         .so_link
         .ok_or_eyre("Binary SO not found")?;
@@ -198,7 +197,8 @@ fn resolve_redownload_cache() -> Result<()> {
         restored_dependencies: vec![],
     };
 
-    let path = FileRepository::get_package_cache_path("beatsaber-hook", &Version::new(5, 1, 9));
+    let path =
+        FileRepository::get_package_triplet_cache_path("beatsaber-hook", &Version::new(5, 1, 9));
     let lib_path = path.join("lib").join("libbeatsaber-hook_5_1_9.so");
 
     let resolved = {

@@ -30,10 +30,11 @@ use qpm_package::{
 
 use crate::{
     models::{
-        config::get_combine_config, package::PackageConfigExtensions,
+        config::get_combine_config, package::PackageConfigExtensions, package_files::PackageIdPath,
         qpackages::QPackageExtensions, qpkg::QPkgExtensions,
     },
     network::agent::{download_file_report, get_agent},
+    repository::local::FileRepository,
     terminal::colors::QPMColor,
     utils::git,
 };
@@ -137,39 +138,24 @@ impl QPMRepository {
             config.id.dependency_id_color(),
             config.version.version_id_color()
         );
-        let user_config = get_combine_config();
-        let base_path = user_config
-            .cache
-            .as_ref()
-            .unwrap()
-            .join(&config.id.0)
-            .join(config.version.to_string());
+        let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        let src_path = base_path.join("src");
-        let lib_path = base_path.join("lib");
-        let tmp_path = base_path.join("tmp");
+        let src_path = package_path.src_path();
+        let tmp_path = package_path.tmp_path();
 
-        let qpkg_file_dst = src_path.join("qpm2.qpkg.json");
-        let headers_dst = src_path.join("shared");
-        let get_bin_dir_dst = |triplet_id: &TripletId| -> PathBuf { lib_path.join(&triplet_id.0) };
+        let qpkg_file_dst = package_path.qpkg_json_path();
+        let headers_dst = package_path.src_path();
 
         if QPackagesPackage::read(&src_path).is_ok() {
             // already cached, no need to download again
             return Ok(());
         }
 
-        fs::create_dir_all(&base_path)
-            .with_context(|| format!("Failed to create lib path {base_path:?}"))?;
-
-        if !lib_path.exists() {
-            fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
-        }
-
         // Downloads the repo / zip file into src folder w/ subfolder taken into account
-        if !src_path.exists() {
+        if !headers_dst.exists() {
             // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
             fs::create_dir_all(&src_path)
-                .with_context(|| format!("Failed to create lib path {base_path:?}"))?;
+                .with_context(|| format!("Failed to create lib path {headers_dst:?}"))?;
         }
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
@@ -235,13 +221,11 @@ impl QPMRepository {
 
         // copy binaries to lib folder
         for (triplet_id, triplet_info) in &qpkg_file.triplets {
-            let bin_dir = get_bin_dir_dst(&triplet_id);
-            fs::create_dir_all(&bin_dir).with_context(|| {
-                format!(
-                    "Failed to create bin dir {}",
-                    bin_dir.display().file_path_color()
-                )
-            })?;
+            let bin_dir = package_path.clone().triplet(triplet_id.clone()).binaries_path();
+
+            if !bin_dir.exists() {
+                fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
+            }
 
             for file in &triplet_info.files {
                 let src_file = tmp_path.join(file);

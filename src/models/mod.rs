@@ -6,3 +6,5 @@ pub(crate) mod schemas;
 pub mod toolchain;
 pub mod qpkg;
 pub mod qpackages;
+
+pub mod package_files;

@@ -24,6 +24,7 @@ use crate::{
     models::{
         config::get_combine_config,
         package::PackageConfigExtensions,
+        package_files::PackageIdPath,
         schemas::{SchemaLinks, WithSchema},
     },
     resolver::dependency::ResolvedDependency,
@@ -36,8 +37,7 @@ use super::Repository;
 // All files must exist
 pub struct PackageFiles {
     pub headers: Vec<PathBuf>,
-    pub release_binary: Option<PathBuf>,
-    pub debug_binary: Option<PathBuf>,
+    pub binaries: Vec<PathBuf>,
     // pub extras: Vec<PathBuf>,
 }
 
@@ -46,22 +46,18 @@ pub struct PackageFiles {
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
 pub struct FileRepository {
     #[serde(default)]
-    pub artifacts: HashMap<DependencyId, HashMap<Version, SharedPackageConfig>>,
+    pub artifacts: HashMap<DependencyId, HashMap<Version, PackageConfig>>,
 }
 
 impl FileRepository {
     pub fn get_artifacts_from_id(
         &self,
         id: &DependencyId,
-    ) -> Option<&HashMap<Version, SharedPackageConfig>> {
+    ) -> Option<&HashMap<Version, PackageConfig>> {
         self.artifacts.get(id)
     }
 
-    pub fn get_artifact(
-        &self,
-        id: &DependencyId,
-        version: &Version,
-    ) -> Option<&SharedPackageConfig> {
+    pub fn get_artifact(&self, id: &DependencyId, version: &Version) -> Option<&PackageConfig> {
         match self.artifacts.get(id) {
             Some(artifacts) => artifacts.get(version),
             None => None,
@@ -71,17 +67,16 @@ impl FileRepository {
     /// for adding to cache from local or network
     pub fn add_artifact_to_map(
         &mut self,
-        package: SharedPackageConfig,
+        package: PackageConfig,
         overwrite_existing: bool,
     ) -> Result<()> {
-        if !self.artifacts.contains_key(&package.config.id) {
-            self.artifacts
-                .insert(package.config.id.clone(), HashMap::new());
+        if !self.artifacts.contains_key(&package.id) {
+            self.artifacts.insert(package.id.clone(), HashMap::new());
         }
 
-        let id_artifacts = self.artifacts.get_mut(&package.config.id).unwrap();
+        let id_artifacts = self.artifacts.get_mut(&package.id).unwrap();
 
-        let entry = id_artifacts.entry(package.config.version.clone());
+        let entry = id_artifacts.entry(package.version.clone());
 
         match entry {
             Entry::Occupied(mut e) => {
@@ -100,78 +95,70 @@ impl FileRepository {
     /// for local qpm-rs installs
     pub fn add_artifact_and_cache(
         &mut self,
-        package: SharedPackageConfig,
-        project_folder: PathBuf,
-        binaries: Vec<PathBuf>,
-        copy: bool,
+        package: PackageConfig,
         overwrite_existing: bool,
     ) -> Result<()> {
-        if copy {
-            Self::copy_to_cache(&package, project_folder, binaries, false)?;
-        }
         self.add_artifact_to_map(package, overwrite_existing)?;
 
         Ok(())
     }
 
-    fn copy_to_cache(
-        package: &SharedPackageConfig,
+    pub fn copy_to_cache(
+        package: &PackageConfig,
+        triplet: &TripletId,
         project_folder: PathBuf,
         binaries: Vec<PathBuf>,
-
         validate: bool,
     ) -> Result<()> {
         println!(
             "Adding cache for local dependency {} {}",
-            package.config.id.bright_red(),
-            package.config.version.bright_green()
+            package.id.bright_red(),
+            package.version.bright_green()
         );
-        let config = get_combine_config();
-        let cache_path = config
-            .cache
-            .as_ref()
-            .unwrap()
-            .join(&package.config.id.0)
-            .join(package.config.version.to_string());
+        let cache_path = PackageIdPath(package.id.clone())
+            .version(package.version.clone())
+            .triplet(triplet.clone());
 
-        let tmp_path = cache_path.join("tmp");
-        let src_path = cache_path.join("src");
-        let lib_path = cache_path.join("lib");
-
-        if src_path.exists() {
-            fs::remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
+        let tmp_path = cache_path.tmp_path();
+        if tmp_path.exists() {
+            fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
         }
 
-        fs::create_dir_all(&src_path).context("Failed to create lib path")?;
-
-        if let Some(binary_path_unwrapped) = &binary_path {
-            let so_path = lib_path.join(package.config.info.get_so_name2());
-
-            copy_things(binary_path_unwrapped, &so_path)?;
+        if cache_path.src_path().exists() {
+            fs::remove_dir_all(&cache_path.src_path())
+                .context("Failed to remove existing src folder")?;
         }
 
-        if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
-            let debug_bin_name = package
-                .config
-                .info
-                .get_so_name2()
-                .with_extension("debug.so");
+        fs::create_dir_all(&cache_path.src_path()).context("Failed to create lib path")?;
 
-            let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
+        for binary_src in binaries {
+            if !binary_src.exists() {
+                bail!(
+                    "Binary {} does not exist, cannot copy to cache!",
+                    binary_src.display().bright_yellow()
+                );
+            }
 
-            copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
+            let binary_dst = cache_path
+                .binaries_path()
+                .join(binary_src.file_name().unwrap());
+
+            copy_things(&binary_src, &binary_dst)?;
         }
 
-        let original_shared_path = project_folder.join(&package.config.shared_dir);
+        let original_shared_path = project_folder.join(&package.shared_directory);
 
         copy_things(
             &original_shared_path,
-            &src_path.join(&package.config.shared_directories),
+            &cache_path.src_path().join(&package.shared_directory),
         )?;
-        copy_things(&project_folder.join("qpm.json"), &src_path.join("qpm.json"))?;
+        copy_things(
+            &project_folder.join("qpm.json"),
+            &cache_path.src_path().join("qpm.json"),
+        )?;
         copy_things(
             &project_folder.join("qpm.shared.json"),
-            &src_path.join("qpm.shared.json"),
+            &cache_path.src_path().join("qpm.shared.json"),
         )?;
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
@@ -180,16 +167,16 @@ impl FileRepository {
         }
 
         if validate {
-            let package_path = src_path;
-            let downloaded_package = SharedPackageConfig::read(package_path)?;
+            let package_path = cache_path.src_path();
+            let downloaded_package = PackageConfig::read(package_path)?;
 
             // check if downloaded config is the same version as expected, if not, panic
-            if downloaded_package.config.version != package.config.version {
+            if downloaded_package.version != package.version {
                 bail!(
                     "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                    package.config.id.bright_red(),
-                    downloaded_package.config.version.to_string().bright_green(),
-                    package.config.version.to_string().bright_green(),
+                    package.id.dependency_id_color(),
+                    downloaded_package.version.red(),
+                    package.version.green(),
                 )
             }
         }
@@ -240,29 +227,6 @@ impl FileRepository {
 
     pub fn clear() -> Result<(), std::io::Error> {
         fs::remove_file(Self::global_file_repository_path())
-    }
-
-    /// Returns the path to the package versions cache for a specific package ID.
-    #[inline]
-    pub fn get_package_versions_cache_path(id: &DependencyId) -> PathBuf {
-        let user_config = get_combine_config();
-        let base_path = user_config.cache.as_ref().unwrap();
-
-        // cache/{id}
-        base_path.join(&id.0)
-    }
-
-    /// Returns the path to the package cache for a specific version and triplet.
-    #[inline]
-    pub fn get_package_cache_path(
-        id: &DependencyId,
-        version: &Version,
-        triplet: &TripletId,
-    ) -> PathBuf {
-        // cache/{id}/{version}/{triplet}
-        Self::get_package_versions_cache_path(id)
-            .join(version.to_string())
-            .join(triplet.to_string())
     }
 
     pub fn copy_from_cache(
@@ -340,10 +304,15 @@ impl FileRepository {
 
     /// Collects all files of a package from the cache.
     /// Returns a `PackageFiles` struct containing the paths to the headers, release binary, and debug binary.
-    pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
-        let dep_cache_path = Self::get_package_cache_path(&package.id, &package.version);
+    pub fn collect_files_of_package(
+        package: &PackageConfig,
+        triplet: &TripletId,
+    ) -> Result<PackageFiles> {
+        let dep_cache_path = PackageIdPath::new(package.id.clone())
+            .version(package.version.clone())
+            .triplet(triplet.clone());
 
-        if !dep_cache_path.exists() {
+        if !dep_cache_path.triplet_path().exists() {
             bail!(
                 "Missing cache for dependency {}:{}",
                 package.id.dependency_id_color(),
@@ -351,8 +320,7 @@ impl FileRepository {
             );
         }
 
-        let libs_path = dep_cache_path.join("lib");
-        let src_path = dep_cache_path.join("src");
+        let src_path = dep_cache_path.src_path();
 
         if !src_path.exists() {
             bail!(
@@ -362,54 +330,16 @@ impl FileRepository {
             );
         }
 
-        let exposed_headers = src_path.join(&package.shared_directories);
+        let exposed_headers = src_path.join(&package.shared_directory);
 
-        if package.additional_data.headers_only.unwrap_or(false) {
-            return Ok(PackageFiles {
-                headers: exposed_headers,
-                debug_binary: None,
-                release_binary: None,
-            });
-        }
 
-        // get so name or release so name
-
-        // get so name or release so name
-        let release_bin_name = package
-            .info
-            .get_so_name2()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-
-        let debug_bin_name = package
-            .info
-            .get_so_name2()
-            .with_extension("debug.so")
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-
-        let release_binary = libs_path.join(&release_bin_name);
-        let debug_binary = libs_path.join(&debug_bin_name);
-
-        if !release_binary.exists() && !debug_binary.exists() {
-            bail!(
-                "Missing binary {release_bin_name}/{debug_bin_name:?} for {}:{}",
-                package.info.id.dependency_id_color(),
-                package.info.version.dependency_version_color()
-            );
-        }
 
         let release_binary = release_binary.exists().then_some(release_binary);
         let debug_binary = debug_binary.exists().then_some(debug_binary);
 
         Ok(PackageFiles {
-            headers: exposed_headers,
-            debug_binary,
-            release_binary,
+            headers: vec![exposed_headers],
+            binaries:
         })
     }
 
@@ -428,7 +358,7 @@ impl FileRepository {
         let missing_dependencies: Vec<_> = restored_dependencies_map
             .iter()
             .filter(|(_, r)| {
-                !Self::get_package_cache_path(&r.config.id, &r.config.version).exists()
+                !Self::get_package_triplet_cache_path(&r.config.id, &r.config.version).exists()
             })
             .map(|(_, r)| format!("{}:{}", r.config.id, r.config.version))
             .collect();
@@ -550,8 +480,10 @@ impl FileRepository {
                 .get(&referenced_dependency.id)
                 .unwrap();
 
-            let dep_cache_path =
-                Self::get_package_cache_path(&referenced_dependency.id, &shared_dep.config.version);
+            let dep_cache_path = Self::get_package_triplet_cache_path(
+                &referenced_dependency.id,
+                &shared_dep.config.version,
+            );
             let src_path = dep_cache_path.join("src");
 
             let extern_headers_dep = extern_headers.join(&referenced_dependency.id);
@@ -580,7 +512,7 @@ impl FileRepository {
 
     pub fn remove_package_versions(&mut self, package: &DependencyId) -> Result<()> {
         self.artifacts.remove(package);
-        let packages_path = Self::get_package_versions_cache_path(package);
+        let packages_path = PackageIdPath::new(package.clone()).versions_path();
         if !packages_path.exists() {
             return Ok(());
         }
@@ -593,10 +525,14 @@ impl FileRepository {
             .ok_or_eyre(format!("No package found {package}/{version}"))?
             .remove(version);
 
-        let packages_path = Self::get_package_cache_path(package, version);
+        let packages_path = PackageIdPath::new(package.clone())
+            .version(version.clone())
+            .base_path();
+
         if !packages_path.exists() {
             return Ok(());
         }
+
         std::fs::remove_dir_all(packages_path)?;
         Ok(())
     }
@@ -614,11 +550,7 @@ impl Repository for FileRepository {
         }))
     }
 
-    fn get_package(
-        &self,
-        id: &DependencyId,
-        version: &Version,
-    ) -> Result<Option<SharedPackageConfig>> {
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>> {
         Ok(self.get_artifact(id, version).cloned())
     }
 
@@ -626,7 +558,7 @@ impl Repository for FileRepository {
         Ok(self.artifacts.keys().cloned().collect())
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
         if !permanent {
             return Ok(());
         }
