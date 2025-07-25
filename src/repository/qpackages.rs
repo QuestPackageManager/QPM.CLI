@@ -7,6 +7,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
+use sha2::{Digest, Sha256};
 use std::{
     fs::{self, File},
     io::{BufWriter, Cursor},
@@ -185,6 +186,21 @@ impl QPMRepository {
             .with_context(|| format!("Failed while downloading {}", qpkg_url.blue()))?;
 
         let buffer = Cursor::new(bytes.get_ref());
+
+        // Ensure checksum matches
+        if let Some(checksum) = &qpackage_config.qpkg_checksum {
+            let result = Sha256::digest(buffer.get_ref());
+            let hash_hex = hex::encode(result);
+
+            if !hash_hex.eq_ignore_ascii_case(checksum) {
+                bail!(
+                    "Checksum mismatch for {}: expected {}, got {}",
+                    qpkg_url.blue(),
+                    checksum,
+                    hash_hex
+                );
+            }
+        }
 
         // Extract to tmp folder
         ZipArchive::new(buffer)

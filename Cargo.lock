@@ -1648,6 +1648,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "home"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2521,6 +2527,7 @@ dependencies = [
  "cursed-semver-parser",
  "dirs",
  "fs_extra",
+ "hex",
  "itertools",
  "keyring",
  "openssl",
@@ -2539,6 +2546,7 @@ dependencies = [
  "serde",
  "serde-xml-rs",
  "serde_json",
+ "sha2",
  "symlink",
  "tempfile",
  "templatr",
@@ -2550,7 +2558,7 @@ dependencies = [
 [[package]]
 name = "qpm_package"
 version = "2.0.0"
-source = "git+https://github.com/QuestPackageManager/QPM.Package.git?branch=qpm2#d998ceed4345864562e78fd6b18981f55fb695bc"
+source = "git+https://github.com/QuestPackageManager/QPM.Package.git?branch=qpm2#14a28cb4ceb509dbaaba9f9b5543d4191d575aa7"
 dependencies = [
  "cursed-semver-parser",
  "schemars",
@@ -2990,6 +2998,17 @@ checksum = "89f599ac0c323ebb1c6082821a54962b839832b03984598375bff3975b804423"
 dependencies = [
  "digest",
  "sha1",
+]
+
+[[package]]
+name = "sha2"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
 ]
 
 [[package]]

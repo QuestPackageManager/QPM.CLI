@@ -94,6 +94,8 @@ symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.14"
 schemars = { version = "0.8", features = ["semver"] }
+sha2 = "0.10.9"
+hex = "0.4.3"
 
 [target.aarch64-apple-darwin.dependencies]
 # Allow cross compiles
