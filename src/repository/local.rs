@@ -26,6 +26,7 @@ use crate::{
         package::PackageConfigExtensions,
         schemas::{SchemaLinks, WithSchema},
     },
+    resolver::dependency::ResolvedDependency,
     terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
 };
@@ -101,19 +102,12 @@ impl FileRepository {
         &mut self,
         package: SharedPackageConfig,
         project_folder: PathBuf,
-        binary_path: Option<PathBuf>,
-        debug_binary_path: Option<PathBuf>,
+        binaries: Vec<PathBuf>,
         copy: bool,
         overwrite_existing: bool,
     ) -> Result<()> {
         if copy {
-            Self::copy_to_cache(
-                &package,
-                project_folder,
-                binary_path,
-                debug_binary_path,
-                false,
-            )?;
+            Self::copy_to_cache(&package, project_folder, binaries, false)?;
         }
         self.add_artifact_to_map(package, overwrite_existing)?;
 
@@ -123,8 +117,8 @@ impl FileRepository {
     fn copy_to_cache(
         package: &SharedPackageConfig,
         project_folder: PathBuf,
-        binary_path: Option<PathBuf>,
-        debug_binary_path: Option<PathBuf>,
+        binaries: Vec<PathBuf>,
+
         validate: bool,
     ) -> Result<()> {
         println!(
@@ -273,7 +267,7 @@ impl FileRepository {
 
     pub fn copy_from_cache(
         package: &PackageConfig,
-        restored_deps: &[(SharedPackageConfig, TripletId)],
+        restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<()> {
         let files = Self::collect_deps(package, restored_deps, workspace_dir)?;
@@ -423,7 +417,7 @@ impl FileRepository {
     /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
         package: &PackageConfig,
-        restored_deps: &[(SharedPackageConfig, TripletId)],
+        restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
         // let package = shared_package.config;

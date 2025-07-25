@@ -8,16 +8,21 @@ use std::{
 use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
 use itertools::Itertools;
 use qpm_package::models::{
-    package::{PackageConfig, QPM_JSON},
+    package::{DependencyId, PackageConfig, QPM_JSON},
     shared_package::{
-        SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo, QPM_SHARED_JSON
+        QPM_SHARED_JSON, SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo,
     },
-    triplet::{PackageTriplet, TripletId},
+    triplet::{PackageTriplet, PackageTripletDependency, TripletId},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
+use serde::de;
 
-use crate::{repository::Repository, resolver::dependency::resolve, utils::json};
+use crate::{
+    repository::Repository,
+    resolver::dependency::{ResolvedDependency, resolve},
+    utils::json,
+};
 
 use super::{
     schemas::{SchemaLinks, WithSchema},
@@ -43,14 +48,13 @@ pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
         config: PackageConfig,
         repository: &impl Repository,
-    ) -> Result<(
-        Self,
-        HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>,
-    )>;
+    ) -> Result<(Self, HashMap<TripletId, Vec<ResolvedDependency>>)>;
 
-    fn to_mod_json(self, triplet: &TripletId) -> ModJson;
+    fn to_mod_json(self, repo: &impl Repository) -> ModJson;
 
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()>;
+
+    fn get_restored_triplet(&self) -> &SharedTriplet;
 }
 
 impl PackageConfigExtensions for PackageConfig {
@@ -157,167 +161,133 @@ impl PackageConfigExtensions for SharedPackageConfig {
     }
 }
 
-pub struct ResolvedDependency {
-    pub dependencies: SharedPackageConfig,
-    pub restored_triplet: TripletId,
+struct DependencyBundle<'a> {
+    triplet: &'a TripletId,
+
+    dep_config: PackageConfig,
+    dep_triplet: PackageTriplet,
+
+    shared_restored_triplet: &'a SharedTripletDependencyInfo,
+    restored_triplet: &'a PackageTripletDependency,
 }
 
 impl SharedPackageConfigExtensions for SharedPackageConfig {
+    /// Resolve dependencies from the package config and repository
+    /// Returns a tuple of the SharedPackageConfig and a map of triplet IDs to resolved
     fn resolve_from_package(
         config: PackageConfig,
         repository: &impl Repository,
-    ) -> Result<(
-        Self,
-        HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>>,
-    )> {
-        let triplet_dependencies: HashMap<TripletId, Vec<(SharedPackageConfig, TripletId)>> =
-            config
-                .triplets
-                .specific_triplets
-                .iter()
-                .map(|(triplet_id, triplet)| -> color_eyre::Result<_> {
-                    let resolved = resolve(&config, repository, triplet_id)?.collect_vec();
+    ) -> Result<(Self, HashMap<TripletId, Vec<ResolvedDependency>>)> {
+        // for each triplet, resolve the dependencies
+        let triplet_dependencies: HashMap<TripletId, _> = config
+            .triplets
+            .specific_triplets
+            .iter()
+            .map(|(triplet_id, _triplet)| -> color_eyre::Result<_> {
+                let resolved = resolve(&config, repository, triplet_id)?.collect_vec();
 
-                    Ok((triplet_id.clone(), resolved))
-                })
-                .try_collect()?;
+                Ok((triplet_id.clone(), resolved))
+            })
+            .try_collect()?;
 
-        Ok((
-            SharedPackageConfig {
-                config,
-                restored_triplet: Default::default(),
-                locked_triplet: triplet_dependencies
+        let locked_triplet = triplet_dependencies
+            .iter()
+            .map(|(package_triplet, dependencies)| {
+                // For each dependency, get the package config and triplet settings
+                let restored_dependencies = dependencies
                     .iter()
-                    .map(|(package_triplet, dependencies)| {
-                        (
-                            package_triplet.clone(),
-                            SharedTriplet {
-                                restored_dependencies: dependencies
-                                    .iter()
-                                    .map(|(dep, dep_triplet)| {
-                                        (
-                                            dep.config.id.clone(),
-                                            SharedTripletDependencyInfo {
-                                                restored_version: dep.config.version.clone(),
-                                                restored_triplet: dep_triplet.clone(),
-                                            },
-                                        )
-                                    })
-                                    .collect(),
-                            },
-                        )
+                    .map(|resolved_dep| {
+                        let shared_triplet_dependency_info = SharedTripletDependencyInfo {
+                            restored_version: resolved_dep.0.version.clone(),
+                            restored_triplet: resolved_dep.1.clone(),
+                        };
+                        (resolved_dep.0.id.clone(), shared_triplet_dependency_info)
                     })
-                    .collect(),
-            },
-            triplet_dependencies,
-        ))
+                    .collect();
+                let shared_triplet = SharedTriplet {
+                    restored_dependencies,
+                };
+
+                (package_triplet.clone(), shared_triplet)
+            })
+            .collect();
+
+        let shared_package_config = SharedPackageConfig {
+            config,
+            restored_triplet: Default::default(),
+            locked_triplet,
+        };
+        Ok((shared_package_config, triplet_dependencies))
     }
 
-    fn to_mod_json(self, triplet: &TripletId) -> ModJson {
+    fn to_mod_json(self, repo: &impl Repository) -> ModJson {
         //        Self {
         //     id: dep.id,
         //     version_range: dep.version_range,
         //     mod_link: dep.additional_data.mod_link,
         // }
 
-        let local_deps = &self.config.triplets.specific_triplets[triplet];
-
-        // Only bundle mods that are not specifically excluded in qpm.json or if they're not header-only
-        let restored_deps: Vec<_> = self
-            .restored_dependencies
-            .iter()
-            .filter(|dep| {
-                let local_dep_opt = local_deps
-                    .iter()
-                    .find(|local_dep| local_dep.id == dep.dependency.id);
-
-                if let Some(local_dep) = local_dep_opt {
-                    // if force included/excluded, return early
-                    if let Some(force_included) = local_dep.additional_data.include_qmod {
-                        return force_included;
-                    }
-                }
-
-                // or if header only is false
-                dep.dependency.additional_data.mod_link.is_some()
-                    || !dep.dependency.additional_data.headers_only.unwrap_or(false)
-            })
-            .collect();
-
         // List of dependencies we are directly referencing in qpm.json
-        let direct_dependencies: HashSet<String> = self
+        let package_triplet = self
             .config
+            .triplets
+            .get_triplet_settings(&self.restored_triplet)
+            .expect("Triplet should exist");
+
+        let direct_dependencies: HashMap<DependencyId, _> = package_triplet
             .dependencies
             .iter()
-            .map(|f| f.id.clone())
+            .filter_map(|(dep_id, dep_triplet)| {
+                // get the restored dependency info
+                let shared_dep_triplet = self
+                    .get_restored_triplet()
+                    .restored_dependencies
+                    .get(dep_id)?;
+
+                // get the package config for the dependency
+                let dep_package = repo
+                    .get_package(&dep_id, &shared_dep_triplet.restored_version)
+                    .expect("Failed to get package")
+                    .expect("Package should exist in repository");
+
+                // get the triplet settings for the dependency
+                let dep_package_triplet = dep_package
+                    .triplets
+                    .get_triplet_settings(&shared_dep_triplet.restored_triplet)
+                    .expect("Triplet should exist in package");
+
+                let result = DependencyBundle {
+                    triplet: &shared_dep_triplet.restored_triplet,
+
+                    shared_restored_triplet: shared_dep_triplet,
+                    restored_triplet: dep_triplet,
+
+                    // grabbed from repo
+                    dep_config: dep_package,
+                    dep_triplet: dep_package_triplet,
+                };
+                Some((dep_id.clone(), result))
+            })
             .collect();
 
         // downloadable mods links n stuff
         // mods that are header-only but provide qmods can be added as deps
         // Must be directly referenced in qpm.json
-        let mods: Vec<ModDependency> = local_deps
+        let mods: Vec<ModDependency> = direct_dependencies
             .iter()
             // Removes any dependency without a qmod link
-            .filter_map(|dep| {
-                let shared_dep = restored_deps.iter().find(|d| d.dependency.id == dep.id)?;
-                if shared_dep.dependency.additional_data.mod_link.is_some() {
-                    return Some((shared_dep, dep));
-                }
-
-                None
+            .filter(|(dep_package, result)| result.dep_triplet.qmod_url.is_some())
+            .map(|(dep_config, result)| ModDependency {
+                version_range: result.restored_triplet.version_range.clone(),
+                id: result.dep_config.id.0.clone(),
+                mod_link: result.dep_triplet.qmod_url.clone(),
+                required: result.restored_triplet.qmod_required,
             })
-            .map(|(shared_dep, dep)| ModDependency {
-                version_range: dep.version_range.clone(),
-                id: dep.id.clone(),
-                mod_link: shared_dep.dependency.additional_data.mod_link.clone(),
-                required: dep.additional_data.required,
-            })
-            .collect();
-
-        // The rest of the mods to handle are not qmods, they are .so or .a mods
-        // actual direct lib deps
-        let libs: Vec<String> = self
-            .restored_dependencies
-            .iter()
-            // We could just query the bmbf core mods list on GH?
-            // https://github.com/BMBF/resources/blob/master/com.beatgames.beatsaber/core-mods.json
-            // but really the only lib that never is copied over is the modloader, the rest is either a downloaded qmod or just a copied lib
-            // even core mods should technically be added via download
-            .filter(|lib| {
-                // find the actual dependency for the include qmod value
-                let local_dep_opt = local_deps
-                    .iter()
-                    .find(|local_dep| local_dep.id == lib.dependency.id);
-
-                // if set, use it later
-
-                let include_qmod = local_dep_opt
-                    .and_then(|local_dep| local_dep.additional_data.include_qmod.as_ref());
-
-                // Must be directly referenced in qpm.json
-                direct_dependencies.contains(&lib.dependency.id) &&
-
-                // keep if header only is false, or if not defined
-                !lib.dependency.additional_data.headers_only.unwrap_or(false) &&
-
-                // Modloader should never be included
-                lib.dependency.id != "modloader" &&
-
-                // don't include static deps
-                !lib.dependency.additional_data.static_linking.unwrap_or(false) &&
-
-                // it's marked to be included, defaults to including ( same as dependencies with qmods )
-                include_qmod.copied().unwrap_or(true) &&
-
-                // Only keep libs that aren't downloadable
-                !mods.iter().any(|dep| lib.dependency.id == dep.id)
-            })
-            .map(|dep| dep.get_so_name().to_str().unwrap().to_string())
             .collect();
 
         ModJson {
-            name: self.config.name.clone(),
-            id: self.config.id.clone(),
+            name: self.config.id.0.clone(),
+            id: self.config.id.0.clone(),
             porter: None,
             version: self.config.version.to_string(),
             package_id: None,
@@ -326,20 +296,25 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             cover_image: None,
             is_library: None,
             dependencies: mods,
-            // TODO: Change
-            late_mod_files: vec![self.config.get_so_name().to_str().unwrap().to_string()],
-            library_files: libs,
+            late_mod_files: vec![],
+            library_files: vec![],
             ..Default::default()
         }
     }
 
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()> {
-        let Some(toolchain_path) = self.config.additional_data.toolchain_out.as_ref() else {
+        let Some(toolchain_path) = self.config.toolchain_out.as_ref() else {
             return Ok(());
         };
 
         toolchain::write_toolchain_file(self, repo, toolchain_path)?;
 
         Ok(())
+    }
+
+    fn get_restored_triplet(&self) -> &SharedTriplet {
+        self.locked_triplet
+            .get(&self.restored_triplet)
+            .expect("Restored triplet should exist in locked triplet map")
     }
 }

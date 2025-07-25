@@ -16,7 +16,6 @@ use color_eyre::{
     Result,
     eyre::{Context, ContextCompat, bail},
 };
-use itertools::Itertools;
 use pubgrub::{
     DefaultStringReporter, Dependencies, DependencyProvider, PackageResolutionStatistics,
     PubGrubError, Reporter,
@@ -24,8 +23,23 @@ use pubgrub::{
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::{SharedPackageConfig, SharedTriplet},
-    triplet::{PackageTriplet, TripletId},
+    triplet::{PackageTriplet, PackageTripletDependency, PackageTripletsConfig, TripletId},
 };
+
+/// Represents a resolved dependency
+/// A tuple of (PackageConfig, TripletId)
+pub struct ResolvedDependency(pub PackageConfig, pub TripletId);
+
+impl ResolvedDependency {
+    fn get_triplet_settings(&self) -> &PackageTriplet {
+        self.0
+            .triplets
+            .specific_triplets
+            .get(&self.1)
+            .expect("Triplet should always exist in the package's triplets")
+    }
+}
+
 pub struct PackageDependencyResolver<'a, 'b, R>
 where
     R: Repository,
@@ -34,7 +48,6 @@ where
     root_triplet: &'a TripletId,
     repo: &'b R,
 }
-
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct PubgrubDependencyTarget(pub DependencyId, pub TripletId);
 
@@ -96,6 +109,8 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             let deps = triplet
                 .dependencies
                 .iter()
+                // add dev dependencies as well
+                .chain(triplet.dev_dependencies.iter())
                 .map(|(dep_id, dep)| {
                     let pubgrub_dep = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
 
@@ -115,8 +130,8 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             })?;
 
         let target_triplet = target_pkg
-            .locked_triplet
-            .get(&package_triplet.1)
+            .triplets
+            .get_triplet_settings(&package_triplet.1)
             .with_context(|| {
                 format!(
                     "Could not find triplet {} for package {}",
@@ -125,20 +140,11 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
                 )
             })?;
 
-        let is_dep_exported = |dep_id: &DependencyId| {
-            self.get_triplet_config()
-                .dependencies
-                .get(dep_id)
-                .is_some_and(|dep| dep.export)
-        };
-
         let deps = target_triplet
-            .restored_dependencies
+            .dependencies
             .iter()
-            // remove any private dependencies from the list
-            .filter(|(dep_id, _)| is_dep_exported(dep_id))
             .map(|(dep_id, dep)| {
-                let id = PubgrubDependencyTarget(dep_id.clone(), dep.restored_triplet.clone());
+                let id = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
                 let range = req_to_range(dep.version_range.clone());
                 (id, range)
             })
@@ -199,11 +205,14 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
     }
 }
 
+/// Resolve dependencies for a package using pubgrub
+/// This will return an iterator of resolved dependencies
+/// The iterator will return every dependency required by the package + triplet
 pub fn resolve<'a>(
     root: &'a PackageConfig,
     repository: &'a impl Repository,
     triplet: &TripletId,
-) -> Result<impl Iterator<Item = (SharedPackageConfig, TripletId)> + 'a> {
+) -> Result<impl Iterator<Item = ResolvedDependency> + 'a> {
     let resolver = PackageDependencyResolver {
         root,
         root_triplet: triplet,
@@ -216,9 +225,12 @@ pub fn resolve<'a>(
             if id.0 == root.id && version == root.version {
                 return None;
             }
+            
 
-            let package = repository.get_package(&id.0, &version.into()).unwrap()?;
-            Some((package, id.1))
+            let package = repository
+                .get_package(&id.0, &version.into())
+                .expect("Failed to get package")?;
+            Some(ResolvedDependency(package, id.1))
         })),
 
         Err(PubGrubError::NoSolution(tree)) => {
@@ -235,23 +247,28 @@ pub fn resolve<'a>(
     result
 }
 
+/// Restore dependencies for a package
+/// This will download the dependencies to the cache and copy them to the workspace
+/// It will also generate the toolchain JSON file if specified
+/// Returns an error if any dependency fails to download or copy
 pub fn restore<P: AsRef<Path>>(
     workspace: P,
     shared_package: &SharedPackageConfig,
-    resolved_deps: &[(SharedPackageConfig, TripletId)],
+    resolved_deps: &[ResolvedDependency],
     repository: &mut impl Repository,
 ) -> Result<()> {
-    for (dep, dep_triplet) in resolved_deps {
+    for ResolvedDependency(dep, dep_triplet) in resolved_deps {
         println!(
-            "Pulling {}:{}",
-            &dep.config.id.0.dependency_id_color(),
-            &dep.config.version.to_string().dependency_version_color()
+            "Pulling {}:{} ({})",
+            &dep.id.0.dependency_id_color(),
+            &dep.version.to_string().dependency_version_color(),
+            dep_triplet.0.triplet_id_color()
         );
-        repository.download_to_cache(&dep.config).with_context(|| {
+        repository.download_to_cache(&dep).with_context(|| {
             format!(
                 "Requesting {}:{}",
-                dep.config.id.0.dependency_id_color(),
-                dep.config.version.version_id_color()
+                dep.id.0.dependency_id_color(),
+                dep.version.version_id_color()
             )
         })?;
         repository.add_to_db_cache(dep.clone(), true)?;
@@ -271,7 +288,7 @@ pub fn locked_resolve<'a, R: Repository>(
     root: &'a SharedPackageConfig,
     repository: &'a R,
     triplet: &'a SharedTriplet,
-) -> Result<impl Iterator<Item = (SharedPackageConfig, TripletId)> + 'a> {
+) -> Result<impl Iterator<Item = ResolvedDependency> + 'a> {
     // TODO: ensure restored dependencies take precedence over
     let packages = triplet.restored_dependencies.iter().map(|(dep_id, dep)| {
         let shared_package = repository
@@ -286,7 +303,7 @@ pub fn locked_resolve<'a, R: Repository>(
                 panic!("No package found for {}:{}", dep_id.0, dep.restored_version)
             });
 
-        (shared_package, dep.restored_triplet.clone())
+        ResolvedDependency(shared_package, dep.restored_triplet.clone())
     });
 
     Ok(packages)
