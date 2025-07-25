@@ -7,6 +7,7 @@ use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::SharedPackageConfig,
+    triplet::TripletId,
 };
 use schemars::JsonSchema;
 use semver::Version;
@@ -33,7 +34,7 @@ use super::Repository;
 
 // All files must exist
 pub struct PackageFiles {
-    pub headers: PathBuf,
+    pub headers: Vec<PathBuf>,
     pub release_binary: Option<PathBuf>,
     pub debug_binary: Option<PathBuf>,
     // pub extras: Vec<PathBuf>,
@@ -233,21 +234,46 @@ impl FileRepository {
         Ok(())
     }
 
+    /// Returns the path to the global file repository
     pub fn global_file_repository_path() -> PathBuf {
         Self::global_repository_dir().join("qpm.repository.json")
     }
 
+    /// Returns the global repository directory, which is usually in the user's config directory
     pub fn global_repository_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-RS")
+        dirs::config_dir().unwrap().join("QPM-RS2")
     }
 
     pub fn clear() -> Result<(), std::io::Error> {
         fs::remove_file(Self::global_file_repository_path())
     }
 
+    /// Returns the path to the package versions cache for a specific package ID.
+    #[inline]
+    pub fn get_package_versions_cache_path(id: &DependencyId) -> PathBuf {
+        let user_config = get_combine_config();
+        let base_path = user_config.cache.as_ref().unwrap();
+
+        // cache/{id}
+        base_path.join(&id.0)
+    }
+
+    /// Returns the path to the package cache for a specific version and triplet.
+    #[inline]
+    pub fn get_package_cache_path(
+        id: &DependencyId,
+        version: &Version,
+        triplet: &TripletId,
+    ) -> PathBuf {
+        // cache/{id}/{version}/{triplet}
+        Self::get_package_versions_cache_path(id)
+            .join(version.to_string())
+            .join(triplet.to_string())
+    }
+
     pub fn copy_from_cache(
         package: &PackageConfig,
-        restored_deps: &[SharedPackageConfig],
+        restored_deps: &[(SharedPackageConfig, TripletId)],
         workspace_dir: &Path,
     ) -> Result<()> {
         let files = Self::collect_deps(package, restored_deps, workspace_dir)?;
@@ -316,21 +342,6 @@ impl FileRepository {
             }
         }
         Ok(())
-    }
-
-    #[inline]
-    pub fn get_package_versions_cache_path(id: &DependencyId) -> PathBuf {
-        let user_config = get_combine_config();
-        let base_path = user_config.cache.as_ref().unwrap();
-
-        // cache/{id}
-        base_path.join(id.0)
-    }
-
-    #[inline]
-    pub fn get_package_cache_path(id: &DependencyId, version: &Version) -> PathBuf {
-        // cache/{id}/{version}
-        Self::get_package_versions_cache_path(id).join(version.to_string())
     }
 
     /// Collects all files of a package from the cache.
@@ -412,7 +423,7 @@ impl FileRepository {
     /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
         package: &PackageConfig,
-        restored_deps: &[SharedPackageConfig],
+        restored_deps: &[(SharedPackageConfig, TripletId)],
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
         // let package = shared_package.config;

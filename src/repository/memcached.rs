@@ -9,7 +9,7 @@ use super::Repository;
 
 pub struct MemcachedRepository<R: Repository> {
     // interior mutability
-    packages_cache: UnsafeCell<HashMap<DependencyId, HashMap<Version, SharedPackageConfig>>>,
+    packages_cache: UnsafeCell<HashMap<DependencyId, HashMap<Version, PackageConfig>>>,
     versions_cache: UnsafeCell<HashMap<DependencyId, Vec<Version>>>,
     package_list: UnsafeCell<Option<Vec<DependencyId>>>,
 
@@ -59,7 +59,7 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
         Ok(versions)
     }
 
-    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<SharedPackageConfig>> {
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>> {
         let cache = self
             .packages_cache
             .get_safe()
@@ -75,16 +75,16 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
         if let Some(config) = &config {
             self.packages_cache
                 .get_mut_safe()
-                .entry(config.config.id.clone())
+                .entry(config.id.clone())
                 .or_default()
-                .entry(config.config.version.clone())
+                .entry(config.version.clone())
                 .insert_entry(config.clone());
         }
 
         Ok(config)
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
         self.inner_repo.add_to_db_cache(config, permanent)
     }
 

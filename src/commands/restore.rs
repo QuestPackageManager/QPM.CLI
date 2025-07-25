@@ -7,15 +7,17 @@ use color_eyre::{
     eyre::{ContextCompat, Result, bail, eyre},
 };
 use itertools::Itertools;
-use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig, triplet::{PackageTriplet, TripletId}};
+use qpm_package::models::{
+    package::PackageConfig,
+    shared_package::{SharedPackageConfig, QPM_SHARED_JSON},
+    triplet::{PackageTriplet, TripletId},
+};
 use semver::Version;
 
 use crate::{
     models::{
         config::get_combine_config,
-        package::{
-            PackageConfigExtensions, SHARED_PACKAGE_FILE_NAME, SharedPackageConfigExtensions,
-        },
+        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
     },
     repository::{self, Repository},
     resolver::dependency,
@@ -83,17 +85,17 @@ impl Command for RestoreCommand {
 
         if !unlocked && is_ignored() {
             eprintln!(
-                "It seems that the current repository has {SHARED_PACKAGE_FILE_NAME} ignored. "
+                "It seems that the current repository has {QPM_SHARED_JSON} ignored. "
             );
             eprintln!(
-                "Please commit it to avoid inconsistent dependency resolving. git add {SHARED_PACKAGE_FILE_NAME} --force"
+                "Please commit it to avoid inconsistent dependency resolving. git add {QPM_SHARED_JSON} --force"
             );
         }
 
         if unlocked && env::var("CI") == Ok("true".to_string()) {
             eprintln!("Running in CI and using unlocked resolve, this seems like a bug!");
             eprintln!(
-                "Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository"
+                "Make sure {QPM_SHARED_JSON} is not gitignore'd and is comitted in the repository"
             );
         }
 
@@ -130,9 +132,6 @@ impl Command for RestoreCommand {
                 restored_deps
                     .remove(&triplet_id)
                     .expect("Triplet should exist in restored_deps")
-                    .into_iter()
-                    .map(|(dep, _triplet_id)| dep)
-                    .collect()
             }
         };
 
@@ -169,10 +168,11 @@ fn is_modified(
     }
 
     for (dep_id, dep) in triplet.dependencies.iter() {
+        // if the dependency is not in the locked triplet, it is modified
         let Some(locked_dep) = locked_triplet.restored_dependencies.get(dep_id) else {
             return true;
         };
-        if dep.triplet != locked_dep.triplet {
+        if dep.triplet != locked_dep.restored_triplet {
             return true;
         }
         if !dep.version_range.matches(&locked_dep.restored_version) {

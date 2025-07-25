@@ -63,7 +63,7 @@ impl Repository for MultiDependencyRepository {
         &self,
         id: &DependencyId,
         version: &semver::Version,
-    ) -> Result<Option<SharedPackageConfig>> {
+    ) -> Result<Option<PackageConfig>> {
         let opt = self
             .repositories
             .iter()
@@ -108,7 +108,7 @@ impl Repository for MultiDependencyRepository {
         }
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
         if permanent {
             #[cfg(debug_assertions)]
             println!("Warning, adding to cache permanently to multiple repos!",);

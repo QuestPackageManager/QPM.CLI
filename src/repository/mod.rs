@@ -26,10 +26,10 @@ pub trait Repository {
         &self,
         id: &DependencyId,
         version: &Version,
-    ) -> Result<Option<SharedPackageConfig>>;
+    ) -> Result<Option<PackageConfig>>;
     // add to the db cache
     // this just stores the shared config itself, not the package
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()>;
+    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()>;
 
     /// Returns true if the repository uses a network connection to retrieve data
     fn is_online(&self) -> bool;

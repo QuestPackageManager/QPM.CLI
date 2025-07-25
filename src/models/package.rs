@@ -8,8 +8,11 @@ use std::{
 use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
 use itertools::Itertools;
 use qpm_package::models::{
-    package::PackageConfig,
-    shared_package::{SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo}, triplet::TripletId,
+    package::{PackageConfig, QPM_JSON},
+    shared_package::{
+        SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo, QPM_SHARED_JSON
+    },
+    triplet::{PackageTriplet, TripletId},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
@@ -20,9 +23,6 @@ use super::{
     schemas::{SchemaLinks, WithSchema},
     toolchain,
 };
-
-pub const PACKAGE_FILE_NAME: &str = "qpm.json";
-pub const SHARED_PACKAGE_FILE_NAME: &str = "qpm.shared.json";
 
 pub trait PackageConfigExtensions {
     fn exists<P: AsRef<Path>>(dir: P) -> bool;
@@ -55,7 +55,7 @@ pub trait SharedPackageConfigExtensions: Sized {
 
 impl PackageConfigExtensions for PackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let path = dir.as_ref().join(PACKAGE_FILE_NAME);
+        let path = dir.as_ref().join(QPM_JSON);
         let file = File::open(&path).with_context(|| format!("{path:?} does not exist"))?;
         let res = json::json_from_reader_fast::<_, Self>(BufReader::new(file))
             .with_context(|| format!("Unable to read PackageConfig at {path:?}"))?;
@@ -65,7 +65,7 @@ impl PackageConfigExtensions for PackageConfig {
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let path = dir.as_ref().join(PACKAGE_FILE_NAME);
+        let path = dir.as_ref().join(QPM_JSON);
         let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
         serde_json::to_writer_pretty(
@@ -80,7 +80,7 @@ impl PackageConfigExtensions for PackageConfig {
     }
 
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().with_file_name(PACKAGE_FILE_NAME).exists()
+        dir.as_ref().with_file_name(QPM_JSON).exists()
     }
 
     fn run_if_version(
@@ -113,7 +113,7 @@ impl PackageConfigExtensions for PackageConfig {
 }
 impl PackageConfigExtensions for SharedPackageConfig {
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self> {
-        let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
+        let path = dir.as_ref().join(QPM_SHARED_JSON);
         let file = File::open(&path)
             .with_context(|| format!("{path:?} not found"))
             .suggestion(format!("Try running {}", "qpm restore".blue()))?;
@@ -123,7 +123,7 @@ impl PackageConfigExtensions for SharedPackageConfig {
     }
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
-        let path = dir.as_ref().join(SHARED_PACKAGE_FILE_NAME);
+        let path = dir.as_ref().join(QPM_SHARED_JSON);
         let file = File::create(&path).with_context(|| format!("{path:?} cannot be written"))?;
 
         serde_json::to_writer_pretty(
@@ -137,7 +137,7 @@ impl PackageConfigExtensions for SharedPackageConfig {
         Ok(())
     }
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().join(SHARED_PACKAGE_FILE_NAME).exists()
+        dir.as_ref().join(QPM_SHARED_JSON).exists()
     }
 
     fn run_if_version(
@@ -155,6 +155,11 @@ impl PackageConfigExtensions for SharedPackageConfig {
     fn validate(&self) -> color_eyre::Result<()> {
         self.config.validate()
     }
+}
+
+pub struct ResolvedDependency {
+    pub dependencies: SharedPackageConfig,
+    pub restored_triplet: TripletId,
 }
 
 impl SharedPackageConfigExtensions for SharedPackageConfig {
@@ -180,11 +185,12 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         Ok((
             SharedPackageConfig {
                 config,
+                restored_triplet: Default::default(),
                 locked_triplet: triplet_dependencies
                     .iter()
-                    .map(|(triplet_id, dependencies)| {
+                    .map(|(package_triplet, dependencies)| {
                         (
-                            triplet_id.clone(),
+                            package_triplet.clone(),
                             SharedTriplet {
                                 restored_dependencies: dependencies
                                     .iter()
@@ -193,7 +199,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                                             dep.config.id.clone(),
                                             SharedTripletDependencyInfo {
                                                 restored_version: dep.config.version.clone(),
-                                                triplet: dep_triplet.clone(),
+                                                restored_triplet: dep_triplet.clone(),
                                             },
                                         )
                                     })

@@ -1,3 +1,7 @@
+use std::{fs::File, io::{BufReader, BufWriter}, path::Path, process::{Command, Stdio}};
+
+use color_eyre::{eyre::{bail, Context, Result}, Section};
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -6,7 +10,7 @@ use crate::{
     terminal::colors::QPMColor,
 };
 
-pub fn check_git() -> Result<()> {
+pub fn check_git() -> color_eyre::Result<()> {
     let mut git = std::process::Command::new("git");
     git.arg("--version");
 
@@ -36,7 +40,7 @@ pub fn check_git() -> Result<()> {
     }
 }
 
-pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
+pub fn get_release(url: &str, out: &std::path::Path) -> color_eyre::Result<bool> {
     check_git()?;
     if let Ok(token_unwrapped) = get_keyring().get_password() {
         get_release_with_token(url, out, &token_unwrapped)
@@ -45,7 +49,7 @@ pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
     }
 }
 
-pub fn get_release_without_token(url: &str, out: &std::path::Path) -> Result<bool> {
+pub fn get_release_without_token(url: &str, out: &std::path::Path) -> color_eyre::Result<bool> {
     let file = File::create(out).context("create so file failed")?;
     let mut buf = BufWriter::new(file);
 
