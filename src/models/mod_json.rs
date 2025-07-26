@@ -33,9 +33,8 @@ pub trait ModJsonExtensions: Sized {
 pub struct PreProcessingData {
     pub version: String,
     pub mod_id: String,
-    pub mod_name: String,
 
-    pub binaries: Option<Vec<String>>,
+    pub binaries: Vec<String>,
 
     pub game_id: Option<String>,
     pub game_version: Option<String>,
@@ -152,7 +151,7 @@ impl ModJsonExtensions for ModJson {
 fn preprocess(s: String, preprocess_data: PreProcessingData) -> String {
     let mut env = s.replace("${version}", &preprocess_data.version)
         .replace("${mod_id}", &preprocess_data.mod_id)
-        .replace("${mod_name}", &preprocess_data.mod_name)
+        // .replace("${mod_name}", &preprocess_data.mod_name)
         .replace(
             "${game_id}",
             &preprocess_data.game_id.unwrap_or("".to_string()),

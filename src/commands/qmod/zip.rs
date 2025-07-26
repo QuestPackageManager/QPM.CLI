@@ -9,6 +9,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
 use qpm_package::models::shared_package::SharedPackageConfig;
+use qpm_package::models::triplet::{TripletId, default_triplet_id};
 use qpm_qmod::models::mod_json::ModJson;
 
 use crate::commands::qmod::manifest::{ManifestQmodOperationArgs, generate_qmod_manifest};
@@ -17,8 +18,6 @@ use crate::models::mod_json::ModJsonExtensions;
 use crate::models::package::PackageConfigExtensions;
 use crate::models::schemas::{SchemaLinks, WithSchema};
 use crate::terminal::colors::QPMColor;
-
-
 
 use qpm_package::models::package::PackageConfig;
 
@@ -57,6 +56,10 @@ pub struct ZipQmodOperationArgs {
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
 
+    /// The triplet to build the mod for
+    #[clap(long, short)]
+    pub triplet: Option<String>,
+
     /// Run the clean script before building
     #[clap(long = "clean", default_value = "false")]
     pub(crate) clean: bool,
@@ -91,11 +94,10 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\""
     );
-    let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
+    let package = PackageConfig::read(".")?;
 
     let new_manifest = generate_qmod_manifest(
-        &package,
         shared_package,
         ManifestQmodOperationArgs {
             exclude_libs: build_parameters.exclude_libs.clone(),
@@ -104,12 +106,17 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         },
     )?;
 
+    let triplet = build_parameters
+        .triplet
+        .map(TripletId)
+        .unwrap_or_else(default_triplet_id);
+
     if build_parameters.clean {
         // Run clean script
         let clean_script = &package.workspace.get_clean();
         if let Some(clean_script) = clean_script {
             println!("Running clean script");
-            scripts::invoke_script(clean_script, &[], &package)?;
+            scripts::invoke_script(clean_script, &[], &package, &triplet)?;
         }
     }
 
@@ -119,7 +126,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         && !build_parameters.skip_build
     {
         println!("Running build script");
-        scripts::invoke_script(build_script, &[], &package)?;
+        scripts::invoke_script(build_script, &[], &package, &triplet)?;
     }
 
     let include_dirs = build_parameters
