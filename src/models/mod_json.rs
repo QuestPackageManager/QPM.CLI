@@ -10,7 +10,7 @@ use color_eyre::{Result, eyre::Context};
 use itertools::Itertools;
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 
-use crate::utils::json;
+use crate::{commands::Opt, utils::json};
 
 use super::schemas::{SchemaLinks, WithSchema};
 
@@ -34,7 +34,13 @@ pub struct PreProcessingData {
     pub version: String,
     pub mod_id: String,
     pub mod_name: String,
-    pub binary: Option<String>,
+
+    pub binaries: Option<Vec<String>>,
+
+    pub game_id: Option<String>,
+    pub game_version: Option<String>,
+
+    pub additional_env: HashMap<String, String>,
 }
 
 impl ModJsonExtensions for ModJson {
@@ -144,16 +150,33 @@ impl ModJsonExtensions for ModJson {
     }
 }
 fn preprocess(s: String, preprocess_data: PreProcessingData) -> String {
-    s.replace("${version}", &preprocess_data.version)
+    let mut env = s.replace("${version}", &preprocess_data.version)
         .replace("${mod_id}", &preprocess_data.mod_id)
         .replace("${mod_name}", &preprocess_data.mod_name)
         .replace(
-            "${binary}",
-            preprocess_data
-                .binary
-                .unwrap_or("${binary}".to_string())
-                .as_str(),
+            "${game_id}",
+            &preprocess_data.game_id.unwrap_or("".to_string()),
         )
+        .replace(
+            "${game_version}",
+            &preprocess_data.game_version.unwrap_or("".to_string()),
+        );
+
+    for env_var in preprocess_data.additional_env {
+        let key = env_var.0;
+        let value = env_var.1;
+        // Replace all occurrences of ${QPM_key} with value
+        env = env.replace(&format!("${{QPM_{key}}}"), &value);
+    }
+
+    env
+    // .replace(
+    //     "${binary}",
+    //     preprocess_data
+    //         .binary
+    //         .unwrap_or("${binary}".to_string())
+    //         .as_str(),
+    // )
 }
 
 fn insert_default_mod_binary(existing_json: &mut ModJson, template_mod_json: &mut ModJson) {

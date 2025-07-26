@@ -61,12 +61,7 @@ pub(crate) fn generate_qmod_manifest(
     );
     println!("Generating mod.json file from template using qpm.shared.json...");
 
-    let binary = shared_package
-        .config
-        
-        .get_so_name()
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string());
+
 
     let preprocess_data = PreProcessingData {
         version: shared_package.config.version.to_string(),

@@ -2,10 +2,13 @@ use std::process::Stdio;
 
 use clap::Args;
 
-use color_eyre::eyre::{anyhow, bail};
+use color_eyre::eyre::{ContextCompat, anyhow, bail};
 use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::{
+    package::PackageConfig,
+    triplet::{TripletId, default_triplet_id},
+};
 
 use crate::{models::package::PackageConfigExtensions, utils::ndk};
 
@@ -16,6 +19,9 @@ pub struct ScriptsCommand {
     script: String,
 
     args: Option<Vec<String>>,
+
+    #[clap(long, short)]
+    triplet: Option<String>,
 }
 
 impl Command for ScriptsCommand {
@@ -26,17 +32,15 @@ impl Command for ScriptsCommand {
 
         let script = scripts.get(&self.script);
 
-        if script.is_none() {
+        let Some(script) = script else {
             bail!("Could not find script {}", self.script);
-        }
+        };
 
         let supplied_args = self.args.unwrap_or_default();
 
-        let Some(script) = script else {
-            return Ok(());
-        };
+        let triplet_id = self.triplet.map(TripletId).unwrap_or(default_triplet_id());
 
-        invoke_script(script, &supplied_args, &package)?;
+        invoke_script(script, &supplied_args, &package, &triplet_id)?;
 
         Ok(())
     }
@@ -46,7 +50,13 @@ pub fn invoke_script(
     script_commands: &[String],
     supplied_args: &[String],
     package: &PackageConfig,
+    triplet_id: &TripletId,
 ) -> Result<(), color_eyre::eyre::Error> {
+    let triplet = package
+        .triplets
+        .get_triplet_settings(triplet_id)
+        .context("Failed to get triplet settings")?;
+
     let android_ndk_home = ndk::resolve_ndk_version(package);
 
     for command_str in script_commands {
@@ -86,6 +96,14 @@ pub fn invoke_script(
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
+
+        // Set the environment variables for the script
+        c.envs(
+            triplet
+                .env
+                .iter()
+                .map(|(k, v)| (format!("QPM_{k}"), v.as_str())),
+        );
 
         // Set the environment variable for Android NDK home if provided
         if let Some(path) = &android_ndk_home {

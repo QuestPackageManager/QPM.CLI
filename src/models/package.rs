@@ -5,7 +5,11 @@ use std::{
     path::Path,
 };
 
-use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
+use color_eyre::{
+    Result, Section,
+    eyre::{Context, ContextCompat},
+    owo_colors::OwoColorize,
+};
 use itertools::Itertools;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, QPM_JSON},
@@ -55,6 +59,10 @@ pub trait SharedPackageConfigExtensions: Sized {
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()>;
 
     fn get_restored_triplet(&self) -> &SharedTriplet;
+}
+
+pub trait SharedTripletExtensions: Sized {
+    fn get_env(&self) -> HashMap<String, String>;
 }
 
 impl PackageConfigExtensions for PackageConfig {
@@ -202,19 +210,26 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                     .out_binaries
                     .clone()
                     .unwrap_or_default(),
+                restored_env: resolved_dep.get_triplet_settings().env.clone(),
             };
             (resolved_dep.0.id.clone(), shared_triplet_dependency_info)
         }
         // For each dependency, get the package config and triplet settings
         let locked_triplet = triplet_dependencies
             .iter()
-            .map(|(package_triplet, dependencies)| {
+            .map(|(package_triplet_id, dependencies)| {
+                let package_triplet = config
+                    .triplets
+                    .get_triplet_settings(package_triplet_id)
+                    .expect("Failed to get triplet settings");
+
                 let restored_dependencies = dependencies.iter().map(make_shared_triplet).collect();
                 let shared_triplet = SharedTriplet {
                     restored_dependencies,
+                    env: package_triplet.env.clone(),
                 };
 
-                (package_triplet.clone(), shared_triplet)
+                (package_triplet_id.clone(), shared_triplet)
             })
             .collect();
 
@@ -322,5 +337,53 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         self.locked_triplet
             .get(&self.restored_triplet)
             .expect("Restored triplet should exist in locked triplet map")
+    }
+}
+
+impl SharedTripletExtensions for SharedTriplet {
+    fn get_env(&self) -> HashMap<String, String> {
+        // let dep_env: Vec<_> = self
+        //     .restored_dependencies
+        //     .iter()
+        //     .map(|(dep_id, dep)| -> color_eyre::Result<_> {
+        //         let package = repo
+        //             .get_package(dep_id, &dep.restored_version)
+        //             .context("Failed to get package env")?
+        //             .context("Package should exist in repository for environment variables")?;
+
+        //         let triplet = package
+        //             .triplets
+        //             .get_triplet_settings(&dep.restored_triplet)
+        //             .context("Triplet should exist in package for environment variables")?;
+
+        //         Ok(triplet.env)
+        //     })
+        //     .try_collect()
+        //     .context("Failed to collect environment variables")?;
+
+        let dep_env = self
+            .restored_dependencies
+            .iter()
+            .map(|(dep_id, dep)| &dep.restored_env)
+            .collect_vec();
+
+        // ensure no key collisions
+        let mut flattened_map: HashMap<String, String> = HashMap::with_capacity(dep_env.len());
+        for env in dep_env {
+            for (key, value) in env {
+                if flattened_map.contains_key(key) {
+                    eprintln!(
+                        "Warning: Environment variable {} is defined multiple times, using the last value.",
+                        key
+                    );
+                }
+                flattened_map.insert(key.clone(), value.clone());
+            }
+        }
+
+        // we allow local environment variables to override the ones in the shared package
+        flattened_map.extend(self.env.clone());
+
+        flattened_map
     }
 }
