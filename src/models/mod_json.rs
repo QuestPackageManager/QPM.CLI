@@ -42,6 +42,36 @@ pub struct PreProcessingData {
     pub additional_env: HashMap<String, String>,
 }
 
+impl PreProcessingData {
+    fn preprocess(self, s: String) -> String {
+        let mut env = s
+            .replace("${version}", &self.version)
+            .replace("${mod_id}", &self.mod_id)
+            // .replace("${mod_name}", &self.mod_name)
+            .replace("${game_id}", &self.game_id.unwrap_or("".to_string()))
+            .replace(
+                "${game_version}",
+                &self.game_version.unwrap_or("".to_string()),
+            );
+
+        for env_var in self.additional_env {
+            let key = env_var.0;
+            let value = env_var.1;
+            // Replace all occurrences of ${QPM_key} with value
+            env = env.replace(&format!("${{QPM_{key}}}"), &value);
+        }
+
+        env
+        // .replace(
+        //     "${binary}",
+        //     preprocess_data
+        //         .binary
+        //         .unwrap_or("${binary}".to_string())
+        //         .as_str(),
+        // )
+    }
+}
+
 impl ModJsonExtensions for ModJson {
     fn get_template_name() -> &'static str {
         "mod.template.json"
@@ -63,7 +93,7 @@ impl ModJsonExtensions for ModJson {
         file.read_to_string(&mut json).expect("Reading data failed");
 
         // Pre process
-        let processsed = preprocess(json, preprocess_data);
+        let processsed = preprocess_data.preprocess(json);
 
         serde_json::from_str(&processsed).context("Deserializing package failed")
     }
@@ -147,35 +177,6 @@ impl ModJsonExtensions for ModJson {
 
         existing_json
     }
-}
-fn preprocess(s: String, preprocess_data: PreProcessingData) -> String {
-    let mut env = s.replace("${version}", &preprocess_data.version)
-        .replace("${mod_id}", &preprocess_data.mod_id)
-        // .replace("${mod_name}", &preprocess_data.mod_name)
-        .replace(
-            "${game_id}",
-            &preprocess_data.game_id.unwrap_or("".to_string()),
-        )
-        .replace(
-            "${game_version}",
-            &preprocess_data.game_version.unwrap_or("".to_string()),
-        );
-
-    for env_var in preprocess_data.additional_env {
-        let key = env_var.0;
-        let value = env_var.1;
-        // Replace all occurrences of ${QPM_key} with value
-        env = env.replace(&format!("${{QPM_{key}}}"), &value);
-    }
-
-    env
-    // .replace(
-    //     "${binary}",
-    //     preprocess_data
-    //         .binary
-    //         .unwrap_or("${binary}".to_string())
-    //         .as_str(),
-    // )
 }
 
 fn insert_default_mod_binary(existing_json: &mut ModJson, template_mod_json: &mut ModJson) {
