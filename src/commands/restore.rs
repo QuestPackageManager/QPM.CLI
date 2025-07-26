@@ -9,7 +9,7 @@ use color_eyre::{
 use itertools::Itertools;
 use qpm_package::models::{
     package::PackageConfig,
-    shared_package::{SharedPackageConfig, QPM_SHARED_JSON},
+    shared_package::{QPM_SHARED_JSON, SharedPackageConfig},
     triplet::{PackageTriplet, TripletId},
 };
 use semver::Version;
@@ -84,9 +84,7 @@ impl Command for RestoreCommand {
         let unlocked = self.update || is_modified(&shared_package_opt, &triplet_id, &triplet);
 
         if !unlocked && is_ignored() {
-            eprintln!(
-                "It seems that the current repository has {QPM_SHARED_JSON} ignored. "
-            );
+            eprintln!("It seems that the current repository has {QPM_SHARED_JSON} ignored. ");
             eprintln!(
                 "Please commit it to avoid inconsistent dependency resolving. git add {QPM_SHARED_JSON} --force"
             );
@@ -141,8 +139,14 @@ impl Command for RestoreCommand {
         let shared_package = shared_package_opt.expect("SharedPackage is None somehow!");
 
         // always write to reflect config changes
-        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
+        dependency::restore(".", &shared_package, &triplet_id, &resolved_deps, &mut repo)?;
         shared_package.write(".")?;
+
+        println!(
+            "Restored triplet {} with {} dependencies",
+            triplet_id.triplet_id_color(),
+            resolved_deps.len()
+        );
 
         validate_ndk(&shared_package.config)?;
 

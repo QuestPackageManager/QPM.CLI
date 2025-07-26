@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 
 use clap::Args;
-use color_eyre::eyre::Context;
+use color_eyre::eyre::{bail, Context, ContextCompat};
 use qpm_package::{
     extensions::package_metadata::PackageMetadataExtensions,
     models::{package::PackageConfig, shared_package::SharedPackageConfig},
@@ -19,7 +19,8 @@ pub struct InstallCommand {
     #[clap(long, default_value = "false")]
     offline: bool,
 
-    pub binaries: Option<Vec<PathBuf>>,
+    #[clap(long, default_value = "false")]
+    pub no_validate: bool,
 }
 
 impl Command for InstallCommand {
@@ -31,20 +32,39 @@ impl Command for InstallCommand {
         let shared_package = SharedPackageConfig::read(".")?;
 
         let project_folder = PathBuf::from(".").canonicalize()?;
+        let restored_triplet_id = shared_package.restored_triplet;
+
+        let restored_triplet = shared_package
+            .config
+            .triplets
+            .get_triplet_settings(&restored_triplet_id)
+            .context("Failed to get triplet")?;
+
+        let binaries = restored_triplet.out_binaries.unwrap_or_default();
+
+        if !self.no_validate {
+            println!("Skipping validation of binaries");
+        } else {
+            for binary in &binaries {
+                if !binary.exists() {
+                    bail!(
+                        "Binary file {} does not exist",
+                        binary.display()
+                    );
+                }
+            }
+        }
 
         let mut file_repo = FileRepository::read()?;
         FileRepository::copy_to_cache(
             &shared_package.config,
-            &shared_package.restored_triplet,
+            &restored_triplet_id,
             project_folder,
-            self.binaries.clone().unwrap_or_default(),
+            binaries,
             false,
         )?;
 
-        file_repo.add_artifact_and_cache(
-            shared_package.config,
-            true,
-        )?;
+        file_repo.add_artifact_and_cache(shared_package.config, true)?;
 
         file_repo.write()?;
         Ok(())

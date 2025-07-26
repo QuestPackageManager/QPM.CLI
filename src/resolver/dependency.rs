@@ -31,7 +31,7 @@ use qpm_package::models::{
 pub struct ResolvedDependency(pub PackageConfig, pub TripletId);
 
 impl ResolvedDependency {
-    fn get_triplet_settings(&self) -> &PackageTriplet {
+    pub fn get_triplet_settings(&self) -> &PackageTriplet {
         self.0
             .triplets
             .specific_triplets
@@ -254,6 +254,7 @@ pub fn resolve<'a>(
 pub fn restore<P: AsRef<Path>>(
     workspace: P,
     shared_package: &SharedPackageConfig,
+    triplet: &TripletId,
     resolved_deps: &[ResolvedDependency],
     repository: &mut impl Repository,
 ) -> Result<()> {
@@ -277,7 +278,7 @@ pub fn restore<P: AsRef<Path>>(
     repository.write_repo()?;
 
     println!("Copying now");
-    FileRepository::copy_from_cache(&shared_package.config, resolved_deps, workspace.as_ref())?;
+    FileRepository::copy_from_cache(&shared_package.config, triplet, resolved_deps, workspace.as_ref())?;
 
     shared_package.try_write_toolchain(repository)?;
 

@@ -190,20 +190,26 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             })
             .try_collect()?;
 
+        // For each triplet's dependencies, create a SharedTriplet with the resolved dependencies
+        fn make_shared_triplet(
+            resolved_dep: &ResolvedDependency,
+        ) -> (DependencyId, SharedTripletDependencyInfo) {
+            let shared_triplet_dependency_info = SharedTripletDependencyInfo {
+                restored_version: resolved_dep.0.version.clone(),
+                restored_triplet: resolved_dep.1.clone(),
+                restored_binaries: resolved_dep
+                    .get_triplet_settings()
+                    .out_binaries
+                    .clone()
+                    .unwrap_or_default(),
+            };
+            (resolved_dep.0.id.clone(), shared_triplet_dependency_info)
+        }
+        // For each dependency, get the package config and triplet settings
         let locked_triplet = triplet_dependencies
             .iter()
             .map(|(package_triplet, dependencies)| {
-                // For each dependency, get the package config and triplet settings
-                let restored_dependencies = dependencies
-                    .iter()
-                    .map(|resolved_dep| {
-                        let shared_triplet_dependency_info = SharedTripletDependencyInfo {
-                            restored_version: resolved_dep.0.version.clone(),
-                            restored_triplet: resolved_dep.1.clone(),
-                        };
-                        (resolved_dep.0.id.clone(), shared_triplet_dependency_info)
-                    })
-                    .collect();
+                let restored_dependencies = dependencies.iter().map(make_shared_triplet).collect();
                 let shared_triplet = SharedTriplet {
                     restored_dependencies,
                 };

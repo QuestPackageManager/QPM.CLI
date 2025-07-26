@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::{HashMap, HashSet, hash_map::Entry},
     fs,
     io::{BufReader, Write},
     ops::Not,
@@ -36,7 +36,9 @@ use super::Repository;
 
 // All files must exist
 pub struct PackageFiles {
-    pub headers: Vec<PathBuf>,
+    /// Paths to the header files of the package on the filesystem.
+    pub headers: PathBuf,
+    /// Paths to the binary files of the package on the filesystem.
     pub binaries: Vec<PathBuf>,
     // pub extras: Vec<PathBuf>,
 }
@@ -231,10 +233,11 @@ impl FileRepository {
 
     pub fn copy_from_cache(
         package: &PackageConfig,
+        triplet: &TripletId,
         restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<()> {
-        let files = Self::collect_deps(package, restored_deps, workspace_dir)?;
+        let files = Self::collect_deps(package, triplet, restored_deps, workspace_dir)?;
 
         let config = get_combine_config();
         let symlink = config.symlink.unwrap_or(true);
@@ -308,6 +311,11 @@ impl FileRepository {
         package: &PackageConfig,
         triplet: &TripletId,
     ) -> Result<PackageFiles> {
+        let package_triplet = package
+            .triplets
+            .get_triplet_settings(triplet)
+            .expect("Triplet settings not found");
+
         let dep_cache_path = PackageIdPath::new(package.id.clone())
             .version(package.version.clone())
             .triplet(triplet.clone());
@@ -332,14 +340,37 @@ impl FileRepository {
 
         let exposed_headers = src_path.join(&package.shared_directory);
 
+        let expected_binaries = package_triplet.out_binaries.unwrap_or_default();
+        let binaries: Vec<PathBuf> = expected_binaries
+            .iter()
+            .map(|b| dep_cache_path.binary_path(b))
+            .collect();
 
+        // ensure no duplicates
+        let mut seen = HashSet::new();
+        for bin in &binaries {
+            if !bin.exists() {
+                bail!(
+                    "Missing binary {} for dependency {}:{}",
+                    bin.display().bright_yellow(),
+                    package.id.dependency_id_color(),
+                    package.version.dependency_version_color()
+                );
+            }
 
-        let release_binary = release_binary.exists().then_some(release_binary);
-        let debug_binary = debug_binary.exists().then_some(debug_binary);
+            if !seen.insert(bin.clone()) {
+                bail!(
+                    "Duplicate binary {} for dependency {}:{}",
+                    bin.display().bright_yellow(),
+                    package.id.dependency_id_color(),
+                    package.version.dependency_version_color()
+                );
+            }
+        }
 
         Ok(PackageFiles {
-            headers: vec![exposed_headers],
-            binaries:
+            headers: exposed_headers,
+            binaries,
         })
     }
 
@@ -347,27 +378,36 @@ impl FileRepository {
     /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
         package: &PackageConfig,
+        triplet: &TripletId,
         restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
-        // let package = shared_package.config;
-        let restored_dependencies_map: HashMap<&DependencyId, &SharedPackageConfig> =
-            restored_deps.iter().map(|p| (&p.config.id, p)).collect();
+        let triplet_config = package
+            .triplets
+            .get_triplet_settings(triplet)
+            .context("Failed to get triplet settings")?;
 
         // validate exists dependencies
-        let missing_dependencies: Vec<_> = restored_dependencies_map
+        let missing_dependencies: Vec<_> = restored_deps
             .iter()
-            .filter(|(_, r)| {
-                !Self::get_package_triplet_cache_path(&r.config.id, &r.config.version).exists()
+            .filter_map(|r| {
+                let package_path = PackageIdPath::new(r.0.id.clone())
+                    .version(r.0.version.clone())
+                    .triplet(r.1.clone())
+                    .triplet_path();
+                // if the package path does not exist, return the id and version
+                package_path
+                    .exists()
+                    .not()
+                    .then_some(format!("{}:{}/{}", r.0.id, r.0.version, r.1))
             })
-            .map(|(_, r)| format!("{}:{}", r.config.id, r.config.version))
             .collect();
 
         if !missing_dependencies.is_empty() {
             bail!("Missing dependencies in cache: {:?}", missing_dependencies);
         }
 
-        let extern_dir = workspace_dir.join(&package.dependencies_dir);
+        let extern_dir = workspace_dir.join(&package.dependencies_directory);
 
         ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
 
@@ -379,133 +419,77 @@ impl FileRepository {
 
         let extern_binaries = extern_dir.join("libs");
         let extern_headers = extern_dir.join("includes");
+        
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
 
         // direct deps (binaries)
-
         let deps: Vec<_> = restored_deps
             .iter()
-            .map(|p| Self::collect_files_of_package(&p.config).map(|f| (p, f)))
+            .map(|resolved_dep| -> color_eyre::Result<_> {
+                let collect_files_of_package =
+                    Self::collect_files_of_package(&resolved_dep.0, &resolved_dep.1)?;
+
+                Ok((resolved_dep, collect_files_of_package))
+            })
             .try_collect()?;
 
         let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) =
             // partition by direct dependencies and indirect
-            deps.into_iter().partition(|(dep, _)| {
-                package
+            deps.into_iter().partition(|(unknown_dep, _)| {
+                triplet_config
                     .dependencies
                     .iter()
-                    .any(|d| d.id == dep.config.id)
+                    .any(|direct_dep| *direct_dep.0 == unknown_dep.0.id)
             });
 
-        for (direct_dep, direct_dep_files) in direct_deps {
-            let project_deps_headers_target = extern_headers.join(direct_dep.config.id.clone());
+        // direct dependencies copy the binaries to the extern_binaries folder
+        for (direct_dep, direct_dep_files) in &direct_deps {
+            for binary in &direct_dep_files.binaries {
+                let file_name = binary.file_name().expect("Failed to get file name");
 
-            let exposed_headers = direct_dep_files.headers;
-            let not_header_only = direct_dep
-                .config
-                .additional_data
-                .headers_only
-                .unwrap_or(false)
-                .not();
-            let release_binary = not_header_only
-                // not header only
-                .then_some(direct_dep_files.release_binary)
-                .flatten();
+                if !binary.exists() {
+                    bail!(
+                        "Missing binary {} for dependency {}:{}",
+                        binary.display().bright_yellow(),
+                        direct_dep.0.id.dependency_id_color(),
+                        direct_dep.0.version.dependency_version_color()
+                    );
+                }
 
-            let debug_binary = not_header_only
-                .then_some(direct_dep_files.debug_binary)
-                .flatten();
-
-            if not_header_only
-                && ((release_binary.is_none() || !release_binary.as_ref().unwrap().exists())
-                    && (debug_binary.is_none() || !debug_binary.as_ref().unwrap().exists()))
-            {
-                bail!(
-                    "Missing binary for {}:{}",
-                    direct_dep.config.info.id.dependency_id_color(),
-                    direct_dep.config.version.dependency_version_color()
-                );
+                // copy to extern/libs/{file_name}
+                paths.insert(binary.clone(), extern_binaries.join(file_name));
             }
-
-            if !exposed_headers.exists() {
-                bail!(
-                    "Missing header files for {}:{}",
-                    direct_dep.config.id.dependency_id_color(),
-                    direct_dep.config.version.dependency_version_color()
-                );
-            }
-
-            if let Some(src_binary) = release_binary {
-                let file_name = src_binary.file_name().expect("Failed to get file name");
-
-                paths.insert(src_binary.clone(), extern_binaries.join(file_name));
-            }
-
-            if let Some(src_binary) = debug_binary {
-                let file_name = src_binary.file_name().expect("Failed to get file name");
-
-                paths.insert(src_binary.clone(), extern_binaries.join(file_name));
-            }
-
-            paths.insert(
-                exposed_headers,
-                project_deps_headers_target.join(&direct_dep.config.shared_dir),
-            );
         }
 
         // Get headers of all dependencies restored
-        for (indirect_dep, indirect_dep_files) in indirect_deps {
-            let project_deps_headers_target = extern_headers.join(indirect_dep.config.id.clone());
+        for (dep, dep_files) in direct_deps.into_iter().chain(indirect_deps.into_iter()) {
+            let project_deps_headers_target = extern_headers.join(dep.0.id.0.clone());
 
-            let exposed_headers = indirect_dep_files.headers;
+            let exposed_headers = dep_files.headers;
             if !exposed_headers.exists() {
                 bail!(
                     "Missing header files for {}:{}",
-                    indirect_dep.config.id.dependency_id_color(),
-                    indirect_dep.config.version.dependency_version_color()
+                    dep.0.id.dependency_id_color(),
+                    dep.0.version.dependency_version_color()
                 );
             }
 
-            paths.insert(
-                exposed_headers,
-                project_deps_headers_target.join(&indirect_dep.config.shared_dir),
-            );
-        }
-
-        // extra files
-        // while this is looped twice, generally I'd assume the compiler to properly
-        // optimize this and it's better readability
-        for referenced_dependency in &package.dependencies {
-            let shared_dep = restored_dependencies_map
-                .get(&referenced_dependency.id)
-                .unwrap();
-
-            let dep_cache_path = Self::get_package_triplet_cache_path(
-                &referenced_dependency.id,
-                &shared_dep.config.version,
-            );
-            let src_path = dep_cache_path.join("src");
-
-            let extern_headers_dep = extern_headers.join(&referenced_dependency.id);
-
-            if let Some(extras) = &referenced_dependency.additional_data.extra_files {
-                for extra in extras {
-                    let extra_src = src_path.join(extra);
-
-                    if !extra_src.exists() {
-                        bail!(
-                            "Missing extra {extra} for dependency {}:{}",
-                            referenced_dependency.id,
-                            shared_dep.config.version.to_string()
-                        );
-                    }
-
-                    paths.insert(extra_src, extern_headers_dep.join(extra));
-                }
-            }
+            paths.insert(exposed_headers, project_deps_headers_target);
         }
 
         paths.retain(|src, _| src.exists());
+
+        // ensure no collisions
+        let mut seen = HashSet::new();
+        for (src, dest) in &paths {
+            if !seen.insert(dest) {
+                bail!(
+                    "Collision detected for {} and {}",
+                    src.display().bright_yellow(),
+                    dest.display().bright_yellow()
+                );
+            }
+        }
 
         Ok(paths)
     }
@@ -571,9 +555,11 @@ impl Repository for FileRepository {
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
         let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
-        let file = FileRepository::collect_files_of_package(config);
+        let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        Ok(exist_in_db && file.is_ok())
+        let config = PackageConfig::read(&package_path.qpm_json_path());
+
+        Ok(exist_in_db && package_path.src_path().exists() && config.is_ok())
     }
 
     fn write_repo(&self) -> Result<()> {

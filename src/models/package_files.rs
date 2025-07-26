@@ -47,7 +47,7 @@ impl PackageVersionPath {
         self.versions_path().join(self.1.to_string())
     }
 
-    /// Returns the path to the source files for the package version.
+    /// Returns the path to the source files e.g headers for the package version.
     /// cache/{id}/{version}/src
     pub fn src_path(&self) -> PathBuf {
         self.base_path().join("src")
@@ -82,6 +82,10 @@ impl PackageTripletPath {
     /// cache/{id}/{version}/{triplet}/lib
     pub fn binaries_path(&self) -> PathBuf {
         self.triplet_path().join("lib")
+    }
+
+    pub fn binary_path(&self, binary: &PathBuf) -> PathBuf {
+        self.binaries_path().join(binary.file_name().expect("Binary file name"))
     }
 }
 

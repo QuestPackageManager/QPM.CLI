@@ -24,7 +24,7 @@ use qpm_package::{
         qpackages::QPackagesPackage,
         qpkg::{QPKG_JSON, QPkg},
         shared_package::{QPM_SHARED_JSON, SharedPackageConfig},
-        triplet::TripletId,
+        triplet::{self, TripletId},
     },
 };
 
@@ -221,7 +221,10 @@ impl QPMRepository {
 
         // copy binaries to lib folder
         for (triplet_id, triplet_info) in &qpkg_file.triplets {
-            let bin_dir = package_path.clone().triplet(triplet_id.clone()).binaries_path();
+            let bin_dir = package_path
+                .clone()
+                .triplet(triplet_id.clone())
+                .binaries_path();
 
             if !bin_dir.exists() {
                 fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
@@ -230,6 +233,7 @@ impl QPMRepository {
             for file in &triplet_info.files {
                 let src_file = tmp_path.join(file);
                 let dst_file = bin_dir.join(file.file_name().unwrap());
+                // copy as {cache}/{id}/{version}/{triplet}/lib/{file_name}
                 fs::copy(&src_file, &dst_file).with_context(|| {
                     format!(
                         "Failed to copy file from {} to {}",
@@ -237,6 +241,35 @@ impl QPMRepository {
                         dst_file.display().file_path_color()
                     )
                 })?;
+            }
+        }
+
+        // assert that the triplets binaries are present
+        for triplet in config.triplets.iter_triplets() {
+            let triplet_path = package_path
+                .clone()
+                .triplet(triplet.0.clone());
+            let triplet_bin_path = triplet_path
+                .binaries_path();
+            if !triplet_bin_path.exists() {
+                bail!(
+                    "Triplet binaries for {} not found in {}",
+                    triplet.0.triplet_id_color(),
+                    triplet_bin_path.display().file_path_color()
+                );
+            }
+
+            for binary in triplet.1.out_binaries.iter().flatten() {
+                // {cache}/{id}/{version}/{triplet}/lib/{binary}
+                let binary_path = triplet_path.binary_path(binary);
+                if !binary_path.exists() {
+                    bail!(
+                        "Binary {} not found in triplet {} at {}",
+                        binary.display().file_path_color(),
+                        triplet.0.triplet_id_color(),
+                        binary_path.display().file_path_color()
+                    );
+                }
             }
         }
 
