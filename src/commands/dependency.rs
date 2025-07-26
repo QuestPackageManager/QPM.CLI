@@ -5,8 +5,12 @@ use color_eyre::{
     eyre::{Context, ContextCompat, bail},
 };
 use owo_colors::OwoColorize;
-use qpm_package::models::package::PackageConfig;
-use semver::VersionReq;
+use qpm_package::models::{
+    package::{DependencyId, PackageConfig},
+    shared_package::SharedPackageConfig,
+    triplet::{self, PackageTripletDependency, TripletId},
+};
+use semver::{Version, VersionReq};
 
 use crate::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
@@ -42,6 +46,10 @@ pub struct DependencyOperationAddArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
 
+    /// Triplet to add the dependency to, if not specified, the default triplet is used
+    #[clap(long, short)]
+    pub triplet: Option<String>,
+
     /// optional version of the dependency that you want to add
     #[clap(short, long)]
     pub version: Option<VersionReq>,
@@ -74,6 +82,10 @@ pub struct DependencyOperationRemoveArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
 
+    /// Triplet to remove the dependency from, if not specified, the default triplet is used
+    #[clap(long, short)]
+    pub triplet: Option<String>,
+
     /// If the dependencies should be sorted after removing
     #[clap(long, default_value = "false")]
     pub sort: bool,
@@ -92,31 +104,28 @@ impl Command for DependencyCommand {
 
 impl Command for DependencyOperationAddArgs {
     fn execute(self) -> Result<()> {
-        if self.id == "yourmom" {
-            bail!("The dependency was too big to add, we can't add this one!");
-        }
+        let id = DependencyId(self.id);
 
         let repo = repository::useful_default_new(self.offline)?;
 
         let versions = repo
-            .get_package_versions(&self.id)
+            .get_package_versions(&id)
             .context("No version found for dependency")?;
 
         if versions.is_none() || versions.as_ref().unwrap().is_empty() {
             bail!(
                 "Package {} does not seem to exist qpackages, please make sure you spelled it right, and that it's an actual package!",
-                self.id.bright_green()
+                id.dependency_id_color()
             );
         }
 
         let version = match self.version {
             Option::Some(v) => v,
             // if no version given, use ^latest instead, should've specified a version idiot
-            Option::None => semver::VersionReq::parse(&format!(
-                "^{}",
-                versions.unwrap().first().unwrap().version
-            ))
-            .unwrap(),
+            Option::None => {
+                semver::VersionReq::parse(&format!("^{}", versions.unwrap().first().unwrap()))
+                    .unwrap()
+            }
         };
 
         let additional_data = match &self.additional_data {
@@ -124,14 +133,21 @@ impl Command for DependencyOperationAddArgs {
             Option::None => None,
         };
 
-        put_dependency(&self.id, version, additional_data, self.sort)
+        put_dependency(
+            &id,
+            self.triplet.map(TripletId).as_ref(),
+            version,
+            additional_data,
+            self.sort,
+        )
     }
 }
 
 fn put_dependency(
-    id: &str,
+    id: &DependencyId,
+    triplet: Option<&TripletId>,
     version: VersionReq,
-    additional_data: Option<PackageDependencyModifier>,
+    new_triplet_dep: Option<PackageTripletDependency>,
     sort: bool,
 ) -> Result<()> {
     println!(
@@ -141,32 +157,32 @@ fn put_dependency(
     );
 
     let mut package = PackageConfig::read(".")?;
-    let existing_dep = package.dependencies.iter_mut().find(|d| d.id == id);
-
-    let dep = PackageDependency {
-        id: id.to_string(),
-        version_range: version,
-        additional_data: existing_dep
-            .as_ref()
-            .map(|d| &d.additional_data)
-            .cloned()
-            .or(additional_data)
-            .unwrap_or_default(),
+    let triplet = match triplet {
+        Some(triplet) => package
+            .triplets
+            .specific_triplets
+            .get_mut(triplet)
+            .context("Triplet not found")?,
+        None => &mut package.triplets.default,
     };
 
-    match existing_dep {
-        // overwrite existing dep
-        Some(existing_dep) => {
-            println!("Dependency already in qpm.json, updating!");
-            *existing_dep = dep
-        }
-        // add dep
-        None => package.dependencies.push(dep),
+    let existing_dep = triplet.dependencies.get(id);
+
+    if existing_dep.is_some() {
+        println!("Dependency already in qpm.json, updating!");
     }
 
-    if sort {
-        package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
-    }
+    let dep = PackageTripletDependency {
+        version_range: version,
+        ..new_triplet_dep
+            .or(existing_dep.cloned())
+            .unwrap_or_default()
+    };
+    triplet.dependencies.insert(id.clone(), dep);
+
+    // if sort {
+    //     triplet.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+    // }
 
     package.write(".")?;
     Ok(())
@@ -174,70 +190,80 @@ fn put_dependency(
 
 fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
-    package.dependencies.retain(|p| p.id != dependency_args.id);
 
-    if dependency_args.sort {
-        package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
-    }
+    let triplet = match dependency_args.triplet {
+        Some(triplet) => package
+            .triplets
+            .specific_triplets
+            .get_mut(&TripletId(triplet))
+            .context("Triplet not found")?,
+        None => &mut package.triplets.default,
+    };
+
+    triplet
+        .dependencies
+        .retain(|p, _| p.0 != dependency_args.id);
+
+    // if dependency_args.sort {
+    //     triplet.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+    // }
 
     package.write(".")?;
     Ok(())
 }
 
 fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Result<()> {
+    let id = DependencyId(dependency_args.id);
+
     let mut repository = repository::useful_default_new(false)?;
     let version = match dependency_args.version {
         Some(v) => v,
         _ => {
-            let versions = repository
-                .get_package_versions(&dependency_args.id)?
-                .with_context(|| {
-                    format!(
-                        "Package {} does not seem to exist, please make sure you spelled it right.",
-                        dependency_args.id.dependency_id_color()
-                    )
-                })?;
+            let versions = repository.get_package_versions(&id)?.with_context(|| {
+                format!(
+                    "Package {} does not seem to exist, please make sure you spelled it right.",
+                    id.dependency_id_color()
+                )
+            })?;
 
             // return the latest version
-            versions.first().expect("No versions?").version.clone()
+            versions.first().expect("No versions?").clone()
         }
     };
 
-    let dep = repository
-        .get_package(&dependency_args.id, &version)?
-        .with_context(|| {
-            format!(
-                "Failed to resolve package {}:{}",
-                dependency_args.id.dependency_id_color(),
-                version.dependency_version_color()
-            )
-        })?;
+    let package = repository.get_package(&id, &version)?.with_context(|| {
+        format!(
+            "Failed to resolve package {}:{}",
+            id.dependency_id_color(),
+            version.dependency_version_color()
+        )
+    })?;
+
+    let version = package.version.clone();
 
     // if recursive is true, resolve the dependencies of the package
     if dependency_args.recursive
         && let Ok(resolved_deps) =
-            SharedPackageConfig::resolve_from_package(dep.config.clone(), &repository)
+            SharedPackageConfig::resolve_from_package(package.clone(), &repository)
     {
         let resolved_deps = resolved_deps.1;
 
-        for dep in resolved_deps {
-            println!(
-                "Pulling {}:{}",
-                dep.config.info.id.dependency_id_color(),
-                dep.config
-                    .info
-                    .version
-                    .to_string()
-                    .dependency_version_color()
-            );
-            repository.download_to_cache(&dep.config).with_context(|| {
-                format!(
-                    "Requesting {}:{}",
-                    dep.config.info.id.dependency_id_color(),
-                    dep.config.info.version.version_id_color()
-                )
-            })?;
-            repository.add_to_db_cache(dep.clone(), true)?;
+        for (_triplet, triplet_deps) in resolved_deps {
+            for dep in triplet_deps {
+                println!(
+                    "Pulling {}:{}",
+                    id.dependency_id_color(),
+                    version.to_string().dependency_version_color()
+                );
+                repository.download_to_cache(&dep.0).with_context(|| {
+                    format!(
+                        "Requesting {}:{}",
+                        id.dependency_id_color(),
+                        version.version_id_color()
+                    )
+                })?;
+                repository.add_to_db_cache(dep.0, true)?;
+            }
         }
 
         repository.write_repo()?;
@@ -245,21 +271,17 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
 
     println!(
         "Pulling {}:{}",
-        dep.config.info.id.dependency_id_color(),
-        dep.config
-            .info
-            .version
-            .to_string()
-            .dependency_version_color()
+        id.dependency_id_color(),
+        version.to_string().dependency_version_color()
     );
-    repository.download_to_cache(&dep.config).with_context(|| {
+    repository.download_to_cache(&package).with_context(|| {
         format!(
             "Requesting {}:{}",
-            dep.config.info.id.dependency_id_color(),
-            dep.config.info.version.version_id_color()
+            id.dependency_id_color(),
+            version.version_id_color()
         )
     })?;
-    repository.add_to_db_cache(dep.clone(), true)?;
+    repository.add_to_db_cache(package, true)?;
 
     repository.write_repo()?;
 
