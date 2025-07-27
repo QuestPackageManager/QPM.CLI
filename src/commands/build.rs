@@ -9,7 +9,10 @@ use qpm_package::{
 };
 
 use crate::{
-    commands::scripts, models::package::PackageConfigExtensions, repository, resolver::dependency,
+    commands::{qmod::zip, scripts},
+    models::package::PackageConfigExtensions,
+    repository,
+    resolver::dependency,
     terminal::colors::QPMColor,
 };
 
@@ -24,6 +27,9 @@ pub struct BuildCommand {
 
     #[clap(short, long, default_value = "false")]
     pub out_dir: Option<PathBuf>,
+
+    #[clap(long, default_value = "false")]
+    pub qmod: bool,
 }
 
 impl Command for BuildCommand {
@@ -70,12 +76,18 @@ impl Command for BuildCommand {
             );
             scripts::invoke_script(script, &args, &package, triplet_id)?;
 
+            let triplet_dir = out_dir.join(&triplet_id.0);
+
             // now copy binaries
             copy_bins(
-                &out_dir,
-                triplet_id,
+                &triplet_dir,
                 &triplet.out_binaries.unwrap_or_default(),
             )?;
+
+            // finally qmod
+            if self.qmod {
+                zip::execute_qmod_zip_operation(Default::default(), &[&triplet_dir])?;
+            }
         }
 
         Ok(())
@@ -83,13 +95,12 @@ impl Command for BuildCommand {
 }
 
 fn copy_bins(
-    out_dir: &Path,
-    triplet_id: &qpm_package::models::triplet::TripletId,
+    triplet_dir: &Path,
     out_binaries: &[PathBuf],
 ) -> color_eyre::Result<()> {
     for binary in out_binaries {
         // create the output directory if it doesn't exist
-        let out_path = out_dir.join(triplet_id.to_string()).join(binary);
+        let out_path = triplet_dir.join(binary);
 
         std::fs::create_dir_all(out_path.parent().unwrap()).with_context(|| {
             format!(
@@ -102,7 +113,7 @@ fn copy_bins(
             format!(
                 "Failed to copy binary {} to output directory {}",
                 binary.display(),
-                out_dir.display()
+                triplet_dir.display()
             )
         })?;
     }

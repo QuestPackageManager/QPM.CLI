@@ -6,7 +6,7 @@ use super::Command;
 mod create;
 mod edit;
 mod manifest;
-mod zip;
+pub mod zip;
 
 #[derive(Args, Debug, Clone)]
 
@@ -47,7 +47,7 @@ impl Command for QmodCommand {
                 manifest::execute_qmod_manifest_operation(b)
             }
             QmodOperation::Manifest(b) => manifest::execute_qmod_manifest_operation(b),
-            QmodOperation::Zip(b) => zip::execute_qmod_zip_operation(b),
+            QmodOperation::Zip(b) => zip::execute_qmod_zip_operation(b, &[]),
             QmodOperation::Edit(e) => e.execute(),
         }
     }

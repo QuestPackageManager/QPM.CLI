@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Args;
 use itertools::Itertools;
@@ -24,7 +24,7 @@ use color_eyre::eyre::ensure;
 
 use color_eyre::Result;
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct ZipQmodOperationArgs {
     ///
     /// Tells QPM to exclude mods from being listed as copied mod or libs dependencies
@@ -84,7 +84,10 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
     Ok(relative_path)
 }
 
-pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs) -> Result<()> {
+pub fn execute_qmod_zip_operation(
+    build_parameters: ZipQmodOperationArgs,
+    additional_include_folders: &[&Path],
+) -> Result<()> {
     ensure!(
         std::path::Path::new("mod.template.json").exists(),
         "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\""
@@ -126,14 +129,20 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         .include_dirs
         .unwrap_or(package.workspace.qmod_include_dirs);
 
-    let include_files = build_parameters
-        .include_files
-        .unwrap_or(package.workspace.qmod_include_files);
+    let include_files = additional_include_folders
+        .iter()
+        .map(PathBuf::from)
+        .chain(
+            build_parameters
+                .include_files
+                .unwrap_or(package.workspace.qmod_include_files),
+        )
+        .collect_vec();
 
     let qmod_out = build_parameters
         .out_target
         .or(package.workspace.qmod_output)
-        .unwrap_or(format!("./{}", package.id).into());
+        .unwrap_or(format!("./{}", new_manifest.id).into());
 
     let look_for_files = |s: &str| {
         include_dirs
