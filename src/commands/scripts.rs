@@ -105,6 +105,12 @@ pub fn invoke_script(
                 .map(|(k, v)| (format!("QPM_{k}"), v.as_str())),
         );
 
+        // QPM defined environment variables
+        c.env("QPM_ACTIVE_TRIPLET", triplet_id.to_string())
+            .env("QPM_QMOD_ID", triplet.qmod_id.as_deref().unwrap_or(package.id.0.as_str()))
+            .env("QPM_PACKAGE_ID", package.id.to_string())
+            .env("QPM_PACKAGE_VERSION", package.version.to_string());
+
         // Set the environment variable for Android NDK home if provided
         if let Some(path) = &android_ndk_home {
             c.env("ANDROID_NDK_HOME", path);
