@@ -23,6 +23,9 @@ pub struct CollapseCommand {
 
     #[clap(long, short)]
     pub triplet: Option<String>,
+
+    #[clap(long, short)]
+    pub env: bool,
 }
 
 impl Command for CollapseCommand {
@@ -33,7 +36,7 @@ impl Command for CollapseCommand {
             Some(triplet) => {
                 let triplet_id = TripletId(triplet);
 
-                list_triplet_dependencies(package, &repo, &triplet_id)?
+                list_triplet_dependencies(package, &repo, &triplet_id, self.env)?
             }
             None => {
                 println!("Listing dependencies for all triplets");
@@ -46,7 +49,7 @@ impl Command for CollapseCommand {
                         "Listing dependencies for triplet {}",
                         triplet.0.triplet_id_color()
                     );
-                    list_triplet_dependencies(package.clone(), &repo, &triplet.0).with_context(
+                    list_triplet_dependencies(package.clone(), &repo, &triplet.0, self.env).with_context(
                         || {
                             format!(
                                 "Failed to list dependencies for triplet {}",
@@ -65,6 +68,7 @@ fn list_triplet_dependencies(
     package: PackageConfig,
     repo: &impl repository::Repository,
     triplet_id: &TripletId,
+    print_env: bool,
 ) -> Result<(), color_eyre::eyre::Error> {
     let resolved = resolve(&package, repo, triplet_id)?;
     for resolved_dep in resolved.sorted_by(|a, b| a.0.id.cmp(&b.0.id)) {
@@ -82,6 +86,13 @@ fn list_triplet_dependencies(
             triplet.triplet_id_color(),
             sum.to_string().yellow()
         );
+
+        if print_env {
+            println!("Environment variables:");
+            for (key, value) in triplet_config.env.iter() {
+                println!(" - {}: {}", key.cyan(), value.green());
+            }
+        }
 
         for (dep_id, shared_dep) in triplet_config.dependencies.iter() {
             println!(
