@@ -9,7 +9,6 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
 use qpm_package::models::shared_package::SharedPackageConfig;
-use qpm_package::models::triplet::{TripletId, default_triplet_id};
 use qpm_qmod::models::mod_json::ModJson;
 
 use crate::commands::qmod::manifest::{ManifestQmodOperationArgs, generate_qmod_manifest};

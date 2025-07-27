@@ -17,10 +17,11 @@ required-features = []
 
 
 [features]
-default = ["templatr", "network_test", "cli"]
+default = ["templatr", "network_test", "cli", "gitoxide"]
 templatr = ["dep:templatr"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:pbr"]
 network_test = []
+gitoxide = ["dep:gix"]
 
 [build-dependencies]
 vergen = { version = "8", features = [
@@ -62,6 +63,15 @@ reqwest = { version = "0.12", features = [
     "brotli",
     "rustls-tls",
 ], default-features = false }
+
+gix = { version = "*", features = [
+    "command",
+    "attributes",
+    "progress-tree",
+    "worktree-mutation",
+    "blocking-network-client",
+    "blocking-http-transport-reqwest-rust-tls",
+], optional = true, default-features = false }
 
 clap = { version = "4", features = ["derive"], optional = true }
 clap_complete = { version = "4", optional = true }

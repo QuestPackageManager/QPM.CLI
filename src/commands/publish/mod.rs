@@ -1,5 +1,5 @@
-use clap::{Args, Parser, ValueEnum};
-use color_eyre::eyre::{Context, ContextCompat, anyhow, bail};
+use clap::{Args, ValueEnum};
+use color_eyre::eyre::{Context, ContextCompat, bail};
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::PackageConfig,
@@ -27,7 +27,7 @@ pub struct PublishCommand {
     pub qpkg_url: String,
 
     #[clap(long, default_value = "qpackages")]
-    pub backend: Backend,
+    backend: Backend,
 
     /// the authorization header to use for publishing, if present
     #[clap(long = "token")]
@@ -43,11 +43,9 @@ impl Command for PublishCommand {
         let shared_package = SharedPackageConfig::read(".")?;
 
         for (triplet_id, shared_triplet) in &shared_package.locked_triplet {
-            check_triplet(&package, &qpackages, &triplet_id, &shared_triplet)
+            check_triplet(&package, &qpackages, triplet_id, shared_triplet)
                 .with_context(|| format!("Triplet {triplet_id}"))?;
         }
-
-
 
         if let Some(key) = &self.publish_auth {
             QPMRepository::publish_package(&shared_package, key)?;
@@ -80,11 +78,14 @@ fn check_triplet(
 ) -> Result<(), color_eyre::eyre::Error> {
     let triplet = package
         .triplets
-        .get_triplet(&triplet_id)
+        .get_triplet(triplet_id)
         .context("Failed to get triplet settings")?;
     let resolved_deps = &shared_triplet.restored_dependencies;
     for (dep_id, dep) in resolved_deps {
-        if let Option::None = qpackages.get_package(&dep_id, &dep.restored_version)? {
+        if qpackages
+            .get_package(dep_id, &dep.restored_version)?
+            .is_none()
+        {
             bail!(
                 "dependency {} was not available on qpackages in the given version range",
                 &dep_id.dependency_id_color()
@@ -113,7 +114,6 @@ fn check_triplet(
     }
 
     // check if url is set to download headers
-
 
     Ok(())
 }

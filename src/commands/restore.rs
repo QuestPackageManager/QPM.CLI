@@ -15,11 +15,8 @@ use qpm_package::models::{
 use semver::Version;
 
 use crate::{
-    models::{
-        config::get_combine_config,
-        package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-    },
-    repository::{self, Repository},
+    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    repository::{self},
     resolver::dependency,
     terminal::colors::QPMColor,
 };
@@ -48,7 +45,7 @@ pub(crate) fn is_ignored() -> bool {
         excludes.is_ok_and(|mut attribute| {
             attribute
                 .at_path(
-                    SHARED_PACKAGE_FILE_NAME,
+                    QPM_SHARED_JSON,
                     Some(gix::index::entry::Mode::FILE),
                 )
                 .is_ok_and(|e| e.is_excluded())
@@ -113,7 +110,7 @@ impl Command for RestoreCommand {
                     .get(&triplet_id)
                     .expect("Locked triplet should exist");
 
-                dependency::locked_resolve(shared_package, &repo, &shared_triplet)?.collect_vec()
+                dependency::locked_resolve(shared_package, &repo, shared_triplet)?.collect_vec()
             }
             // Unlocked resolve
             _ => {
@@ -161,7 +158,7 @@ fn is_modified(
         return true;
     };
 
-    let Some(locked_triplet) = shared_package.locked_triplet.get(&triplet_id) else {
+    let Some(locked_triplet) = shared_package.locked_triplet.get(triplet_id) else {
         return true;
     };
 
@@ -182,7 +179,7 @@ fn is_modified(
         }
     }
 
-    return false;
+    false
 }
 
 pub fn validate_ndk(package: &PackageConfig) -> Result<()> {

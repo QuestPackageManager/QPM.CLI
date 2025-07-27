@@ -1,16 +1,14 @@
-use clap::{Args, Subcommand};
+use clap::Args;
 use color_eyre::eyre::ContextCompat;
 use qpm_package::models::{
     package::PackageConfig,
     shared_package::SharedPackageConfig,
-    triplet::{PackageTriplet, TripletId},
+    triplet::TripletId,
 };
 
 use crate::{
     commands::Command,
     models::package::PackageConfigExtensions,
-    repository::{self},
-    utils::toggle::Toggle,
 };
 
 #[derive(Args, Debug, Clone)]

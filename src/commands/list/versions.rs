@@ -1,5 +1,4 @@
 use clap::Args;
-use color_eyre::eyre::ContextCompat;
 use owo_colors::OwoColorize;
 use qpm_package::models::package::DependencyId;
 

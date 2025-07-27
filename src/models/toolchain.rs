@@ -29,7 +29,7 @@ pub fn write_toolchain_file(
         .restored_dependencies
         .iter()
         .filter_map(|(dep_id, dep_triplet)| {
-            let dep_config = repo.get_package(&dep_id, &dep_triplet.restored_version).ok()??;
+            let dep_config = repo.get_package(dep_id, &dep_triplet.restored_version).ok()??;
             let dep_triplet_config = dep_config.triplets.get_triplet_settings(&dep_triplet.restored_triplet)?;
 
             let package_id = &dep_config.id;

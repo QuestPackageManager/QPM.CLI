@@ -6,7 +6,6 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
-    shared_package::SharedPackageConfig,
     triplet::TripletId,
 };
 use schemars::JsonSchema;
@@ -127,11 +126,11 @@ impl FileRepository {
         }
 
         if cache_path.src_path().exists() {
-            fs::remove_dir_all(&cache_path.src_path())
+            fs::remove_dir_all(cache_path.src_path())
                 .context("Failed to remove existing src folder")?;
         }
 
-        fs::create_dir_all(&cache_path.src_path()).context("Failed to create lib path")?;
+        fs::create_dir_all(cache_path.src_path()).context("Failed to create lib path")?;
 
         for binary_src in binaries {
             if !binary_src.exists() {
@@ -557,7 +556,7 @@ impl Repository for FileRepository {
         let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        let config = PackageConfig::read(&package_path.qpm_json_path());
+        let config = PackageConfig::read(package_path.qpm_json_path());
 
         Ok(exist_in_db && package_path.src_path().exists() && config.is_ok())
     }

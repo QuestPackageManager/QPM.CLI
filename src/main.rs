@@ -1,6 +1,5 @@
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
-#![feature(let_chains)]
 #![feature(exit_status_error)]
 #![feature(if_let_guard)]
 #![feature(path_add_extension)]

@@ -2,7 +2,7 @@ use color_eyre::Result;
 use itertools::Itertools;
 use semver::Version;
 
-use qpm_package::models::{package::{DependencyId, PackageConfig}, shared_package::SharedPackageConfig};
+use qpm_package::models::package::{DependencyId, PackageConfig};
 
 use self::{
     local::FileRepository, memcached::MemcachedRepository, multi::MultiDependencyRepository,

@@ -23,7 +23,7 @@ use pubgrub::{
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::{SharedPackageConfig, SharedTriplet},
-    triplet::{PackageTriplet, PackageTripletDependency, PackageTripletsConfig, TripletId},
+    triplet::{PackageTriplet, TripletId},
 };
 
 /// Represents a resolved dependency
@@ -190,8 +190,8 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
         // Count versions that satisfy the range constraint
         let version_count = versions
-            .iter()
-            .filter(|v| range.contains(&VersionWrapper(v.clone().clone())))
+            .into_iter()
+            .filter(|v| range.contains(&VersionWrapper(v.clone())))
             .count();
 
         // If no versions satisfy the constraint, use maximum priority
@@ -265,7 +265,7 @@ pub fn restore<P: AsRef<Path>>(
             &dep.version.to_string().dependency_version_color(),
             dep_triplet.0.triplet_id_color()
         );
-        repository.download_to_cache(&dep).with_context(|| {
+        repository.download_to_cache(dep).with_context(|| {
             format!(
                 "Requesting {}:{}",
                 dep.id.0.dependency_id_color(),
@@ -293,7 +293,7 @@ pub fn locked_resolve<'a, R: Repository>(
     // TODO: ensure restored dependencies take precedence over
     let packages = triplet.restored_dependencies.iter().map(|(dep_id, dep)| {
         let shared_package = repository
-            .get_package(&dep_id, &dep.restored_version)
+            .get_package(dep_id, &dep.restored_version)
             .unwrap_or_else(|e| {
                 panic!(
                     "Encountered an issue resolving for package {}:{} {e:#?}",

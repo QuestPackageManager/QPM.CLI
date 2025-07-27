@@ -1,7 +1,7 @@
 use color_eyre::{Result, eyre::bail};
 use itertools::Itertools;
 
-use qpm_package::models::{package::{DependencyId, PackageConfig}, shared_package::SharedPackageConfig};
+use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 
 use super::Repository;
@@ -32,7 +32,7 @@ impl Repository for MultiDependencyRepository {
             .filter_map(|r| r.get_package_versions(id).expect("Failed to get versions"))
             .flatten()
             .unique()
-            .sorted_by(|a, b| a.cmp(&b))
+            .sorted_by(|a, b| a.cmp(b))
             .rev() // highest first
             .collect();
 

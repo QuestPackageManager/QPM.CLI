@@ -4,17 +4,16 @@ use color_eyre::{
     Result,
     eyre::{Context, ContextCompat, bail},
 };
-use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::SharedPackageConfig,
-    triplet::{self, PackageTripletDependency, TripletId},
+    triplet::{PackageTripletDependency, TripletId},
 };
 use semver::{Version, VersionReq};
 
 use crate::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-    repository::{self, Repository, local::FileRepository},
+    repository::{self, Repository},
     terminal::colors::QPMColor,
 };
 

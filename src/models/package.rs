@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    io::BufReader,
-    path::Path,
-};
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 use color_eyre::{
     Result, Section,
@@ -20,7 +15,6 @@ use qpm_package::models::{
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
-use serde::de;
 
 use crate::{
     repository::Repository,
@@ -190,8 +184,8 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         let triplet_dependencies: HashMap<TripletId, _> = config
             .triplets
             .specific_triplets
-            .iter()
-            .map(|(triplet_id, _triplet)| -> color_eyre::Result<_> {
+            .keys()
+            .map(|triplet_id| -> color_eyre::Result<_> {
                 let resolved = resolve(&config, repository, triplet_id)?.collect_vec();
 
                 Ok((triplet_id.clone(), resolved))
@@ -267,7 +261,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
 
                 // get the package config for the dependency
                 let dep_package = repo
-                    .get_package(&dep_id, &shared_dep_triplet.restored_version)
+                    .get_package(dep_id, &shared_dep_triplet.restored_version)
                     .expect("Failed to get package")
                     .expect("Package should exist in repository");
 
@@ -295,10 +289,10 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         // mods that are header-only but provide qmods can be added as deps
         // Must be directly referenced in qpm.json
         let mods: Vec<ModDependency> = direct_dependencies
-            .iter()
+            .values()
             // Removes any dependency without a qmod link
-            .filter(|(dep_package, result)| result.dep_triplet.qmod_url.is_some())
-            .map(|(dep_config, result)| ModDependency {
+            .filter(|result| result.dep_triplet.qmod_url.is_some())
+            .map(|result| ModDependency {
                 version_range: result.restored_triplet.version_range.clone(),
                 id: result.dep_config.id.0.clone(),
                 mod_link: result.dep_triplet.qmod_url.clone(),
@@ -363,8 +357,8 @@ impl SharedTripletExtensions for SharedTriplet {
 
         let dep_env = self
             .restored_dependencies
-            .iter()
-            .map(|(dep_id, dep)| &dep.restored_env)
+            .values()
+            .map(|dep| &dep.restored_env)
             .collect_vec();
 
         // ensure no key collisions
@@ -373,8 +367,7 @@ impl SharedTripletExtensions for SharedTriplet {
             for (key, value) in env {
                 if flattened_map.contains_key(key) {
                     eprintln!(
-                        "Warning: Environment variable {} is defined multiple times, using the last value.",
-                        key
+                        "Warning: Environment variable {key} is defined multiple times, using the last value."
                     );
                 }
                 flattened_map.insert(key.clone(), value.clone());

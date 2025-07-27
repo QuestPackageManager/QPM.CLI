@@ -16,10 +16,11 @@ pub mod ndk;
 pub mod package;
 pub mod publish;
 pub mod qmod;
+pub mod qpkg;
 pub mod restore;
 pub mod scripts;
+pub mod build;
 pub mod version;
-pub mod qpkg;
 
 #[cfg(feature = "templatr")]
 pub mod templatr;
@@ -85,6 +86,9 @@ pub enum MainCommand {
 
     /// QPKG control
     QPkg(qpkg::QPkgCommand),
+
+    /// Triplet commands
+    Triplet(build::BuildCommand),
 }
 
 impl Command for MainCommand {
@@ -108,7 +112,9 @@ impl Command for MainCommand {
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
             MainCommand::GenSchema(g) => g.execute(),
+
             MainCommand::QPkg(q) => q.execute(),
+            MainCommand::Triplet(t) => t.execute(),
 
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),

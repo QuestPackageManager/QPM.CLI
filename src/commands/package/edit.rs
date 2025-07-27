@@ -5,7 +5,6 @@ use semver::Version;
 use crate::{
     commands::Command,
     models::package::PackageConfigExtensions,
-    repository::{self},
 };
 
 #[derive(Args, Debug, Clone)]

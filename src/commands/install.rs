@@ -1,14 +1,11 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre::{bail, Context, ContextCompat};
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{package::PackageConfig, shared_package::SharedPackageConfig},
-};
+use qpm_package::models::shared_package::SharedPackageConfig;
 
 use crate::{
-    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    models::package::PackageConfigExtensions,
     repository::{self, local::FileRepository},
 };
 

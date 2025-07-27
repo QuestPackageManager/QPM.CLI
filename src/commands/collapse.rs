@@ -4,7 +4,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::PackageConfig,
-    triplet::{self, TripletId},
+    triplet::TripletId,
 };
 
 use crate::{

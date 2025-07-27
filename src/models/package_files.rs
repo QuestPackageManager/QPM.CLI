@@ -1,4 +1,4 @@
-use std::{ops::Deref, path::PathBuf};
+use std::{ops::Deref, path::{Path, PathBuf}};
 
 use qpm_package::models::{
     package::{DependencyId, QPM_JSON},
@@ -28,7 +28,7 @@ impl PackageIdPath {
     pub fn versions_path(&self) -> PathBuf {
         let combine = UserConfig::read_combine().unwrap();
         let cache = combine.cache.as_ref().unwrap();
-        cache.join(&self.0.to_string())
+        cache.join(self.0.to_string())
     }
 }
 
@@ -84,7 +84,7 @@ impl PackageTripletPath {
         self.triplet_path().join("lib")
     }
 
-    pub fn binary_path(&self, binary: &PathBuf) -> PathBuf {
+    pub fn binary_path(&self, binary: &Path) -> PathBuf {
         self.binaries_path().join(binary.file_name().expect("Binary file name"))
     }
 }

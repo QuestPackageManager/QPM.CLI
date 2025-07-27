@@ -3,7 +3,7 @@ use color_eyre::Result;
 use semver::Version;
 use std::{cell::UnsafeCell, collections::HashMap};
 
-use qpm_package::models::{package::{DependencyId, PackageConfig}, shared_package::SharedPackageConfig};
+use qpm_package::models::package::{DependencyId, PackageConfig};
 
 use super::Repository;
 

@@ -1,6 +1,6 @@
 use bytes::{BufMut, BytesMut};
 use color_eyre::{
-    Result, Section,
+    Result,
     eyre::{Context, ContextCompat, OptionExt, bail},
 };
 use itertools::Itertools;
@@ -9,34 +9,27 @@ use reqwest::StatusCode;
 use semver::Version;
 use sha2::{Digest, Sha256};
 use std::{
-    fs::{self, File},
-    io::{BufWriter, Cursor},
-    path::{Path, PathBuf},
+    fs::{self},
+    io::Cursor,
 };
 use zip::ZipArchive;
 
 use serde::Deserialize;
 
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{
+use qpm_package::models::{
         package::{DependencyId, PackageConfig},
         qpackages::QPackagesPackage,
         qpkg::{QPKG_JSON, QPkg},
-        shared_package::{QPM_SHARED_JSON, SharedPackageConfig},
-        triplet::{self, TripletId},
-    },
-};
+        shared_package::SharedPackageConfig,
+    };
 
 use crate::{
     models::{
-        config::get_combine_config, package::PackageConfigExtensions, package_files::PackageIdPath,
+        package::PackageConfigExtensions, package_files::PackageIdPath,
         qpackages::QPackageExtensions, qpkg::QPkgExtensions,
     },
     network::agent::{download_file_report, get_agent},
-    repository::local::FileRepository,
     terminal::colors::QPMColor,
-    utils::git,
 };
 
 use super::Repository;
@@ -168,7 +161,7 @@ impl QPMRepository {
         let mut bytes = BytesMut::new().writer();
 
         println!("Downloading {}", qpkg_url.file_path_color());
-        download_file_report(&qpkg_url, &mut bytes, |_, _| {})
+        download_file_report(qpkg_url, &mut bytes, |_, _| {})
             .with_context(|| format!("Failed while downloading {}", qpkg_url.blue()))?;
 
         let buffer = Cursor::new(bytes.get_ref());
@@ -307,7 +300,7 @@ impl Repository for QPMRepository {
         let versions = Self::get_versions(id)?.map(|versions| {
             versions
                 .into_iter()
-                .sorted_by(|a, b| a.cmp(&b))
+                .sorted_by(|a, b| a.cmp(b))
                 .rev()
                 .collect_vec()
         });

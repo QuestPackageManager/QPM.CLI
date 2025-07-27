@@ -10,7 +10,7 @@ use color_eyre::{Result, eyre::Context};
 use itertools::Itertools;
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 
-use crate::{commands::Opt, utils::json};
+use crate::utils::json;
 
 use super::schemas::{SchemaLinks, WithSchema};
 

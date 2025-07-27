@@ -39,7 +39,7 @@ pub fn reserialize_package(sort: bool) -> Result<()> {
     // Check if the qpm.shared.json file exists
     if fs::exists("qpm.shared.json").unwrap_or(false) {
         // Read the shared package
-        let mut shared_package = SharedPackageConfig::read(".")?;
+        let shared_package = SharedPackageConfig::read(".")?;
 
         if sort {
             // Sort the dependencies by id
