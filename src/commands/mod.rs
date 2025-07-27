@@ -19,6 +19,7 @@ pub mod qmod;
 pub mod restore;
 pub mod scripts;
 pub mod version;
+pub mod qpkg;
 
 #[cfg(feature = "templatr")]
 pub mod templatr;
@@ -81,6 +82,9 @@ pub enum MainCommand {
 
     #[command(hide = true)]
     GenSchema(genschema::GenSchemaCommand),
+
+    /// QPKG control
+    QPkg(qpkg::QPkgCommand),
 }
 
 impl Command for MainCommand {
@@ -104,6 +108,8 @@ impl Command for MainCommand {
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
             MainCommand::GenSchema(g) => g.execute(),
+            MainCommand::QPkg(q) => q.execute(),
+
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
         }

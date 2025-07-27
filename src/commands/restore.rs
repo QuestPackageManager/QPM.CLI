@@ -134,8 +134,6 @@ impl Command for RestoreCommand {
         };
 
         // write the ndk path to a file if available
-        let _config = get_combine_config();
-
         let shared_package = shared_package_opt.expect("SharedPackage is None somehow!");
 
         // always write to reflect config changes

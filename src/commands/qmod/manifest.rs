@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use qpm_package::extensions::package_metadata::PackageMetadataExtensions;
 use qpm_package::models::shared_package::{self, SharedPackageConfig};
 use qpm_package::models::triplet::{QPM_ENV_GAME_ID, QPM_ENV_GAME_VERSION, TripletId};
 use semver::VersionReq;
@@ -41,15 +40,17 @@ pub struct ManifestQmodOperationArgs {
 pub(crate) fn execute_qmod_manifest_operation(
     build_parameters: ManifestQmodOperationArgs,
 ) -> Result<()> {
+    let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
-    let new_json = generate_qmod_manifest(shared_package, build_parameters)?;
+    let new_json = generate_qmod_manifest(&package, shared_package, build_parameters)?;
     // Write mod.json
     new_json.write(&PathBuf::from(ModJson::get_result_name()))?;
     Ok(())
 }
 
 pub(crate) fn generate_qmod_manifest(
+    package: &PackageConfig,
     shared_package: SharedPackageConfig,
     build_parameters: ManifestQmodOperationArgs,
 ) -> Result<ModJson> {
@@ -59,7 +60,6 @@ pub(crate) fn generate_qmod_manifest(
     );
     println!("Generating mod.json file from template using qpm.shared.json...");
 
-    let package = &shared_package.config;
     let shared_triplet = shared_package.get_restored_triplet();
     let triplet = package
         .triplets
@@ -71,13 +71,16 @@ pub(crate) fn generate_qmod_manifest(
     let game_version = env.get(QPM_ENV_GAME_VERSION);
     let game_id = env.get(QPM_ENV_GAME_ID);
 
-    let binaries = shared_triplet
+    let binaries = triplet
         .out_binaries
         .iter()
+        .flatten()
         .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
         .collect();
 
-    let mod_id = triplet.qmod_id.unwrap_or(shared_package.config.id.0.clone());
+    let mod_id = triplet
+        .qmod_id
+        .unwrap_or(shared_package.config.id.0.clone());
 
     let preprocess_data = PreProcessingData {
         version: shared_package.config.version.to_string(),
@@ -91,7 +94,7 @@ pub(crate) fn generate_qmod_manifest(
         additional_env: env.clone(),
     };
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
-    
+
     let repo = repository::useful_default_new(build_parameters.offline)?;
     let template_mod_json: ModJson = shared_package.clone().to_mod_json(&repo);
 

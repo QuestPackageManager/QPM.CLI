@@ -1,14 +1,18 @@
 use std::fs;
 
 use clap::Args;
-use color_eyre::Result;
-use qpm_package::models::package::PackageConfig;
+use color_eyre::{eyre::ContextCompat, Result};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig, triplet::default_triplet_id};
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
 
 #[derive(Args, Debug, Clone)]
 
-pub struct FormatArgs {}
+pub struct FormatArgs {
+    /// Triplet to format the package for
+    #[clap(long, short)]
+    pub triplet: Option<String>,
+}
 
 impl Command for FormatArgs {
     fn execute(self) -> color_eyre::Result<()> {
@@ -19,10 +23,14 @@ impl Command for FormatArgs {
 
 pub fn reserialize_package(sort: bool) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
+    let triplet = package
+        .triplets
+        .get_triplet_mut(&default_triplet_id())
+        .context("Failed to get triplet settings")?;
 
     if sort {
         // Sort the dependencies by id
-        package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+        // triplet.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
     }
 
     // Write the package back to the file
@@ -35,10 +43,10 @@ pub fn reserialize_package(sort: bool) -> Result<()> {
 
         if sort {
             // Sort the dependencies by id
-            shared_package
-                .config
-                .dependencies
-                .sort_by(|a, b| a.id.cmp(&b.id));
+            // shared_package
+            //     .config
+            //     .dependencies
+            //     .sort_by(|a, b| a.id.cmp(&b.id));
         }
 
         // Write the shared package back to the file

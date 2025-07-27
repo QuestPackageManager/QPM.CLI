@@ -227,7 +227,6 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                 let shared_triplet = SharedTriplet {
                     restored_dependencies,
                     env: package_triplet.env.clone(),
-                    out_binaries: package_triplet.out_binaries.clone().unwrap_or_default(),
                 };
 
                 (package_triplet_id.clone(), shared_triplet)

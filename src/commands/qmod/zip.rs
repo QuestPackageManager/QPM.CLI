@@ -56,10 +56,6 @@ pub struct ZipQmodOperationArgs {
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
 
-    /// The triplet to build the mod for
-    #[clap(long, short)]
-    pub triplet: Option<String>,
-
     /// Run the clean script before building
     #[clap(long = "clean", default_value = "false")]
     pub(crate) clean: bool,
@@ -97,7 +93,10 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let shared_package = SharedPackageConfig::read(".")?;
     let package = PackageConfig::read(".")?;
 
+    let triplet = shared_package.restored_triplet.clone();
+
     let new_manifest = generate_qmod_manifest(
+        &package,
         shared_package,
         ManifestQmodOperationArgs {
             exclude_libs: build_parameters.exclude_libs.clone(),
@@ -105,11 +104,6 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
             offline: build_parameters.offline,
         },
     )?;
-
-    let triplet = build_parameters
-        .triplet
-        .map(TripletId)
-        .unwrap_or_else(default_triplet_id);
 
     if build_parameters.clean {
         // Run clean script

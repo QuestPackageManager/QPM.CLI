@@ -49,7 +49,7 @@ where
     repo: &'b R,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-struct PubgrubDependencyTarget(pub DependencyId, pub TripletId);
+pub struct PubgrubDependencyTarget(pub DependencyId, pub TripletId);
 
 impl Display for PubgrubDependencyTarget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

@@ -38,20 +38,15 @@ impl Command for PackageOperationCreateArgs {
             Option::None => self.name.to_lowercase(),
         };
 
-        let package_info = PackageMetadata {
-            name: self.name,
-            url: None,
-        };
-
         let package = PackageConfig {
             id: DependencyId(id),
             version: self.version,
             additional_data: Default::default(),
-            triplet: Default::default(),
+            triplets: Default::default(),
             cmake: Default::default(),
             toolchain_out: Some(Path::new("toolchain.json").to_owned()),
 
-            shared_directories: vec![Path::new("shared").to_owned()],
+            shared_directory: Path::new("shared").to_owned(),
             dependencies_directory: Path::new("extern").to_owned(),
             workspace: Default::default(),
             config_version: package::package_target_version(),
