@@ -67,7 +67,8 @@ impl Command for QPkgCommand {
             .collect();
 
         let qpkg = QPkg {
-            shared_dir: package.shared_directory,
+            shared_dir: package.shared_directory.clone(),
+            config: package,
             triplets,
         };
 

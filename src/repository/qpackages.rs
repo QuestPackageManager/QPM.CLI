@@ -10,16 +10,14 @@ use semver::Version;
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self},
-    io::Cursor,
+    io::Read,
 };
-use zip::ZipArchive;
 
 use serde::Deserialize;
 
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     qpackages::QPackagesPackage,
-    qpkg::{QPKG_JSON, QPkg},
     shared_package::SharedPackageConfig,
 };
 
@@ -29,6 +27,7 @@ use crate::{
         qpackages::QPackageExtensions, qpkg::QPkgExtensions,
     },
     network::agent::{download_file_report, get_agent},
+    repository::local::FileRepository,
     terminal::colors::QPMColor,
 };
 
@@ -136,25 +135,9 @@ impl QPMRepository {
         let src_path = package_path.src_path();
         let tmp_path = package_path.tmp_path();
 
-        let qpkg_file_dst = package_path.qpkg_json_path();
-        let headers_dst = package_path.src_path();
-
         if QPackagesPackage::read(&src_path).is_ok() {
             // already cached, no need to download again
             return Ok(());
-        }
-
-        // Downloads the repo / zip file into src folder w/ subfolder taken into account
-        if !headers_dst.exists() {
-            // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
-            fs::create_dir_all(&src_path)
-                .with_context(|| format!("Failed to create lib path {headers_dst:?}"))?;
-        }
-
-        // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
-        if tmp_path.exists() {
-            fs::remove_dir_all(&tmp_path)
-                .with_context(|| format!("Failed to remove existing tmp folder {tmp_path:?}"))?;
         }
 
         let qpkg_url = &qpackage_config.qpkg_url;
@@ -164,11 +147,9 @@ impl QPMRepository {
         download_file_report(qpkg_url, &mut bytes, |_, _| {})
             .with_context(|| format!("Failed while downloading {}", qpkg_url.blue()))?;
 
-        let buffer = Cursor::new(bytes.get_ref());
-
         // Ensure checksum matches
         if let Some(checksum) = &qpackage_config.qpkg_checksum {
-            let result = Sha256::digest(buffer.get_ref());
+            let result = Sha256::digest(bytes.get_ref());
             let hash_hex = hex::encode(result);
 
             if !hash_hex.eq_ignore_ascii_case(checksum) {
@@ -181,107 +162,31 @@ impl QPMRepository {
             }
         }
 
-        // Extract to tmp folder
-        ZipArchive::new(buffer)
-            .context("Reading zip")?
-            .extract(&tmp_path)
-            .context("Zip extraction")?;
-
-        let qpkg_file = QPkg::read(&tmp_path).with_context(|| {
+        FileRepository::install_qpkg(bytes.get_ref().as_ref()).with_context(|| {
             format!(
-                "Failed to read QPkg file from {}",
-                tmp_path.display().file_path_color()
+                "QPackages QPKG installation from {}:{}",
+                qpackage_config.config.id, qpackage_config.config.version
             )
         })?;
 
-        // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
-        fs::copy(tmp_path.join(QPKG_JSON), &qpkg_file_dst).with_context(|| {
-            format!(
-                "Failed to copy QPkg file from {} to {}",
-                tmp_path.display().file_path_color(),
-                qpkg_file_dst.display().file_path_color()
-            )
-        })?;
-
-        // copy headers to src folder
-        fs::copy(tmp_path.join(qpkg_file.shared_dir), &headers_dst).with_context(|| {
-            format!(
-                "Failed to copy headers from {} to {}",
-                tmp_path.display().file_path_color(),
-                headers_dst.display().file_path_color()
-            )
-        })?;
-
-        // copy binaries to lib folder
-        for (triplet_id, triplet_info) in &qpkg_file.triplets {
-            let bin_dir = package_path
-                .clone()
-                .triplet(triplet_id.clone())
-                .binaries_path();
-
-            if !bin_dir.exists() {
-                fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
-            }
-
-            for file in &triplet_info.files {
-                let src_file = tmp_path.join(file);
-                let dst_file = bin_dir.join(file.file_name().unwrap());
-                // copy as {cache}/{id}/{version}/{triplet}/lib/{file_name}
-                fs::copy(&src_file, &dst_file).with_context(|| {
-                    format!(
-                        "Failed to copy file from {} to {}",
-                        src_file.display().file_path_color(),
-                        dst_file.display().file_path_color()
-                    )
-                })?;
-            }
+        let package = PackageConfig::read(&src_path)?;
+        // assert that the package is the same as the one we downloaded
+        if package != qpackage_config.config {
+            bail!(
+                "Package config mismatch. Got {}:{}: expected {:?}, got {:?} (the changes might not be id/version, but the config itself)",
+                package.id.dependency_id_color(),
+                package.version.version_id_color(),
+                qpackage_config.config,
+                package
+            );
         }
-
-        // assert that the triplets binaries are present
-        for triplet in config.triplets.iter_triplets() {
-            let triplet_path = package_path.clone().triplet(triplet.0.clone());
-            let triplet_bin_path = triplet_path.binaries_path();
-            if !triplet_bin_path.exists() {
-                bail!(
-                    "Triplet binaries for {} not found in {}",
-                    triplet.0.triplet_id_color(),
-                    triplet_bin_path.display().file_path_color()
-                );
-            }
-
-            for binary in triplet.1.out_binaries.iter().flatten() {
-                // {cache}/{id}/{version}/{triplet}/lib/{binary}
-                let binary_path = triplet_path.binary_path(binary);
-                if !binary_path.exists() {
-                    bail!(
-                        "Binary {} not found in triplet {} at {}",
-                        binary.display().file_path_color(),
-                        triplet.0.triplet_id_color(),
-                        binary_path.display().file_path_color()
-                    );
-                }
-            }
-        }
-
-        // now write the package config to the src path
-        qpackage_config.config.write(&src_path).with_context(|| {
-            format!(
-                "Failed to write package config to {}",
-                src_path.display().file_path_color()
-            )
-        })?;
 
         qpackage_config.write(&src_path).with_context(|| {
             format!(
-                "Failed to write QPkg to {}",
+                "Failed to write QPackages.json to {}",
                 src_path.display().file_path_color()
             )
         })?;
-
-        // clear up tmp folder if it still exists
-        if tmp_path.exists() {
-            std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
-        }
 
         Ok(())
     }

@@ -2495,7 +2495,7 @@ dependencies = [
 [[package]]
 name = "qpm_package"
 version = "2.0.0"
-source = "git+https://github.com/QuestPackageManager/QPM.Package.git?branch=qpm2#bb902df2b44ee7d5877105ae7f2dad9c94705e14"
+source = "git+https://github.com/QuestPackageManager/QPM.Package.git?branch=qpm2#9fa5ba5e3eb06f15531c8e5b7c7b7b6d5c68f023"
 dependencies = [
  "cursed-semver-parser",
  "schemars",

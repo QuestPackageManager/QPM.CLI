@@ -6,6 +6,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
+    qpkg::{QPKG_JSON, QPkg},
     triplet::TripletId,
 };
 use schemars::JsonSchema;
@@ -14,16 +15,18 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
     fs,
-    io::{BufReader, Write},
+    io::{BufReader, Cursor, Read, Write},
     ops::Not,
     path::{Path, PathBuf},
 };
+use zip::ZipArchive;
 
 use crate::{
     models::{
         config::get_combine_config,
         package::PackageConfigExtensions,
         package_files::PackageIdPath,
+        qpkg::QPkgExtensions,
         schemas::{SchemaLinks, WithSchema},
     },
     resolver::dependency::ResolvedDependency,
@@ -228,6 +231,151 @@ impl FileRepository {
 
     pub fn clear() -> Result<(), std::io::Error> {
         fs::remove_file(Self::global_file_repository_path())
+    }
+
+    pub fn install_qpkg<T>(bytes: T) -> color_eyre::Result<()>
+    where
+        T: Read + AsRef<[u8]>,
+    {
+        let buffer = Cursor::new(bytes);
+
+        // Extract to tmp folder
+        let mut zip_archive = ZipArchive::new(buffer).context("Reading zip")?;
+
+        // get qpkg in memory
+        let qpkg_file = zip_archive
+            .by_name(QPKG_JSON)
+            .with_context(|| format!("Failed to find {QPKG_JSON} in zip"))?;
+
+        let qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
+            .with_context(|| format!("Failed to read {QPKG_JSON} from zip"))?;
+
+        let config = &qpkg.config;
+
+        let package_path: crate::models::package_files::PackageVersionPath =
+            PackageIdPath::new(config.id.clone()).version(config.version.clone());
+
+        let src_path = package_path.src_path();
+        let tmp_path = package_path.tmp_path();
+        let qpkg_file_dst = package_path.qpkg_json_path();
+
+        let headers_dst = package_path.src_path();
+
+        // ensure the src path exists
+        if !headers_dst.exists() {
+            // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
+            fs::create_dir_all(&src_path)
+                .with_context(|| format!("Failed to create lib path {headers_dst:?}"))?;
+        }
+
+        // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
+        if tmp_path.exists() {
+            fs::remove_dir_all(&tmp_path)
+                .with_context(|| format!("Failed to remove existing tmp folder {tmp_path:?}"))?;
+        }
+
+        // make tmp_path
+        fs::create_dir_all(&tmp_path).with_context(|| {
+            format!(
+                "Failed to create tmp folder {}",
+                tmp_path.display().file_path_color()
+            )
+        })?;
+
+        // now extract the zip to the tmp path
+        zip_archive.extract(&tmp_path).context("Zip extraction")?;
+
+        // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
+        fs::copy(tmp_path.join(QPKG_JSON), &qpkg_file_dst).with_context(|| {
+            format!(
+                "Failed to copy QPkg file from {} to {}",
+                tmp_path.display().file_path_color(),
+                qpkg_file_dst.display().file_path_color()
+            )
+        })?;
+
+        // copy headers to src folder
+        fs::copy(tmp_path.join(&qpkg.shared_dir), &headers_dst).with_context(|| {
+            format!(
+                "Failed to copy headers from {} to {}",
+                tmp_path.display().file_path_color(),
+                headers_dst.display().file_path_color()
+            )
+        })?;
+
+        // copy binaries to lib folder
+        for (triplet_id, triplet_info) in &qpkg.triplets {
+            let bin_dir = package_path
+                .clone()
+                .triplet(triplet_id.clone())
+                .binaries_path();
+
+            if !bin_dir.exists() {
+                fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
+            }
+
+            for file in &triplet_info.files {
+                let src_file = tmp_path.join(file);
+                let dst_file = bin_dir.join(file.file_name().unwrap());
+                // copy as {cache}/{id}/{version}/{triplet}/lib/{file_name}
+                fs::copy(&src_file, &dst_file).with_context(|| {
+                    format!(
+                        "Failed to copy file from {} to {}",
+                        src_file.display().file_path_color(),
+                        dst_file.display().file_path_color()
+                    )
+                })?;
+            }
+        }
+
+        // assert that the triplets binaries are present
+        for (triplet_id, triplet) in config.triplets.iter_triplets() {
+            let triplet_path = package_path.clone().triplet(triplet_id.clone());
+            let triplet_bin_path = triplet_path.binaries_path();
+            if !triplet_bin_path.exists() {
+                bail!(
+                    "Triplet binaries for {} not found in {}",
+                    triplet_id.triplet_id_color(),
+                    triplet_bin_path.display().file_path_color()
+                );
+            }
+
+            for binary in triplet.out_binaries.iter().flatten() {
+                // {cache}/{id}/{version}/{triplet}/lib/{binary}
+                let binary_path = triplet_path.binary_path(binary);
+                if !binary_path.exists() {
+                    bail!(
+                        "Binary {} not found in triplet {} at {}",
+                        binary.display().file_path_color(),
+                        triplet_id.triplet_id_color(),
+                        binary_path.display().file_path_color()
+                    );
+                }
+            }
+        }
+
+        // now write the package config to the src path
+        config.write(&src_path).with_context(|| {
+            format!(
+                "Failed to write package config to {}",
+                src_path.display().file_path_color()
+            )
+        })?;
+
+        // write the qpkg file to the src path
+        qpkg.write(&src_path).with_context(|| {
+            format!(
+                "Failed to write QPkg file to {}",
+                src_path.display().file_path_color()
+            )
+        })?;
+
+        // clear up tmp folder if it still exists
+        if tmp_path.exists() {
+            std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
+        }
+
+        Ok(())
     }
 
     pub fn copy_from_cache(
