@@ -15,10 +15,8 @@ use crate::utils::json;
 use super::schemas::{SchemaLinks, WithSchema};
 
 pub trait ModJsonExtensions: Sized {
-    fn get_template_name() -> &'static str;
     fn get_result_name() -> &'static str;
-    fn get_template_path() -> PathBuf;
-    fn read_and_preprocess(preprocess_data: PreProcessingData) -> Result<Self>;
+    fn read_and_preprocess(preprocess_data: PreProcessingData, file: &Path) -> Result<Self>;
 
     fn read(path: &Path) -> Result<Self>;
     fn write(&self, path: &Path) -> Result<()>;
@@ -26,7 +24,6 @@ pub trait ModJsonExtensions: Sized {
     fn merge_modjson(
         existing_json: ModJson,
         template_mod_json: ModJson,
-        add_default_binary: bool,
     ) -> ModJson;
 }
 
@@ -73,20 +70,13 @@ impl PreProcessingData {
 }
 
 impl ModJsonExtensions for ModJson {
-    fn get_template_name() -> &'static str {
-        "mod.template.json"
-    }
 
     fn get_result_name() -> &'static str {
         "mod.json"
     }
 
-    fn get_template_path() -> std::path::PathBuf {
-        PathBuf::new().join(Self::get_template_name())
-    }
-
-    fn read_and_preprocess(preprocess_data: PreProcessingData) -> Result<Self> {
-        let mut file = File::open(Self::get_template_name()).context("Opening mod.json failed")?;
+    fn read_and_preprocess(preprocess_data: PreProcessingData, path: &Path) -> Result<Self> {
+        let mut file = File::open(path).context("Opening mod.json failed")?;
 
         // Get data
         let mut json = String::with_capacity(file.metadata()?.len() as usize);
@@ -123,7 +113,6 @@ impl ModJsonExtensions for ModJson {
     fn merge_modjson(
         mut existing_json: ModJson,
         mut template_mod_json: ModJson,
-        add_default_binary: bool,
     ) -> ModJson {
         let existing_binaries: HashSet<String> = existing_json
             .library_files
@@ -153,9 +142,7 @@ impl ModJsonExtensions for ModJson {
             .dependencies
             .retain(|d| !existing_dependencies.contains_key(&d.id));
 
-        if add_default_binary {
-            insert_default_mod_binary(&mut existing_json, &mut template_mod_json);
-        };
+
 
         existing_json
             .library_files

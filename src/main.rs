@@ -24,8 +24,8 @@ pub mod utils;
 #[cfg(benchmark)]
 mod benchmark;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
     generate(

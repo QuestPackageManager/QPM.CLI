@@ -1,8 +1,12 @@
+use std::path::Path;
+
 use clap::Args;
+use color_eyre::eyre::ContextCompat;
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
 
-use crate::{commands::Command, models::mod_json::ModJsonExtensions};
+use crate::{commands::Command, models::{mod_json::ModJsonExtensions, package::PackageConfigExtensions}};
 
 /// Some properties are not editable through the qmod edit command, these properties are either editable through the package, or not at all
 #[derive(Args, Debug, Clone)]
@@ -33,7 +37,19 @@ pub struct EditQmodJsonCommand {
 
 impl Command for EditQmodJsonCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        let mut json = ModJson::read(&ModJson::get_template_path())?;
+        let package = PackageConfig::read(".")?;
+        let shared_package = SharedPackageConfig::read(".")?;
+        let triplet = package
+            .triplets
+            .get_triplet_settings(&shared_package.restored_triplet)
+            .context("Restored triplet not in package config")?;
+
+        let mod_template = triplet
+            .qmod_template
+            .as_deref()
+            .unwrap_or_else(|| Path::new("mod.template.json"));
+
+        let mut json = ModJson::read(&mod_template)?;
 
         if let Some(schema_version) = self.schema_version {
             json.schema_version = schema_version;
@@ -69,7 +85,7 @@ impl Command for EditQmodJsonCommand {
             }
         }
 
-        json.write(&ModJson::get_template_path())?;
+        json.write(mod_template)?;
         Ok(())
     }
 }
