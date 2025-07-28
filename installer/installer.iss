@@ -31,14 +31,14 @@ InfoAfterFile=.\information.txt
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=.\
-OutputBaseFilename=qpm-installer
+OutputBaseFilename=qpm2-installer
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
 
 ; Taken from https://stackoverflow.com/a/46609047/11395424. Credit to author Wojciech Mleczek
-; Adds qpm to PATH on installation and remove on uninstallation
+; Adds qpm2 to PATH on installation and remove on uninstallation
 [Code]
 const SystemEnvironmentKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
 const UserEnvironmentKey = 'Environment';
