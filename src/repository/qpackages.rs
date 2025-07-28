@@ -8,10 +8,7 @@ use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
 use sha2::{Digest, Sha256};
-use std::{
-    fs::{self},
-    io::Read,
-};
+use std::io::Read;
 
 use serde::Deserialize;
 
@@ -133,7 +130,6 @@ impl QPMRepository {
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
         let src_path = package_path.src_path();
-        let tmp_path = package_path.tmp_path();
 
         if QPackagesPackage::read(&src_path).is_ok() {
             // already cached, no need to download again
@@ -147,9 +143,12 @@ impl QPMRepository {
         download_file_report(qpkg_url, &mut bytes, |_, _| {})
             .with_context(|| format!("Failed while downloading {}", qpkg_url.blue()))?;
 
+        let cursor = std::io::Cursor::new(bytes.get_ref());
+
+
         // Ensure checksum matches
         if let Some(checksum) = &qpackage_config.qpkg_checksum {
-            let result = Sha256::digest(bytes.get_ref());
+            let result = Sha256::digest(cursor.get_ref());
             let hash_hex = hex::encode(result);
 
             if !hash_hex.eq_ignore_ascii_case(checksum) {
@@ -162,7 +161,7 @@ impl QPMRepository {
             }
         }
 
-        FileRepository::install_qpkg(bytes.get_ref().as_ref()).with_context(|| {
+        FileRepository::install_qpkg(cursor, false).with_context(|| {
             format!(
                 "QPackages QPKG installation from {}:{}",
                 qpackage_config.config.id, qpackage_config.config.version

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
     fs,
-    io::{BufReader, Cursor, Read, Write},
+    io::{BufReader, Read, Seek, Write},
     ops::Not,
     path::{Path, PathBuf},
 };
@@ -107,6 +107,7 @@ impl FileRepository {
         Ok(())
     }
 
+    #[deprecated(note = "Use qpkg_install instead")]
     pub fn copy_to_cache(
         package: &PackageConfig,
         triplet: &TripletId,
@@ -233,11 +234,20 @@ impl FileRepository {
         fs::remove_file(Self::global_file_repository_path())
     }
 
-    pub fn install_qpkg<T>(bytes: T) -> color_eyre::Result<()>
+    pub fn install_qpkg<T>(buffer: T, overwrite_existing: bool) -> color_eyre::Result<PackageConfig>
     where
-        T: Read + AsRef<[u8]>,
+        T: Read + Seek,
     {
-        let buffer = Cursor::new(bytes);
+        if QPkg::exists(".") {
+            match overwrite_existing {
+                false => {
+                    bail!("QPKG already exists in the current directory");
+                }
+                true => {
+                    println!("Overwriting existing QPKG in the current directory");
+                }
+            }
+        }
 
         // Extract to tmp folder
         let mut zip_archive = ZipArchive::new(buffer).context("Reading zip")?;
@@ -250,10 +260,8 @@ impl FileRepository {
         let qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
             .with_context(|| format!("Failed to read {QPKG_JSON} from zip"))?;
 
-        let config = &qpkg.config;
-
         let package_path: crate::models::package_files::PackageVersionPath =
-            PackageIdPath::new(config.id.clone()).version(config.version.clone());
+            PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
 
         let src_path = package_path.src_path();
         let tmp_path = package_path.tmp_path();
@@ -329,7 +337,7 @@ impl FileRepository {
         }
 
         // assert that the triplets binaries are present
-        for (triplet_id, triplet) in config.triplets.iter_triplets() {
+        for (triplet_id, triplet) in qpkg.config.triplets.iter_triplets() {
             let triplet_path = package_path.clone().triplet(triplet_id.clone());
             let triplet_bin_path = triplet_path.binaries_path();
             if !triplet_bin_path.exists() {
@@ -355,7 +363,7 @@ impl FileRepository {
         }
 
         // now write the package config to the src path
-        config.write(&src_path).with_context(|| {
+        qpkg.config.write(&src_path).with_context(|| {
             format!(
                 "Failed to write package config to {}",
                 src_path.display().file_path_color()
@@ -375,7 +383,7 @@ impl FileRepository {
             std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
         }
 
-        Ok(())
+        Ok(qpkg.config)
     }
 
     pub fn copy_from_cache(
