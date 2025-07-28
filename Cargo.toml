@@ -9,7 +9,7 @@ rust-version = "1.85"
 
 # Rename binary
 [[bin]]
-name = "qpm"
+name = "qpm2"
 path = "src/main.rs"
 
 [lib]
