@@ -22,11 +22,7 @@ pub trait Repository {
     /// Ordered by version descending
     fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>>;
 
-    fn get_package(
-        &self,
-        id: &DependencyId,
-        version: &Version,
-    ) -> Result<Option<PackageConfig>>;
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>>;
     // add to the db cache
     // this just stores the shared config itself, not the package
     fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()>;

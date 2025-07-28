@@ -79,10 +79,7 @@ impl Command for BuildCommand {
             let triplet_dir = out_dir.join(&triplet_id.0);
 
             // now copy binaries
-            copy_bins(
-                &triplet_dir,
-                &triplet.out_binaries.unwrap_or_default(),
-            )?;
+            copy_bins(&triplet_dir, &triplet.out_binaries.unwrap_or_default())?;
 
             // finally qmod
             if self.qmod {
@@ -94,10 +91,7 @@ impl Command for BuildCommand {
     }
 }
 
-fn copy_bins(
-    triplet_dir: &Path,
-    out_binaries: &[PathBuf],
-) -> color_eyre::Result<()> {
+fn copy_bins(triplet_dir: &Path, out_binaries: &[PathBuf]) -> color_eyre::Result<()> {
     for binary in out_binaries {
         // create the output directory if it doesn't exist
         let out_path = triplet_dir.join(binary);

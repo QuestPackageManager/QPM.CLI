@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use qpm_qmod::models::mod_json::ModJson;
 
-use color_eyre::{eyre::ContextCompat, Result};
+use color_eyre::{Result, eyre::ContextCompat};
 
 use crate::models::{mod_json::ModJsonExtensions, package::PackageConfigExtensions};
 

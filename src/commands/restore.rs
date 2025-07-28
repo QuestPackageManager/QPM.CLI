@@ -44,10 +44,7 @@ pub(crate) fn is_ignored() -> bool {
 
         excludes.is_ok_and(|mut attribute| {
             attribute
-                .at_path(
-                    QPM_SHARED_JSON,
-                    Some(gix::index::entry::Mode::FILE),
-                )
+                .at_path(QPM_SHARED_JSON, Some(gix::index::entry::Mode::FILE))
                 .is_ok_and(|e| e.is_excluded())
         })
     })

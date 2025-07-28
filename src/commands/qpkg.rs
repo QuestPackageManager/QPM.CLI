@@ -1,18 +1,15 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use clap::Args;
-use color_eyre::eyre::{Context, ContextCompat};
+use color_eyre::eyre::Context;
 use qpm_package::models::{
-        package::PackageConfig,
-        qpkg::{QPKG_JSON, QPkg, QPkgTripletInfo},
-        shared_package::SharedPackageConfig,
-        triplet::TripletId,
-    };
+    package::PackageConfig,
+    qpkg::{QPKG_JSON, QPkg, QPkgTripletInfo},
+    triplet::TripletId,
+};
 use zip::{ZipWriter, write::FileOptions};
 
-use crate::{
-    models::package::PackageConfigExtensions, terminal::colors::QPMColor,
-};
+use crate::{models::package::PackageConfigExtensions, terminal::colors::QPMColor};
 
 use super::Command;
 

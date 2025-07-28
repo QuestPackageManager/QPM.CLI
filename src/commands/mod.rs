@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use color_eyre::Result;
 
+pub mod build;
 pub mod cache;
 pub mod clear;
 pub mod collapse;
@@ -19,7 +20,6 @@ pub mod qmod;
 pub mod qpkg;
 pub mod restore;
 pub mod scripts;
-pub mod build;
 pub mod version;
 
 #[cfg(feature = "templatr")]

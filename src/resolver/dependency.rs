@@ -225,7 +225,6 @@ pub fn resolve<'a>(
             if id.0 == root.id && version == root.version {
                 return None;
             }
-            
 
             let package = repository
                 .get_package(&id.0, &version.into())
@@ -278,7 +277,12 @@ pub fn restore<P: AsRef<Path>>(
     repository.write_repo()?;
 
     println!("Copying now");
-    FileRepository::copy_from_cache(&shared_package.config, triplet, resolved_deps, workspace.as_ref())?;
+    FileRepository::copy_from_cache(
+        &shared_package.config,
+        triplet,
+        resolved_deps,
+        workspace.as_ref(),
+    )?;
 
     shared_package.try_write_toolchain(repository)?;
 

@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs::File,
     io::{BufReader, Read},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use color_eyre::{Result, eyre::Context};
@@ -21,10 +21,7 @@ pub trait ModJsonExtensions: Sized {
     fn read(path: &Path) -> Result<Self>;
     fn write(&self, path: &Path) -> Result<()>;
 
-    fn merge_modjson(
-        existing_json: ModJson,
-        template_mod_json: ModJson,
-    ) -> ModJson;
+    fn merge_modjson(existing_json: ModJson, template_mod_json: ModJson) -> ModJson;
 }
 
 pub struct PreProcessingData {
@@ -70,7 +67,6 @@ impl PreProcessingData {
 }
 
 impl ModJsonExtensions for ModJson {
-
     fn get_result_name() -> &'static str {
         "mod.json"
     }
@@ -110,10 +106,7 @@ impl ModJsonExtensions for ModJson {
         Ok(())
     }
 
-    fn merge_modjson(
-        mut existing_json: ModJson,
-        mut template_mod_json: ModJson,
-    ) -> ModJson {
+    fn merge_modjson(mut existing_json: ModJson, mut template_mod_json: ModJson) -> ModJson {
         let existing_binaries: HashSet<String> = existing_json
             .library_files
             .iter()
@@ -142,8 +135,6 @@ impl ModJsonExtensions for ModJson {
             .dependencies
             .retain(|d| !existing_dependencies.contains_key(&d.id));
 
-
-
         existing_json
             .library_files
             .append(&mut template_mod_json.library_files);
@@ -164,25 +155,4 @@ impl ModJsonExtensions for ModJson {
 
         existing_json
     }
-}
-
-fn insert_default_mod_binary(existing_json: &mut ModJson, template_mod_json: &mut ModJson) {
-    // put it all under library
-    let is_library = existing_json.is_library.unwrap_or(false);
-    if is_library {
-        existing_json
-            .library_files
-            .append(&mut template_mod_json.late_mod_files);
-        existing_json
-            .library_files
-            .append(&mut template_mod_json.mod_files);
-        return;
-    }
-
-    existing_json
-        .mod_files
-        .append(&mut template_mod_json.mod_files);
-    existing_json
-        .late_mod_files
-        .append(&mut template_mod_json.late_mod_files);
 }

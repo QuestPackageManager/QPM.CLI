@@ -107,7 +107,10 @@ pub fn invoke_script(
 
         // QPM defined environment variables
         c.env("QPM_ACTIVE_TRIPLET", triplet_id.to_string())
-            .env("QPM_QMOD_ID", triplet.qmod_id.as_deref().unwrap_or(package.id.0.as_str()))
+            .env(
+                "QPM_QMOD_ID",
+                triplet.qmod_id.as_deref().unwrap_or(package.id.0.as_str()),
+            )
             .env("QPM_PACKAGE_ID", package.id.to_string())
             .env("QPM_PACKAGE_VERSION", package.version.to_string());
 

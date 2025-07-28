@@ -1,6 +1,14 @@
-use std::{fs::File, io::{BufReader, BufWriter}, path::Path, process::{Command, Stdio}};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter},
+    path::Path,
+    process::{Command, Stdio},
+};
 
-use color_eyre::{eyre::{bail, Context, Result}, Section};
+use color_eyre::{
+    Section,
+    eyre::{Context, Result, bail},
+};
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 

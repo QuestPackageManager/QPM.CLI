@@ -418,7 +418,7 @@ impl FileRepository {
 
         let extern_binaries = extern_dir.join("libs");
         let extern_headers = extern_dir.join("includes");
-        
+
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
 
         // direct deps (binaries)

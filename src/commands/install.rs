@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use color_eyre::eyre::{bail, Context, ContextCompat};
+use color_eyre::eyre::{ContextCompat, bail};
 use qpm_package::models::shared_package::SharedPackageConfig;
 
 use crate::{
@@ -44,10 +44,7 @@ impl Command for InstallCommand {
         } else {
             for binary in &binaries {
                 if !binary.exists() {
-                    bail!(
-                        "Binary file {} does not exist",
-                        binary.display()
-                    );
+                    bail!("Binary file {} does not exist", binary.display());
                 }
             }
         }

@@ -2,10 +2,7 @@ use clap::Args;
 use color_eyre::eyre::Context;
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use qpm_package::models::{
-    package::PackageConfig,
-    triplet::TripletId,
-};
+use qpm_package::models::{package::PackageConfig, triplet::TripletId};
 
 use crate::{
     models::package::PackageConfigExtensions,
@@ -49,14 +46,13 @@ impl Command for CollapseCommand {
                         "Listing dependencies for triplet {}",
                         triplet.0.triplet_id_color()
                     );
-                    list_triplet_dependencies(package.clone(), &repo, &triplet.0, self.env).with_context(
-                        || {
+                    list_triplet_dependencies(package.clone(), &repo, &triplet.0, self.env)
+                        .with_context(|| {
                             format!(
                                 "Failed to list dependencies for triplet {}",
                                 triplet.0.triplet_id_color()
                             )
-                        },
-                    )?;
+                        })?;
                 }
             }
         }

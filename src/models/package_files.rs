@@ -1,4 +1,7 @@
-use std::{ops::Deref, path::{Path, PathBuf}};
+use std::{
+    ops::Deref,
+    path::{Path, PathBuf},
+};
 
 use qpm_package::models::{
     package::{DependencyId, QPM_JSON},
@@ -85,7 +88,8 @@ impl PackageTripletPath {
     }
 
     pub fn binary_path(&self, binary: &Path) -> PathBuf {
-        self.binaries_path().join(binary.file_name().expect("Binary file name"))
+        self.binaries_path()
+            .join(binary.file_name().expect("Binary file name"))
     }
 }
 

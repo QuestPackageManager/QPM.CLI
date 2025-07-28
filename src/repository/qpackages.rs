@@ -17,11 +17,11 @@ use zip::ZipArchive;
 use serde::Deserialize;
 
 use qpm_package::models::{
-        package::{DependencyId, PackageConfig},
-        qpackages::QPackagesPackage,
-        qpkg::{QPKG_JSON, QPkg},
-        shared_package::SharedPackageConfig,
-    };
+    package::{DependencyId, PackageConfig},
+    qpackages::QPackagesPackage,
+    qpkg::{QPKG_JSON, QPkg},
+    shared_package::SharedPackageConfig,
+};
 
 use crate::{
     models::{
@@ -239,11 +239,8 @@ impl QPMRepository {
 
         // assert that the triplets binaries are present
         for triplet in config.triplets.iter_triplets() {
-            let triplet_path = package_path
-                .clone()
-                .triplet(triplet.0.clone());
-            let triplet_bin_path = triplet_path
-                .binaries_path();
+            let triplet_path = package_path.clone().triplet(triplet.0.clone());
+            let triplet_bin_path = triplet_path.binaries_path();
             if !triplet_bin_path.exists() {
                 bail!(
                     "Triplet binaries for {} not found in {}",

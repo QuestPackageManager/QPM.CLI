@@ -1,8 +1,10 @@
 use std::fs;
 
 use clap::Args;
-use color_eyre::{eyre::ContextCompat, Result};
-use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig, triplet::default_triplet_id};
+use color_eyre::{Result, eyre::ContextCompat};
+use qpm_package::models::{
+    package::PackageConfig, shared_package::SharedPackageConfig, triplet::default_triplet_id,
+};
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
 

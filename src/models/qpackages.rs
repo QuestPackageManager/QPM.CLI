@@ -28,7 +28,8 @@ impl QPackageExtensions for QPackagesPackage {
 
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self>
     where
-        Self: std::marker::Sized {
+        Self: std::marker::Sized,
+    {
         let path = dir.as_ref().join(QPACKAGES_JSON);
         let file = File::open(&path).with_context(|| format!("{path:?} does not exist"))?;
         let res = json::json_from_reader_fast::<_, Self>(BufReader::new(file))
@@ -39,11 +40,10 @@ impl QPackageExtensions for QPackagesPackage {
 
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
         let path = dir.as_ref().join(QPACKAGES_JSON);
-        
-        let serialized = serde_json::to_string_pretty(self)
-            .context("Failed to serialize QPackage")?;
-        std::fs::write(path, serialized)
-            .context("Failed to write QPackage to file")?;
+
+        let serialized =
+            serde_json::to_string_pretty(self).context("Failed to serialize QPackage")?;
+        std::fs::write(path, serialized).context("Failed to write QPackage to file")?;
         Ok(())
     }
 }

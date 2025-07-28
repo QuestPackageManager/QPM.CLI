@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use clap::Args;
 use qpm_package::models::shared_package::SharedPackageConfig;
 use qpm_package::models::triplet::{QPM_ENV_GAME_ID, QPM_ENV_GAME_VERSION};
-use semver::VersionReq;
 
 use qpm_qmod::models::mod_json::ModJson;
 

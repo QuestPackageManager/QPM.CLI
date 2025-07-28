@@ -6,7 +6,10 @@ use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageC
 use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
 
-use crate::{commands::Command, models::{mod_json::ModJsonExtensions, package::PackageConfigExtensions}};
+use crate::{
+    commands::Command,
+    models::{mod_json::ModJsonExtensions, package::PackageConfigExtensions},
+};
 
 /// Some properties are not editable through the qmod edit command, these properties are either editable through the package, or not at all
 #[derive(Args, Debug, Clone)]
@@ -49,7 +52,7 @@ impl Command for EditQmodJsonCommand {
             .as_deref()
             .unwrap_or_else(|| Path::new("mod.template.json"));
 
-        let mut json = ModJson::read(&mod_template)?;
+        let mut json = ModJson::read(mod_template)?;
 
         if let Some(schema_version) = self.schema_version {
             json.schema_version = schema_version;

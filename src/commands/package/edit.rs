@@ -1,16 +1,12 @@
 use clap::Args;
-use qpm_package::models::{package::{DependencyId, PackageConfig}, shared_package::SharedPackageConfig};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 use semver::Version;
 
-use crate::{
-    commands::Command,
-    models::package::PackageConfigExtensions,
-};
+use crate::{commands::Command, models::package::PackageConfigExtensions};
 
 #[derive(Args, Debug, Clone)]
 
 pub struct EditArgs {
-
     ///Edit the version property of the package
     #[clap(long)]
     pub version: Option<Version>,
@@ -36,11 +32,6 @@ impl Command for EditArgs {
         }
         Ok(())
     }
-}
-
-fn package_set_id(package: &mut PackageConfig, id: String) {
-    println!("Setting package id: {id}");
-    package.id = DependencyId(id);
 }
 
 fn package_set_version(package: &mut PackageConfig, version: Version) {
