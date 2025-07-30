@@ -146,6 +146,10 @@ const devDependencies = qpm1.dependencies
     return acc;
   }, {} as Record<string, QPM2Dep>);
 
+const qpm2Bin =
+  "./build/" +
+  (qpm1.info.additionalData?.overrideSoName ?? `${qpm1.info.id}.so`);
+
 const qpm2: QPM2 = {
   id: qpm1.info.id,
   version: qpm1.info.version,
@@ -171,9 +175,7 @@ const qpm2: QPM2 = {
       dependencies: dependencies,
       devDependencies: devDependencies,
       compileOptions: qpm1.info.additionalData?.compileOptions,
-      outBinaries: [
-        qpm1.info.additionalData?.overrideSoName ?? `${qpm1.info.id}.so`,
-      ],
+      outBinaries: [qpm2Bin],
       qmodId: qpm1.info.id,
       qmodTemplate: "mod.template.json",
       qmodUrl: qpm1.info.additionalData?.modLink,
