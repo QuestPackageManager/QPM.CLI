@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::{Path, PathBuf}};
 
 use clap::Args;
 use color_eyre::eyre::Context;
@@ -18,13 +18,17 @@ use super::Command;
 pub struct QPkgCommand {
     #[clap(short, long)]
     pub bin_dir: Option<String>,
+
+    qpkg_output: Option<PathBuf>,
 }
 
 impl Command for QPkgCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
-        let file = std::fs::File::create(QPKG_JSON)?;
+        let out = self.qpkg_output.as_deref().unwrap_or(Path::new(&package.id.0)).with_extension("qpkg");
+
+        let file = std::fs::File::create(out)?;
         let mut zip = ZipWriter::new(file);
 
         let options = FileOptions::<()>::default();
