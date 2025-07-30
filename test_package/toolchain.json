@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.CLI/refs/heads/main/qpm.toolchain.schema.json",
+  "compile_options": {},
+  "extern_dir": "extern"
+}
