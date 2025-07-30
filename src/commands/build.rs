@@ -7,7 +7,7 @@ use qpm_package::{
     extensions::workspace::WorkspaceConfigExtensions,
     models::{
         package::PackageConfig,
-        shared_package::{SharedPackageConfig, SharedTriplet},
+        shared_package::SharedPackageConfig,
         triplet::{PackageTriplet, TripletId},
     },
 };
