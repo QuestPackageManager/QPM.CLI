@@ -109,10 +109,10 @@ impl PackageConfigExtensions for PackageConfig {
     fn validate(&self) -> color_eyre::Result<()> {
         let default = Self::default();
 
-        if self.version.major != default.version.major {
+        if self.config_version.major != default.config_version.major {
             eprintln!(
                 "Warning: using outdate qpm schema. Current {} Latest: {:?}",
-                self.version, default.version
+                self.config_version, default.config_version
             );
         }
 
