@@ -168,7 +168,7 @@ fn is_modified(
         let Some(locked_dep) = locked_triplet.restored_dependencies.get(dep_id) else {
             return true;
         };
-        if dep.triplet != locked_dep.restored_triplet {
+        if dep.triplet.clone().unwrap_or_default() != locked_dep.restored_triplet {
             return true;
         }
         if !dep.version_range.matches(&locked_dep.restored_version) {

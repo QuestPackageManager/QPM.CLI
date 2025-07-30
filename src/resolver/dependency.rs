@@ -111,7 +111,10 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
                 // add dev dependencies as well
                 .chain(triplet.dev_dependencies.iter())
                 .map(|(dep_id, dep)| {
-                    let pubgrub_dep = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
+                    let pubgrub_dep = PubgrubDependencyTarget(
+                        dep_id.clone(),
+                        dep.triplet.clone().unwrap_or_default(),
+                    );
 
                     let range = req_to_range(dep.version_range.clone());
                     (pubgrub_dep, range)
@@ -143,7 +146,10 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             .dependencies
             .iter()
             .map(|(dep_id, dep)| {
-                let id = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
+                let id = PubgrubDependencyTarget(
+                    dep_id.clone(),
+                    dep.triplet.clone().unwrap_or_default(),
+                );
                 let range = req_to_range(dep.version_range.clone());
                 (id, range)
             })
