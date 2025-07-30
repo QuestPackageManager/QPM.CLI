@@ -113,8 +113,11 @@ impl Command for RestoreCommand {
             _ => {
                 println!("Resolving packages");
 
-                let (spc_result, mut restored_deps) =
-                    SharedPackageConfig::resolve_from_package(package, Some(triplet_id.clone()), &repo)?;
+                let (spc_result, mut restored_deps) = SharedPackageConfig::resolve_from_package(
+                    package,
+                    Some(triplet_id.clone()),
+                    &repo,
+                )?;
 
                 // update shared_package
                 shared_package_opt = Some(spc_result);

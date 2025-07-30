@@ -145,7 +145,6 @@ impl QPMRepository {
 
         let cursor = std::io::Cursor::new(bytes.get_ref());
 
-
         // Ensure checksum matches
         if let Some(checksum) = &qpackage_config.qpkg_checksum {
             let result = Sha256::digest(cursor.get_ref());

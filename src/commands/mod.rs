@@ -85,6 +85,7 @@ pub enum MainCommand {
     GenSchema(genschema::GenSchemaCommand),
 
     /// QPKG control
+    #[command(name = "qpkg", about = "QPKG control")]
     QPkg(qpkg::QPkgCommand),
 
     /// Triplet commands
