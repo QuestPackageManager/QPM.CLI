@@ -56,7 +56,7 @@ impl Command for QPkgCommand {
 
                     if !binary_built.exists() {
                         panic!(
-                            "Binary {} for triplet {} does not exist",
+                            "Binary {} for triplet {} does not exist. `qpm2 build` must be run first.",
                             binary.display(),
                             triplet_id.triplet_id_color()
                         );
