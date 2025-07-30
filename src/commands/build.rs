@@ -5,7 +5,11 @@ use color_eyre::eyre::{Context, ContextCompat};
 use itertools::Itertools;
 use qpm_package::{
     extensions::workspace::WorkspaceConfigExtensions,
-    models::{package::PackageConfig, shared_package::SharedPackageConfig},
+    models::{
+        package::PackageConfig,
+        shared_package::{SharedPackageConfig, SharedTriplet},
+        triplet::{PackageTriplet, TripletId},
+    },
 };
 
 use crate::{
@@ -22,6 +26,10 @@ use super::Command;
 #[derive(Args, Clone, Debug)]
 pub struct BuildCommand {
     pub args: Option<Vec<String>>,
+
+    #[clap(short, long)]
+    pub triplet: Option<String>,
+
     #[clap(short, long, default_value = "false")]
     pub offline: bool,
 
@@ -50,10 +58,12 @@ impl Command for BuildCommand {
 
         let mut repo = repository::useful_default_new(self.offline)?;
 
-        for (triplet_id, shared_triplet) in &shared_package.locked_triplet {
-            let triplet = package
-                .triplets
-                .get_triplet_settings(triplet_id)
+        let mut build_triplet = |triplet_id: &TripletId,
+                                 triplet: &PackageTriplet|
+         -> color_eyre::Result<()> {
+            let shared_triplet = shared_package
+                .locked_triplet
+                .get(triplet_id)
                 .context("Failed to get triplet settings")?;
 
             println!(
@@ -79,11 +89,40 @@ impl Command for BuildCommand {
             let triplet_dir = out_dir.join(&triplet_id.0);
 
             // now copy binaries
-            copy_bins(&triplet_dir, &triplet.out_binaries.unwrap_or_default())?;
+            copy_bins(
+                &triplet_dir,
+                &triplet.out_binaries.clone().unwrap_or_default(),
+            )?;
 
             // finally qmod
             if self.qmod {
-                zip::execute_qmod_zip_operation(Default::default(), &[&triplet_dir])?;
+                zip::execute_qmod_zip_operation(Default::default(), &[&triplet_dir])
+                    .context("Making triplet qmod")?;
+            }
+            Ok(())
+        };
+
+        match self.triplet {
+            Some(triplet) => {
+                println!("Building triplet {}", triplet.triplet_id_color());
+                let triplet_id = TripletId(triplet);
+                let triplet = package
+                    .triplets
+                    .get_triplet(&triplet_id)
+                    .context("Failed to get triplet from package")?;
+
+                build_triplet(&triplet_id, triplet).with_context(|| {
+                    format!("Failed to build triplet {}", triplet_id.triplet_id_color())
+                })?;
+            }
+            None => {
+                // build all triplets
+                for (triplet_id, triplet) in package.triplets.iter_triplets() {
+                    println!("Building triplet {}", triplet_id.triplet_id_color());
+                    build_triplet(&triplet_id, triplet.as_ref()).with_context(|| {
+                        format!("Failed to build triplet {}", triplet_id.triplet_id_color())
+                    })?;
+                }
             }
         }
 
