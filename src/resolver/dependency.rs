@@ -102,8 +102,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             let triplet = self
                 .root
                 .triplets
-                .specific_triplets
-                .get(&package_triplet.1)
+                .get_triplet_settings(&package_triplet.1)
                 .expect("Root triplet should always exist in the root package's triplets");
 
             let deps = triplet
@@ -276,7 +275,7 @@ pub fn restore<P: AsRef<Path>>(
 
     repository.write_repo()?;
 
-    println!("Copying now");
+    println!("Copying now {}", triplet.triplet_id_color());
     FileRepository::copy_from_cache(
         &shared_package.config,
         triplet,

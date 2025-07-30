@@ -71,6 +71,9 @@ pub struct DependencyOperationDownloadArgs {
     #[clap(short, long)]
     pub version: Option<Version>,
 
+    #[clap(long, short)]
+    pub triplet: Option<String>,
+
     /// Resolve all dependencies of the package
     #[clap(long, default_value = "false")]
     pub recursive: bool,
@@ -242,8 +245,11 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
 
     // if recursive is true, resolve the dependencies of the package
     if dependency_args.recursive
-        && let Ok(resolved_deps) =
-            SharedPackageConfig::resolve_from_package(package.clone(), &repository)
+        && let Ok(resolved_deps) = SharedPackageConfig::resolve_from_package(
+            package.clone(),
+            dependency_args.triplet.map(TripletId),
+            &repository,
+        )
     {
         let resolved_deps = resolved_deps.1;
 

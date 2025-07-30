@@ -11,7 +11,7 @@ use qpm_package::models::{
     shared_package::{
         QPM_SHARED_JSON, SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo,
     },
-    triplet::{PackageTriplet, PackageTripletDependency, TripletId},
+    triplet::{PackageTriplet, PackageTripletDependency, TripletId, default_triplet_id},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
@@ -19,6 +19,7 @@ use semver::VersionReq;
 use crate::{
     repository::Repository,
     resolver::dependency::{ResolvedDependency, resolve},
+    terminal::colors::QPMColor,
     utils::json,
 };
 
@@ -45,6 +46,7 @@ pub trait PackageConfigExtensions {
 pub trait SharedPackageConfigExtensions: Sized {
     fn resolve_from_package(
         config: PackageConfig,
+        triplet: Option<TripletId>,
         repository: &impl Repository,
     ) -> Result<(Self, HashMap<TripletId, Vec<ResolvedDependency>>)>;
 
@@ -178,15 +180,15 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     /// Returns a tuple of the SharedPackageConfig and a map of triplet IDs to resolved
     fn resolve_from_package(
         config: PackageConfig,
+        triplet: Option<TripletId>,
         repository: &impl Repository,
     ) -> Result<(Self, HashMap<TripletId, Vec<ResolvedDependency>>)> {
         // for each triplet, resolve the dependencies
         let triplet_dependencies: HashMap<TripletId, _> = config
             .triplets
-            .specific_triplets
-            .keys()
-            .map(|triplet_id| -> color_eyre::Result<_> {
-                let resolved = resolve(&config, repository, triplet_id)?.collect_vec();
+            .iter_triplets()
+            .map(|(triplet_id, _triplet)| -> color_eyre::Result<_> {
+                let resolved = resolve(&config, repository, &triplet_id)?.collect_vec();
 
                 Ok((triplet_id.clone(), resolved))
             })
@@ -229,7 +231,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
 
         let shared_package_config = SharedPackageConfig {
             config,
-            restored_triplet: Default::default(),
+            restored_triplet: triplet.unwrap_or(default_triplet_id()),
             locked_triplet,
         };
         Ok((shared_package_config, triplet_dependencies))
@@ -330,7 +332,13 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     fn get_restored_triplet(&self) -> &SharedTriplet {
         self.locked_triplet
             .get(&self.restored_triplet)
-            .expect("Restored triplet should exist in locked triplet map")
+            .unwrap_or_else(|| {
+                panic!(
+                    "Restored triplet {} should exist in locked triplet map {:?}",
+                    self.restored_triplet.triplet_id_color(),
+                    self.locked_triplet.keys()
+                )
+            })
     }
 }
 
