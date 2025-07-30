@@ -28,7 +28,7 @@ pub struct BuildCommand {
     pub args: Option<Vec<String>>,
 
     #[clap(short, long)]
-    pub triplet: Option<String>,
+    pub triplets: Option<Vec<String>>,
 
     #[clap(short, long, default_value = "false")]
     pub offline: bool,
@@ -102,18 +102,22 @@ impl Command for BuildCommand {
             Ok(())
         };
 
-        match self.triplet {
-            Some(triplet) => {
-                println!("Building triplet {}", triplet.triplet_id_color());
-                let triplet_id = TripletId(triplet);
-                let triplet = package
-                    .triplets
-                    .get_triplet(&triplet_id)
-                    .context("Failed to get triplet from package")?;
+        match self.triplets {
+            Some(triplets) => {
+                // build all triplets
+                for triplet_id in triplets {
+                    println!("Building triplet {}", triplet_id.triplet_id_color());
 
-                build_triplet(&triplet_id, triplet).with_context(|| {
-                    format!("Failed to build triplet {}", triplet_id.triplet_id_color())
-                })?;
+                    let triplet_id = TripletId(triplet_id);
+                    let triplet = package
+                        .triplets
+                        .get_triplet(&triplet_id)
+                        .context(format!("Failed to get triplet {triplet_id} from package"))?;
+
+                    build_triplet(&triplet_id, triplet).with_context(|| {
+                        format!("Failed to build triplet {}", triplet_id.triplet_id_color())
+                    })?;
+                }
             }
             None => {
                 // build all triplets

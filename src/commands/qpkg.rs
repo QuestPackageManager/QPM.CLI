@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use clap::Args;
 use color_eyre::eyre::Context;
@@ -19,6 +22,9 @@ pub struct QPkgCommand {
     #[clap(short, long)]
     pub bin_dir: Option<String>,
 
+    #[clap(short, long)]
+    pub triplets: Option<Vec<String>>,
+
     qpkg_output: Option<PathBuf>,
 }
 
@@ -26,7 +32,11 @@ impl Command for QPkgCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
-        let out = self.qpkg_output.as_deref().unwrap_or(Path::new(&package.id.0)).with_extension("qpkg");
+        let out = self
+            .qpkg_output
+            .as_deref()
+            .unwrap_or(Path::new(&package.id.0))
+            .with_extension("qpkg");
 
         let file = std::fs::File::create(out)?;
         let mut zip = ZipWriter::new(file);
@@ -45,6 +55,10 @@ impl Command for QPkgCommand {
         let triplets: HashMap<TripletId, QPkgTripletInfo> = package
             .triplets
             .iter_triplets()
+            // Filter triplets based on the provided triplet IDs
+            .filter(|(triplet_id, _)| {
+                self.triplets.is_none() || self.triplets.as_ref().unwrap().contains(&triplet_id.0)
+            })
             .filter_map(|(triplet_id, triplet)| {
                 // extern/build/{triplet_id}/
                 let triplet_dir = build_dir.join(&triplet_id.0);
@@ -56,9 +70,10 @@ impl Command for QPkgCommand {
 
                     if !binary_built.exists() {
                         panic!(
-                            "Binary {} for triplet {} does not exist. `qpm2 build` must be run first.",
+                            "Binary {} for triplet {} does not exist (looking in {}). `qpm2 build` must be run first.",
                             binary.display(),
-                            triplet_id.triplet_id_color()
+                            triplet_id.triplet_id_color(),
+                            binary_built.display()
                         );
                     }
 
