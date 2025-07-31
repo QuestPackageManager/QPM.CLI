@@ -68,6 +68,7 @@ impl Command for QPkgCommand {
                 .path()
                 .strip_prefix(&package.shared_directory)
                 .unwrap();
+            println!("Adding shared file: {}", rel_path.display().file_path_color());
 
             zip.start_file_from_path(rel_path, options)
                 .with_context(|| {
