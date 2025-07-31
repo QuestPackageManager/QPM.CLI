@@ -1,13 +1,16 @@
-use std::{fs::File, path::PathBuf};
+use std::{collections::HashMap, fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
 use qpm_package::models::{
-    extra::PackageTripletCompileOptions, shared_package::SharedPackageConfig,
+    extra::PackageTripletCompileOptions, package::DependencyId, shared_package::SharedPackageConfig,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{models::package::SharedPackageConfigExtensions, repository::Repository};
+use crate::{
+    models::package::SharedPackageConfigExtensions,
+    repository::{Repository, local::FileRepository},
+};
 
 use super::schemas::{SchemaLinks, WithSchema};
 
@@ -18,6 +21,14 @@ pub struct ToolchainData {
 
     /// Path to the extern directory
     pub extern_dir: PathBuf,
+
+    pub libs_dir: PathBuf,
+    pub include_dir: PathBuf,
+
+    pub build_out: PathBuf,
+    pub triplet_out: PathBuf,
+
+    pub linked_binaries: HashMap<DependencyId, Vec<PathBuf>>,
 }
 
 pub fn write_toolchain_file(
@@ -88,9 +99,55 @@ pub fn write_toolchain_file(
             }
         });
 
+    let linked_binaries =
+        shared_config
+            .get_restored_triplet()
+            .restored_dependencies
+            .iter()
+            .filter_map(|(dep_id, dep_triplet)| {
+                let dep_config = repo
+                    .get_package(dep_id, &dep_triplet.restored_version)
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "Failed to get package config for package '{}' version '{}': {}",
+                            dep_id, dep_triplet.restored_version, e
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Package config not found for package '{}' version '{}'",
+                            dep_id, dep_triplet.restored_version
+                        )
+                    });
+                let dep_triplet_config = dep_config
+                .triplets
+                .get_triplet_settings(&dep_triplet.restored_triplet)
+                .unwrap_or_else(|| panic!(
+                    "Failed to get triplet settings for package '{}' version '{}' triplet '{}'",
+                    dep_id, dep_triplet.restored_version, dep_triplet.restored_triplet
+                ));
+
+                let out_binaries = dep_triplet_config.out_binaries.clone()?;
+                Some((dep_id.clone(), out_binaries))
+            })
+            .collect();
+
+    let extern_dir = shared_config.config.dependencies_directory.clone();
+    let libs_dir = FileRepository::libs_dir(&extern_dir);
+    let include_dir = FileRepository::libs_dir(&extern_dir);
+    let build_out = FileRepository::build_path(&extern_dir);
+    let triplet_out = build_out.join(&shared_config.restored_triplet.0);
+
     let toolchain = ToolchainData {
         compile_options,
-        extern_dir: shared_config.config.dependencies_directory.clone(),
+        extern_dir,
+        libs_dir,
+        include_dir,
+
+        build_out,
+        triplet_out,
+
+        linked_binaries,
     };
     let file = File::create(toolchain_path)?;
     serde_json::to_writer_pretty(
