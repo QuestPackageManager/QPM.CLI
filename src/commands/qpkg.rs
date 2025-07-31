@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -47,6 +48,18 @@ impl Command for QPkgCommand {
         zip.add_directory_from_path(&package.shared_directory, options)
             .context("Failed to add shared directory to QPKG zip")?;
 
+        for entry in walkdir::WalkDir::new(&package.shared_directory)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+        {
+            let rel_path = entry.path().strip_prefix(&package.shared_directory).unwrap();
+            zip.start_file_from_path(rel_path, options)
+                .context(format!("Failed to add file {:?} to QPKG zip", rel_path))?;
+            let bytes = std::fs::read(entry.path()).context("Failed to read shared file")?;
+            zip.write_all(&bytes).context("Failed to write shared file to QPKG zip")?;
+        }
+
         let build_dir = self
             .bin_dir
             .map(PathBuf::from)
@@ -77,8 +90,12 @@ impl Command for QPkgCommand {
                         );
                     }
 
-                    zip.start_file_from_path(binary_built, options)
+                    zip.start_file_from_path(&binary_built, options)
                         .expect("Failed to start file in QPKG zip");
+
+                    let bytes = std::fs::read(&binary_built).expect("Failed to read binary file");
+                    zip.write_all(&bytes)
+                        .expect("Failed to write binary file to QPKG zip");
                 }
 
                 Some((triplet_id, QPkgTripletInfo { files: binaries }))
