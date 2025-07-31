@@ -86,7 +86,7 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
 
 pub fn execute_qmod_zip_operation(
     build_parameters: ZipQmodOperationArgs,
-    additional_include_folders: &[&Path],
+    additional_include_folders: Vec<PathBuf>,
 ) -> Result<()> {
     ensure!(
         std::path::Path::new("mod.template.json").exists(),
@@ -125,19 +125,16 @@ pub fn execute_qmod_zip_operation(
         scripts::invoke_script(build_script, &[], &package, &triplet)?;
     }
 
-    let include_dirs = build_parameters
-        .include_dirs
-        .unwrap_or(package.workspace.qmod_include_dirs);
+    let mut include_dirs = additional_include_folders;
+    include_dirs.extend(
+        build_parameters
+            .include_dirs
+            .unwrap_or(package.workspace.qmod_include_dirs),
+    );
 
-    let include_files = additional_include_folders
-        .iter()
-        .map(PathBuf::from)
-        .chain(
-            build_parameters
-                .include_files
-                .unwrap_or(package.workspace.qmod_include_files),
-        )
-        .collect_vec();
+    let include_files = build_parameters
+        .include_files
+        .unwrap_or(package.workspace.qmod_include_files);
 
     let qmod_out = build_parameters
         .out_target

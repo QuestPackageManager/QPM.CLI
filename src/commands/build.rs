@@ -116,7 +116,7 @@ impl Command for BuildCommand {
 
             // finally qmod
             if self.qmod {
-                zip::execute_qmod_zip_operation(Default::default(), &[&triplet_dir])
+                zip::execute_qmod_zip_operation(Default::default(), vec![triplet_dir.clone()])
                     .context("Making triplet qmod")?;
             }
             Ok(())
