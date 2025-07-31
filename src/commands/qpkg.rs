@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::Write,
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
 
@@ -42,8 +42,11 @@ impl Command for QPkgCommand {
             .unwrap_or(Path::new(&package.id.0))
             .with_extension("qpkg");
 
-        let file = std::fs::File::create(out)?;
-        let mut zip = ZipWriter::new(file);
+        let tmp_out = package.dependencies_directory.join("tmp").join(&out);
+
+        let file = std::fs::File::create(&tmp_out)?;
+        let buf_file = BufWriter::new(file);
+        let mut zip = ZipWriter::new(buf_file);
 
         let options = FileOptions::<()>::default();
 
@@ -64,7 +67,12 @@ impl Command for QPkgCommand {
                 .unwrap();
 
             zip.start_file_from_path(rel_path, options)
-                .with_context(|| format!("Failed to add file {} to QPKG zip", rel_path.display().file_path_color()))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to add file {} to QPKG zip",
+                        rel_path.display().file_path_color()
+                    )
+                })?;
 
             let bytes = std::fs::read(entry.path()).context("Failed to read shared file")?;
             zip.write_all(&bytes)
@@ -128,7 +136,14 @@ impl Command for QPkgCommand {
         serde_json::to_writer(&mut zip, &qpkg).context("Failed to write QPKG JSON to zip")?;
         zip.finish()?;
 
-        println!("Executing QPKG command...");
+        // move the temporary file to the final output location
+        std::fs::rename(tmp_out, &out).with_context(|| {
+            format!(
+                "Failed to move temporary QPKG file to final output: {}",
+                out.display().file_path_color()
+            )
+        })?;
+
         Ok(())
     }
 }
