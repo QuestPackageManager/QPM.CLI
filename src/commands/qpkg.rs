@@ -30,6 +30,9 @@ pub struct QPkgCommand {
     #[clap(short, long)]
     pub triplets: Option<Vec<String>>,
 
+    #[clap(short, long, default_value = "false")]
+    pub verbose: bool,
+
     qpkg_output: Option<PathBuf>,
 }
 
@@ -75,10 +78,12 @@ impl Command for QPkgCommand {
                 .path()
                 .strip_prefix(package.shared_directory.parent().unwrap_or(Path::new("")))
                 .unwrap();
-            println!(
-                "Adding shared file: {}",
-                rel_path.display().file_path_color()
-            );
+            if self.verbose {
+                println!(
+                    "Adding shared file: {}",
+                    rel_path.display().file_path_color()
+                );
+            }
 
             zip.start_file_from_path(rel_path, options)
                 .with_context(|| {
