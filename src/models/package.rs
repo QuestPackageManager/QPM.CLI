@@ -124,7 +124,7 @@ impl PackageConfigExtensions for SharedPackageConfig {
         let path = dir.as_ref().join(QPM_SHARED_JSON);
         let file = File::open(&path)
             .with_context(|| format!("{path:?} not found"))
-            .suggestion(format!("Try running {}", "qpm restore".blue()))?;
+            .suggestion(format!("Try running {}", "qpm2 restore".blue()))?;
 
         json::json_from_reader_fast(BufReader::new(file))
             .with_context(|| format!("Unable to read SharedPackageConfig at {path:?}"))

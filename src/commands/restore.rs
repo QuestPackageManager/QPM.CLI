@@ -216,7 +216,7 @@ pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
     if !ndk_req.matches(&ndk_version) {
         return Err(
             eyre!("NDK Version {ndk_version} does not satisfy {ndk_req}")
-                .suggestion("qpm ndk resolve".to_string()),
+                .suggestion("qpm2 ndk resolve".to_string()),
         );
     }
 

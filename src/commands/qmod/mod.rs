@@ -41,8 +41,8 @@ impl Command for QmodCommand {
             QmodOperation::Build(b) => {
                 println!(
                     "{} is deprecated, switch to {}",
-                    "qpm qmod build".yellow(),
-                    "qpm qmod manifest".green()
+                    "qpm2 qmod build".yellow(),
+                    "qpm2 qmod manifest".green()
                 );
                 manifest::execute_qmod_manifest_operation(b)
             }

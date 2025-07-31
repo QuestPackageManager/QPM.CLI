@@ -148,9 +148,9 @@ impl Default for UserConfig {
     fn default() -> Self {
         Self {
             symlink: Some(true),
-            cache: Some(dirs::data_dir().unwrap().join("QPM-RS").join("cache")),
+            cache: Some(dirs::data_dir().unwrap().join("QPM-RS2").join("cache")),
             timeout: Some(60000),
-            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-RS").join("ndk")),
+            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-RS2").join("ndk")),
         }
     }
 }

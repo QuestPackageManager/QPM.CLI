@@ -42,7 +42,7 @@ impl Command for DoctorCommand {
         let ninja = look_path("ninja")?;
         let adb = look_path("adb")?;
 
-        let qpm = look_path("qpm")?;
+        let qpm = look_path("qpm2")?;
 
         if !cmake {
             eprintln!(
@@ -55,22 +55,22 @@ impl Command for DoctorCommand {
         if !ninja {
             eprintln!(
                 "Ninja is not installed in path! Use {} to download ninja",
-                "qpm download ninja".yellow()
+                "qpm2 download ninja".yellow()
             )
         } else {
             println!("Ninja found!");
         }
 
         if !qpm {
-            eprintln!("Qpm not found in path!")
+            eprintln!("qpm2 not found in path!")
         } else {
-            println!("Qpm found!");
+            println!("qpm2 found!");
         }
 
         if !adb {
             eprintln!(
                 "ADB not installed in path. Use {} to download ADB",
-                "qpm download adb".yellow()
+                "qpm2 download adb".yellow()
             )
         } else {
             println!("ADB found!");

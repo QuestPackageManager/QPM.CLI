@@ -41,7 +41,7 @@ fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
 fn suggest_completion_location(shell: Shell) {
     eprintln!("To add this to your shell, you may use the following command:");
 
-    let file_name = shell.file_name("qpm");
+    let file_name = shell.file_name("qpm2");
 
     // powershell is unique so
     // we make it its own suggestion
