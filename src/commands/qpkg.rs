@@ -13,7 +13,10 @@ use qpm_package::models::{
 };
 use zip::{ZipWriter, write::FileOptions};
 
-use crate::{models::package::PackageConfigExtensions, terminal::colors::QPMColor};
+use crate::{
+    models::package::PackageConfigExtensions, repository::local::FileRepository,
+    terminal::colors::QPMColor,
+};
 
 use super::Command;
 
@@ -49,21 +52,29 @@ impl Command for QPkgCommand {
             .context("Failed to add shared directory to QPKG zip")?;
 
         for entry in walkdir::WalkDir::new(&package.shared_directory)
+            .min_depth(1)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.file_type().is_file())
         {
-            let rel_path = entry.path().strip_prefix(&package.shared_directory).unwrap();
+            // remove the shared directory prefix from the path
+            let rel_path = entry
+                .path()
+                .strip_prefix(&package.shared_directory)
+                .unwrap();
+
             zip.start_file_from_path(rel_path, options)
-                .context(format!("Failed to add file {:?} to QPKG zip", rel_path))?;
+                .with_context(|| format!("Failed to add file {:?} to QPKG zip", rel_path))?;
+
             let bytes = std::fs::read(entry.path()).context("Failed to read shared file")?;
-            zip.write_all(&bytes).context("Failed to write shared file to QPKG zip")?;
+            zip.write_all(&bytes)
+                .context("Failed to write shared file to QPKG zip")?;
         }
 
         let build_dir = self
             .bin_dir
             .map(PathBuf::from)
-            .unwrap_or_else(|| package.dependencies_directory.join("build"));
+            .unwrap_or_else(|| FileRepository::build_path(&package.dependencies_directory));
 
         let triplets: HashMap<TripletId, QPkgTripletInfo> = package
             .triplets

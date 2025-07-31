@@ -414,7 +414,7 @@ impl FileRepository {
         ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
 
         let extern_binaries = Self::libs_dir(&extern_dir);
-        let extern_headers = Self::headers_path(extern_dir);
+        let extern_headers = Self::headers_path(&extern_dir);
 
         // delete if needed extern/libs and extern/includes
         if extern_binaries.exists() {
@@ -546,12 +546,16 @@ impl FileRepository {
         })
     }
 
-    fn libs_dir(extern_dir: &PathBuf) -> PathBuf {
+    pub fn libs_dir(extern_dir: &Path) -> PathBuf {
         extern_dir.join("libs")
     }
 
-    fn headers_path(extern_dir: PathBuf) -> PathBuf {
+    pub fn headers_path(extern_dir: &Path) -> PathBuf {
         extern_dir.join("includes")
+    }
+
+    pub fn build_path(extern_dir: &Path) -> PathBuf {
+        extern_dir.join("build")
     }
 
     /// Collects all dependencies of a package from the cache.
@@ -592,7 +596,7 @@ impl FileRepository {
         ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
 
         let extern_binaries = Self::libs_dir(&extern_dir);
-        let extern_headers = Self::headers_path(extern_dir);
+        let extern_headers = Self::headers_path(&extern_dir);
 
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
 
