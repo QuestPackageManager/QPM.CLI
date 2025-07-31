@@ -1,7 +1,5 @@
 use std::{
-    collections::HashMap,
-    io::{BufWriter, Write},
-    path::{Path, PathBuf},
+    collections::HashMap, fs, io::{BufWriter, Write}, path::{Path, PathBuf}
 };
 
 use clap::Args;
@@ -42,7 +40,12 @@ impl Command for QPkgCommand {
             .unwrap_or(Path::new(&package.id.0))
             .with_extension("qpkg");
 
-        let tmp_out = package.dependencies_directory.join("tmp").join(&out);
+        let tmp = package.dependencies_directory.join("tmp");
+
+        fs::create_dir_all(&tmp)
+            .with_context(|| format!("Failed to create temporary directory: {}", tmp.display().file_path_color()))?;
+        
+        let tmp_out = tmp.join(&out);
 
         let file = std::fs::File::create(&tmp_out)?;
         let buf_file = BufWriter::new(file);
