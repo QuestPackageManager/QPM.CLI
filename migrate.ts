@@ -1,7 +1,7 @@
 #!/bin/deno
 
 interface QPM1 {
-  version: string;
+  version?: string;
   sharedDir: string;
   dependenciesDir: string;
   info: {
@@ -32,8 +32,8 @@ interface QPM1 {
       };
     };
   };
-  workspace: {
-    scripts:
+  workspace?: {
+    scripts?:
       | {
           build?: string[];
           debug?: string[];
@@ -41,9 +41,9 @@ interface QPM1 {
           qmod?: string[];
         }
       | Record<string, string[]>;
-    qmodIncludeDirs: string[];
-    qmodIncludeFiles: string[];
-    qmodOutput: string;
+    qmodIncludeDirs?: string[];
+    qmodIncludeFiles?: string[];
+    qmodOutput?: string;
   };
   dependencies: Array<QPM1Dep>;
 }
@@ -96,10 +96,10 @@ interface QPM2 {
   version: string;
   dependenciesDirectory: string;
   sharedDirectory: string;
-  workspace: {
-    scripts: Record<string, string[] | undefined>;
-    qmodIncludeDirs: string[];
-    qmodIncludeFiles: string[];
+  workspace?: {
+    scripts?: Record<string, string[] | undefined>;
+    qmodIncludeDirs?: string[];
+    qmodIncludeFiles?: string[];
   };
   additionalData?: {
     description?: string;
@@ -157,13 +157,13 @@ const qpm2: QPM2 = {
   sharedDirectory: qpm1.sharedDir,
   workspace: {
     scripts: {
-      build: qpm1.workspace.scripts.build,
-      debug: qpm1.workspace.scripts.debug,
-      copy: qpm1.workspace.scripts.copy,
-      qmod: qpm1.workspace.scripts.qmod,
+      build: qpm1.workspace?.scripts?.build,
+      debug: qpm1.workspace?.scripts?.debug,
+      copy: qpm1.workspace?.scripts?.copy,
+      qmod: qpm1.workspace?.scripts?.qmod,
     },
-    qmodIncludeDirs: qpm1.workspace.qmodIncludeDirs,
-    qmodIncludeFiles: qpm1.workspace.qmodIncludeFiles,
+    qmodIncludeDirs: qpm1.workspace?.qmodIncludeDirs,
+    qmodIncludeFiles: qpm1.workspace?.qmodIncludeFiles,
   },
   additionalData: {
     description: "",
