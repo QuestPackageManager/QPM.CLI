@@ -294,7 +294,7 @@ impl FileRepository {
         zip_archive.extract(&tmp_path).context("Zip extraction")?;
 
         // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
-        fs::copy(tmp_path.join(QPKG_JSON), &qpkg_file_dst).with_context(|| {
+        fs::rename(tmp_path.join(QPKG_JSON), &qpkg_file_dst).with_context(|| {
             format!(
                 "Failed to copy QPkg file from {} to {}",
                 tmp_path.display().file_path_color(),
@@ -303,7 +303,7 @@ impl FileRepository {
         })?;
 
         // copy headers to src folder
-        fs::copy(tmp_path.join(&qpkg.shared_dir), &headers_dst).with_context(|| {
+        fs::rename(tmp_path.join(&qpkg.shared_dir), &headers_dst).with_context(|| {
             format!(
                 "Failed to copy headers from {} to {}",
                 tmp_path.display().file_path_color(),
@@ -326,7 +326,7 @@ impl FileRepository {
                 let src_file = tmp_path.join(file);
                 let dst_file = bin_dir.join(file.file_name().unwrap());
                 // copy as {cache}/{id}/{version}/{triplet}/lib/{file_name}
-                fs::copy(&src_file, &dst_file).with_context(|| {
+                fs::rename(&src_file, &dst_file).with_context(|| {
                     format!(
                         "Failed to copy file from {} to {}",
                         src_file.display().file_path_color(),
