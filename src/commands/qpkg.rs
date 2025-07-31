@@ -64,7 +64,7 @@ impl Command for QPkgCommand {
                 .unwrap();
 
             zip.start_file_from_path(rel_path, options)
-                .with_context(|| format!("Failed to add file {:?} to QPKG zip", rel_path))?;
+                .with_context(|| format!("Failed to add file {} to QPKG zip", rel_path.display().file_path_color()))?;
 
             let bytes = std::fs::read(entry.path()).context("Failed to read shared file")?;
             zip.write_all(&bytes)
@@ -88,23 +88,27 @@ impl Command for QPkgCommand {
                 let triplet_dir = build_dir.join(&triplet_id.0);
 
                 let binaries = triplet.out_binaries.clone()?;
-                for binary in &binaries {
+                for binary_rel_path in &binaries {
                     // extern/build/{triplet_id}/{binary}
-                    let binary_built = triplet_dir.join(binary);
+                    let binary_src = triplet_dir.join(binary_rel_path);
 
-                    if !binary_built.exists() {
+                    let zip_path = binary_src
+                        .strip_prefix(&build_dir)
+                        .unwrap();
+
+                    if !binary_src.exists() {
                         panic!(
                             "Binary {} for triplet {} does not exist (looking in {}). `qpm2 build` must be run first.",
-                            binary.display(),
+                            binary_rel_path.display().file_path_color(),
                             triplet_id.triplet_id_color(),
-                            binary_built.display()
+                            binary_src.display().file_path_color()
                         );
                     }
 
-                    zip.start_file_from_path(&binary_built, options)
+                    zip.start_file_from_path(zip_path, options)
                         .expect("Failed to start file in QPKG zip");
 
-                    let bytes = std::fs::read(&binary_built).expect("Failed to read binary file");
+                    let bytes = std::fs::read(&binary_src).expect("Failed to read binary file");
                     zip.write_all(&bytes)
                         .expect("Failed to write binary file to QPKG zip");
                 }
