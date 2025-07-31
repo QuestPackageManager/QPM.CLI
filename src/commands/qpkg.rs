@@ -32,6 +32,10 @@ pub struct QPkgCommand {
     #[clap(short, long, default_value = "false")]
     pub build: bool,
 
+    /// Whether to create a qmod file when building the QPKG. Requires `build` to be true
+    #[clap(long, default_value = "false")]
+    pub qmod: bool,
+
     /// Offline mode repository access
     #[clap(long, default_value = "false")]
     pub offline: bool,
@@ -63,7 +67,7 @@ impl Command for QPkgCommand {
                 triplets: self.triplets.clone(),
                 offline: self.offline,
                 out_dir: Some(build_dir.clone()),
-                qmod: false,
+                qmod: self.qmod,
                 build_script: None,
             };
 
