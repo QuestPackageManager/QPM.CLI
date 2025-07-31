@@ -15,8 +15,8 @@ use qpm_package::models::{
 use zip::{ZipWriter, write::FileOptions};
 
 use crate::{
-    models::package::PackageConfigExtensions, repository::local::FileRepository,
-    terminal::colors::QPMColor,
+    commands::build::BuildCommand, models::package::PackageConfigExtensions,
+    repository::local::FileRepository, terminal::colors::QPMColor,
 };
 
 use super::Command;
@@ -24,21 +24,51 @@ use super::Command;
 /// Templatr rust rewrite (implementation not based on the old one)
 #[derive(Args, Clone, Debug)]
 pub struct QPkgCommand {
-    #[clap(short, long)]
-    pub bin_dir: Option<String>,
+    /// Directory storing the binaries for each triplet as {triplet}/{binary_name}
+    #[clap(short, long = "input-bins")]
+    pub input_bin_dir: Option<String>,
 
+    /// If to build the QPKG before creating the QPKG file
+    #[clap(short, long, default_value = "false")]
+    pub build: bool,
+
+    /// Offline mode repository access
+    #[clap(long, default_value = "false")]
+    pub offline: bool,
+
+    /// Triplets to QPKG. Forwarded to build
     #[clap(short, long)]
     pub triplets: Option<Vec<String>>,
 
+    /// Verbose output
     #[clap(short, long, default_value = "false")]
     pub verbose: bool,
 
-    qpkg_output: Option<PathBuf>,
+    /// Where to output the QPKG file
+    pub qpkg_output: Option<PathBuf>,
 }
 
 impl Command for QPkgCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
+
+        let build_dir = self
+            .input_bin_dir
+            .map(PathBuf::from)
+            .unwrap_or_else(|| FileRepository::build_path(&package.dependencies_directory));
+
+        if self.build {
+            let command = BuildCommand {
+                args: None,
+                triplets: self.triplets.clone(),
+                offline: self.offline,
+                out_dir: Some(build_dir.clone()),
+                qmod: false,
+                build_script: None,
+            };
+
+            command.execute().context("Failed to build qpkg")?;
+        }
 
         let out = self
             .qpkg_output
@@ -97,11 +127,6 @@ impl Command for QPkgCommand {
             zip.write_all(&bytes)
                 .context("Failed to write shared file to QPKG zip")?;
         }
-
-        let build_dir = self
-            .bin_dir
-            .map(PathBuf::from)
-            .unwrap_or_else(|| FileRepository::build_path(&package.dependencies_directory));
 
         let triplets: HashMap<TripletId, QPkgTripletInfo> = package
             .triplets

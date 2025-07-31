@@ -15,7 +15,7 @@ use qpm_package::{
 use crate::{
     commands::{qmod::zip, scripts},
     models::package::PackageConfigExtensions,
-    repository,
+    repository::{self, local::FileRepository},
     resolver::dependency,
     terminal::colors::QPMColor,
 };
@@ -30,15 +30,20 @@ pub struct BuildCommand {
     #[clap(short, long)]
     pub triplets: Option<Vec<String>>,
 
+    /// Offline mode repository access
     #[clap(short, long, default_value = "false")]
     pub offline: bool,
 
+    /// Where to output the triplets
     #[clap(short, long)]
     pub out_dir: Option<PathBuf>,
 
+    /// Whether to zip each triplet as a qmod
+    /// This does not set the QMOD url
     #[clap(long, default_value = "false")]
     pub qmod: bool,
 
+    /// The build script to run for each triplet
     #[clap(long)]
     pub build_script: Option<String>,
 }
@@ -50,7 +55,7 @@ impl Command for BuildCommand {
 
         let out_dir = self
             .out_dir
-            .unwrap_or_else(|| package.dependencies_directory.join("build"));
+            .unwrap_or_else(|| FileRepository::build_path(&package.dependencies_directory));
 
         let build_script = match self.build_script {
             Some(script) => Some(

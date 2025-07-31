@@ -18,6 +18,7 @@ use super::Command;
 
 #[derive(Args, Debug, Clone)]
 pub struct InstallCommand {
+    /// Offline mode repository access
     #[clap(long, default_value = "false")]
     offline: bool,
 
@@ -29,6 +30,7 @@ pub struct InstallCommand {
     #[clap(short, long = "url")]
     qpkg_url: Option<String>,
 
+    /// Whether to skip validation of the binaries
     #[clap(long, default_value = "false")]
     pub no_validate: bool,
 
