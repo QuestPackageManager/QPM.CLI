@@ -5,8 +5,9 @@ use color_eyre::{
 use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
-    package::{DependencyId, PackageConfig},
+    package::{DependencyId, PackageConfig, QPM_JSON},
     qpkg::{QPKG_JSON, QPkg},
+    shared_package::QPM_SHARED_JSON,
     triplet::TripletId,
 };
 use schemars::JsonSchema;
@@ -158,12 +159,12 @@ impl FileRepository {
             &cache_path.src_path().join(&package.shared_directory),
         )?;
         copy_things(
-            &project_folder.join("qpm.json"),
-            &cache_path.src_path().join("qpm.json"),
+            &project_folder.join(QPM_JSON),
+            &cache_path.src_path().join(QPM_JSON),
         )?;
         copy_things(
-            &project_folder.join("qpm.shared.json"),
-            &cache_path.src_path().join("qpm.shared.json"),
+            &project_folder.join(QPM_SHARED_JSON),
+            &cache_path.src_path().join(QPM_SHARED_JSON),
         )?;
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
@@ -238,17 +239,6 @@ impl FileRepository {
     where
         T: Read + Seek,
     {
-        if QPkg::exists(".") {
-            match overwrite_existing {
-                false => {
-                    bail!("QPKG already exists in the current directory");
-                }
-                true => {
-                    println!("Overwriting existing QPKG in the current directory");
-                }
-            }
-        }
-
         // Extract to tmp folder
         let mut zip_archive = ZipArchive::new(buffer).context("Reading zip")?;
 
@@ -263,24 +253,41 @@ impl FileRepository {
         let package_path: crate::models::package_files::PackageVersionPath =
             PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
 
-        let src_path = package_path.src_path();
         let tmp_path = package_path.tmp_path();
         let qpkg_file_dst = package_path.qpkg_json_path();
-
         let headers_dst = package_path.src_path();
+        let base_path = package_path.base_path();
 
-        // ensure the src path exists
-        if !headers_dst.exists() {
-            // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
-            fs::create_dir_all(&src_path)
-                .with_context(|| format!("Failed to create lib path {headers_dst:?}"))?;
+        if QPkg::exists(&base_path) {
+            match overwrite_existing {
+                false => {
+                    bail!(
+                        "QPKG already exists {}",
+                        base_path.display().file_path_color()
+                    );
+                }
+                true => {
+                    println!(
+                        "Overwriting existing QPKG {}",
+                        base_path.display().file_path_color()
+                    );
+                }
+            }
         }
 
-        // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
-        if tmp_path.exists() {
-            fs::remove_dir_all(&tmp_path)
-                .with_context(|| format!("Failed to remove existing tmp folder {tmp_path:?}"))?;
-        }
+        // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
+        fs::remove_dir_all(&base_path).with_context(|| {
+            format!(
+                "Failed to remove existing QPkg at {}",
+                package_path.base_path().display().file_path_color()
+            )
+        })?;
+        fs::create_dir_all(&base_path).with_context(|| {
+            format!(
+                "Failed to create package path{}",
+                package_path.base_path().display().file_path_color()
+            )
+        })?;
 
         // make tmp_path
         fs::create_dir_all(&tmp_path).with_context(|| {
@@ -290,10 +297,13 @@ impl FileRepository {
             )
         })?;
 
+        // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
+        fs::create_dir_all(&headers_dst)
+            .with_context(|| format!("Failed to create lib path {headers_dst:?}"))?;
+
         // now extract the zip to the tmp path
         zip_archive.extract(&tmp_path).context("Zip extraction")?;
 
-        // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
         fs::rename(tmp_path.join(QPKG_JSON), &qpkg_file_dst).with_context(|| {
             format!(
                 "Failed to copy QPkg file from {} to {}",
@@ -363,18 +373,18 @@ impl FileRepository {
         }
 
         // now write the package config to the src path
-        qpkg.config.write(&src_path).with_context(|| {
+        qpkg.config.write(&base_path).with_context(|| {
             format!(
                 "Failed to write package config to {}",
-                src_path.display().file_path_color()
+                headers_dst.display().file_path_color()
             )
         })?;
 
         // write the qpkg file to the src path
-        qpkg.write(&src_path).with_context(|| {
+        qpkg.write(&base_path).with_context(|| {
             format!(
                 "Failed to write QPkg file to {}",
-                src_path.display().file_path_color()
+                headers_dst.display().file_path_color()
             )
         })?;
 
@@ -443,13 +453,13 @@ impl FileRepository {
                 eprintln!(
                     "Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}",
                     e.bright_red(),
-                    "qpm config symlink disable".bright_yellow()
+                    "qpm2 config symlink disable".bright_yellow()
                 );
                 #[cfg(not(windows))]
                 eprintln!(
                     "Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}",
                     e.bright_red(),
-                    "qpm config symlink disable".bright_yellow()
+                    "qpm2 config symlink disable".bright_yellow()
                 );
             }
 
@@ -459,7 +469,7 @@ impl FileRepository {
                     bail!(
                         "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
                         src.display().bright_yellow(),
-                        "qpm cache clear".bright_yellow()
+                        "qpm2 cache clear".bright_yellow()
                     );
                 } else if src.is_dir() {
                     std::fs::create_dir_all(&dest)

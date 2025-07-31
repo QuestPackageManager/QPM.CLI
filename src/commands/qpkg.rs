@@ -121,14 +121,12 @@ impl Command for QPkgCommand {
                     .iter()
                     .map(|binary| {
                         // extern/build/{triplet_id}/{binary}
-                        let binary_path = triplet_dir.join(binary);
+                        let binary_name = binary.file_name().unwrap_or_default();
+                        let binary_path = triplet_dir.join(binary_name);
 
-                        let zip_path = binary_path
-                            .strip_prefix(&build_dir)
-                            .unwrap()
-                            .to_path_buf();
-
-                        let zip_path = Path::new("bin").join(&zip_path);
+                        let zip_path = Path::new("bin")
+                            .join(&triplet_id.0)
+                            .join(binary_name);
 
                         if !binary_path.exists() {
                             panic!(
@@ -163,7 +161,8 @@ impl Command for QPkgCommand {
 
         zip.start_file(QPKG_JSON, options)
             .context("Failed to start file in QPKG zip")?;
-        serde_json::to_writer(&mut zip, &qpkg).context("Failed to write QPKG JSON to zip")?;
+        serde_json::to_writer_pretty(&mut zip, &qpkg)
+            .context("Failed to write QPKG JSON to zip")?;
         zip.finish()?;
 
         // move the temporary file to the final output location

@@ -129,9 +129,19 @@ impl QPMRepository {
         );
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        let src_path = package_path.src_path();
+        let base_path = package_path.base_path();
 
-        if QPackagesPackage::read(&src_path).is_ok() {
+        let qpackages_cached = QPackagesPackage::read(&base_path);
+        if let Ok(qpackages_cached) = qpackages_cached {
+            if qpackages_cached != *qpackage_config {
+                eprintln!(
+                    "Cached QPackages {}:{} does not match the requested {}:{}",
+                    qpackages_cached.config.id.dependency_id_color(),
+                    qpackages_cached.config.version.version_id_color(),
+                    config.id.dependency_id_color(),
+                    config.version.version_id_color()
+                );
+            }
             // already cached, no need to download again
             return Ok(());
         }
@@ -167,7 +177,7 @@ impl QPMRepository {
             )
         })?;
 
-        let package = PackageConfig::read(&src_path)?;
+        let package = PackageConfig::read(&base_path)?;
         // assert that the package is the same as the one we downloaded
         if package != qpackage_config.config {
             bail!(
@@ -179,10 +189,10 @@ impl QPMRepository {
             );
         }
 
-        qpackage_config.write(&src_path).with_context(|| {
+        qpackage_config.write(&base_path).with_context(|| {
             format!(
                 "Failed to write QPackages.json to {}",
-                src_path.display().file_path_color()
+                base_path.display().file_path_color()
             )
         })?;
 

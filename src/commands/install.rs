@@ -22,11 +22,11 @@ pub struct InstallCommand {
     offline: bool,
 
     /// Path to the qpkg file to install
-    #[clap(long = "path")]
+    #[clap(short, long = "path")]
     qpkg_path: Option<PathBuf>,
 
     /// URL of the qpkg to install
-    #[clap(long = "url")]
+    #[clap(short, long = "url")]
     qpkg_url: Option<String>,
 
     #[clap(long, default_value = "false")]
