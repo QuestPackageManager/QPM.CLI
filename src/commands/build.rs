@@ -38,6 +38,9 @@ pub struct BuildCommand {
 
     #[clap(long, default_value = "false")]
     pub qmod: bool,
+
+    #[clap(long)]
+    pub build_script: Option<String>,
 }
 
 impl Command for BuildCommand {
@@ -49,10 +52,16 @@ impl Command for BuildCommand {
             .out_dir
             .unwrap_or_else(|| package.dependencies_directory.join("build"));
 
-        let script = package
-            .workspace
-            .get_build()
-            .context("Failed to get build script from workspace")?;
+        let build_script = match self.build_script {
+            Some(script) => Some(
+                package
+                    .workspace
+                    .scripts
+                    .get(&script)
+                    .context(format!("Failed to find build script {script} in package"))?,
+            ),
+            None => package.workspace.get_build(),
+        };
 
         let args = self.args.unwrap_or_default();
 
@@ -80,11 +89,13 @@ impl Command for BuildCommand {
             shared_package.write(".")?;
 
             // run builld
-            println!(
-                "Building QPKG for triplet {}",
-                triplet_id.triplet_id_color()
-            );
-            scripts::invoke_script(script, &args, &package, triplet_id)?;
+            if let Some(build_script) = &build_script {
+                println!(
+                    "Building QPKG for triplet {}",
+                    triplet_id.triplet_id_color()
+                );
+                scripts::invoke_script(build_script, &args, &package, triplet_id)?;
+            }
 
             let triplet_dir = out_dir.join(&triplet_id.0);
 
