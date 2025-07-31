@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fs, io::{BufWriter, Write}, path::{Path, PathBuf}
+    collections::HashMap,
+    fs,
+    io::{BufWriter, Write},
+    path::{Path, PathBuf},
 };
 
 use clap::Args;
@@ -42,9 +45,13 @@ impl Command for QPkgCommand {
 
         let tmp = package.dependencies_directory.join("tmp");
 
-        fs::create_dir_all(&tmp)
-            .with_context(|| format!("Failed to create temporary directory: {}", tmp.display().file_path_color()))?;
-        
+        fs::create_dir_all(&tmp).with_context(|| {
+            format!(
+                "Failed to create temporary directory: {}",
+                tmp.display().file_path_color()
+            )
+        })?;
+
         let tmp_out = tmp.join(&out);
 
         let file = std::fs::File::create(&tmp_out)?;
@@ -63,12 +70,15 @@ impl Command for QPkgCommand {
             .filter_map(Result::ok)
             .filter(|e| e.file_type().is_file())
         {
-            // remove the shared directory prefix from the path
+            // remove the project prefix from the path
             let rel_path = entry
                 .path()
-                .strip_prefix(&package.shared_directory)
+                .strip_prefix(package.shared_directory.parent().unwrap_or(Path::new("")))
                 .unwrap();
-            println!("Adding shared file: {}", rel_path.display().file_path_color());
+            println!(
+                "Adding shared file: {}",
+                rel_path.display().file_path_color()
+            );
 
             zip.start_file_from_path(rel_path, options)
                 .with_context(|| {
