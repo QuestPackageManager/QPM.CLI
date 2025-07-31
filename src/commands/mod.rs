@@ -88,6 +88,8 @@ pub enum MainCommand {
     #[command(name = "qpkg", about = "QPKG control")]
     QPkg(qpkg::QPkgCommand),
 
+    Build(build::BuildCommand),
+
     /// Triplet commands
     Triplet(build::BuildCommand),
 }
@@ -113,12 +115,11 @@ impl Command for MainCommand {
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
             MainCommand::GenSchema(g) => g.execute(),
-
             MainCommand::QPkg(q) => q.execute(),
             MainCommand::Triplet(t) => t.execute(),
-
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
+            MainCommand::Build(build_command) => build_command.execute(),
         }
     }
 }
