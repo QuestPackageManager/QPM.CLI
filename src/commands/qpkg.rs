@@ -198,6 +198,11 @@ impl Command for QPkgCommand {
             )
         })?;
 
+        println!(
+            "QPKG file created successfully at {}",
+            out.display().file_path_color()
+        );
+
         Ok(())
     }
 }
