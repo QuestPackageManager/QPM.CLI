@@ -409,6 +409,23 @@ impl FileRepository {
             ..Default::default()
         };
 
+        let extern_dir = workspace_dir.join(&package.dependencies_directory);
+
+        ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
+
+        let extern_binaries = Self::libs_dir(&extern_dir);
+        let extern_headers = Self::headers_path(extern_dir);
+
+        // delete if needed extern/libs and extern/includes
+        if extern_binaries.exists() {
+            fs::remove_dir_all(&extern_binaries)
+                .with_context(|| format!("Unable to delete {extern_binaries:?}"))?;
+        }
+        if extern_headers.exists() {
+            fs::remove_dir_all(&extern_headers)
+                .with_context(|| format!("Unable to delete {extern_headers:?}"))?;
+        }
+
         for (src, dest) in files {
             fs::create_dir_all(dest.parent().unwrap())?;
             let symlink_result = if symlink {
@@ -529,6 +546,14 @@ impl FileRepository {
         })
     }
 
+    fn libs_dir(extern_dir: &PathBuf) -> PathBuf {
+        extern_dir.join("libs")
+    }
+
+    fn headers_path(extern_dir: PathBuf) -> PathBuf {
+        extern_dir.join("includes")
+    }
+
     /// Collects all dependencies of a package from the cache.
     /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
@@ -566,14 +591,8 @@ impl FileRepository {
 
         ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
 
-        // delete if needed
-        if extern_dir.exists() {
-            fs::remove_dir_all(&extern_dir)
-                .with_context(|| format!("Unable to delete {extern_dir:?}"))?;
-        }
-
-        let extern_binaries = extern_dir.join("libs");
-        let extern_headers = extern_dir.join("includes");
+        let extern_binaries = Self::libs_dir(&extern_dir);
+        let extern_headers = Self::headers_path(extern_dir);
 
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
 
