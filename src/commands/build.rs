@@ -33,7 +33,7 @@ pub struct BuildCommand {
     #[clap(short, long, default_value = "false")]
     pub offline: bool,
 
-    #[clap(short, long, default_value = "false")]
+    #[clap(short, long)]
     pub out_dir: Option<PathBuf>,
 
     #[clap(long, default_value = "false")]
@@ -75,18 +75,22 @@ impl Command for BuildCommand {
                 .get(triplet_id)
                 .context("Failed to get triplet settings")?;
 
-            println!(
-                "Restoring dependencies for triplet {}",
-                triplet_id.triplet_id_color()
-            );
-            // restore for triplet
-            let resolved_deps =
-                dependency::locked_resolve(&shared_package, &repo, shared_triplet)?.collect_vec();
+            if shared_package.restored_triplet != *triplet_id {
+                println!(
+                    "Restoring dependencies for triplet {}",
+                    triplet_id.triplet_id_color()
+                );
 
-            // now restore
-            dependency::restore(".", &shared_package, triplet_id, &resolved_deps, &mut repo)?;
-            shared_package.restored_triplet = triplet_id.clone();
-            shared_package.write(".")?;
+                // restore for triplet
+                let resolved_deps =
+                    dependency::locked_resolve(&shared_package, &repo, shared_triplet)?
+                        .collect_vec();
+
+                // now restore
+                dependency::restore(".", &shared_package, triplet_id, &resolved_deps, &mut repo)?;
+                shared_package.restored_triplet = triplet_id.clone();
+                shared_package.write(".")?;
+            }
 
             // run builld
             if let Some(build_script) = &build_script {
@@ -147,8 +151,14 @@ impl Command for BuildCommand {
 
 fn copy_bins(triplet_dir: &Path, out_binaries: &[PathBuf]) -> color_eyre::Result<()> {
     for binary in out_binaries {
+        println!(
+            "Copying binary {} to triplet directory {}",
+            binary.display().file_path_color(),
+            triplet_dir.display().file_path_color()
+        );
+
         // create the output directory if it doesn't exist
-        let out_path = triplet_dir.join(binary);
+        let out_path = triplet_dir.join(binary.file_name().unwrap_or_default());
 
         std::fs::create_dir_all(out_path.parent().unwrap()).with_context(|| {
             format!(
