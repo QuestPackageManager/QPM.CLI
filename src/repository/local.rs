@@ -303,14 +303,6 @@ impl FileRepository {
         // now extract the zip to the tmp path
         zip_archive.extract(&tmp_path).context("Zip extraction")?;
 
-        fs::rename(tmp_path.join(QPKG_JSON), &qpkg_file_dst).with_context(|| {
-            format!(
-                "Failed to copy QPkg file from {} to {}",
-                tmp_path.display().file_path_color(),
-                qpkg_file_dst.display().file_path_color()
-            )
-        })?;
-
         // copy headers to src folder
         fs::rename(tmp_path.join(&qpkg.shared_dir), &headers_dst).with_context(|| {
             format!(
@@ -443,6 +435,14 @@ impl FileRepository {
         for (src, dest) in files {
             fs::create_dir_all(dest.parent().unwrap())?;
             let symlink_result = if symlink {
+                if !src.exists() {
+                    bail!(
+                        "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
+                        src.display().bright_yellow(),
+                        "qpm2 cache clear".bright_yellow()
+                    );
+                }
+
                 if src.is_file() {
                     symlink::symlink_file(&src, &dest)
                 } else {
@@ -514,17 +514,16 @@ impl FileRepository {
             );
         }
 
-        let src_path = dep_cache_path.src_path();
+        let headers_path = dep_cache_path.src_path();
 
-        if !src_path.exists() {
+        if !headers_path.exists() {
             bail!(
-                "Missing src for dependency {}:{}",
+                "Missing src for dependency {}:{} at {}",
                 package.id.dependency_id_color(),
-                package.version.dependency_version_color()
+                package.version.dependency_version_color(),
+                headers_path.display().file_path_color()
             );
         }
-
-        let exposed_headers = src_path.join(&package.shared_directory);
 
         let expected_binaries = package_triplet.out_binaries.unwrap_or_default();
         let binaries: Vec<PathBuf> = expected_binaries
@@ -555,7 +554,7 @@ impl FileRepository {
         }
 
         Ok(PackageFiles {
-            headers: exposed_headers,
+            headers: headers_path,
             binaries,
         })
     }
@@ -660,7 +659,8 @@ impl FileRepository {
             let exposed_headers = dep_files.headers;
             if !exposed_headers.exists() {
                 bail!(
-                    "Missing header files for {}:{}",
+                    "Missing header files {} for {}:{}",
+                    exposed_headers.display().file_path_color(),
                     dep.0.id.dependency_id_color(),
                     dep.0.version.dependency_version_color()
                 );
