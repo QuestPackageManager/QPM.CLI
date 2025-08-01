@@ -63,10 +63,7 @@ impl FileRepository {
     }
 
     pub fn get_artifact(&self, id: &DependencyId, version: &Version) -> Option<&PackageConfig> {
-        match self.artifacts.get(id) {
-            Some(artifacts) => artifacts.get(version),
-            None => None,
-        }
+        self.artifacts.get(id)?.get(version)
     }
 
     /// for adding to cache from local or network
@@ -254,7 +251,7 @@ impl FileRepository {
             PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
 
         let tmp_path = package_path.tmp_path();
-        let qpkg_file_dst = package_path.qpkg_json_path();
+        let qpkg_file_dst = package_path.qpkg_json_dir();
         let headers_dst = package_path.src_path();
         let base_path = package_path.base_path();
 
@@ -752,7 +749,7 @@ impl Repository for FileRepository {
         let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        let config = PackageConfig::read(package_path.qpm_json_path());
+        let config = PackageConfig::read(package_path.qpm_json_dir());
 
         Ok(exist_in_db && package_path.src_path().exists() && config.is_ok())
     }

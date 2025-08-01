@@ -56,11 +56,11 @@ impl PackageVersionPath {
         self.base_path().join("src")
     }
 
-    pub fn qpm_json_path(&self) -> PathBuf {
-        self.base_path().join(QPM_JSON)
+    pub fn qpm_json_dir(&self) -> PathBuf {
+        self.base_path()
     }
-    pub fn qpkg_json_path(&self) -> PathBuf {
-        self.base_path().join(QPKG_JSON)
+    pub fn qpkg_json_dir(&self) -> PathBuf {
+        self.base_path()
     }
 
     /// Returns the path to the temporary files for the package version.

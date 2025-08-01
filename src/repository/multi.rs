@@ -86,19 +86,18 @@ impl Repository for MultiDependencyRepository {
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        match self
-            .repositories
-            .iter_mut()
-            .filter(|r| {
-                r.get_package(&config.id, &config.version)
-                    .expect("Unable to get package")
-                    .is_some()
-            })
-            .find_map(|r| {
-                r.download_to_cache(config)
-                    .expect("Unable to download to cache")
-                    .then_some(true)
-            }) {
+        let mut found_package = self.repositories.iter_mut().filter(|r| {
+            r.get_package(&config.id, &config.version)
+                .expect("Unable to get package")
+                .is_some()
+        });
+
+        let downloaded_package = found_package.find_map(|r| {
+            r.download_to_cache(config)
+                .expect("Unable to download to cache")
+                .then_some(true)
+        });
+        match downloaded_package {
             Some(v) => Ok(v),
             None => bail!(
                 "No repository found that has package {}:{}",
