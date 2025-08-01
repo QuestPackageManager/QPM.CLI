@@ -276,12 +276,14 @@ impl FileRepository {
         }
 
         // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
-        fs::remove_dir_all(&base_path).with_context(|| {
-            format!(
-                "Failed to remove existing QPkg at {}",
-                package_path.base_path().display().file_path_color()
-            )
-        })?;
+        if base_path.exists() {
+            fs::remove_dir_all(&base_path).with_context(|| {
+                format!(
+                    "Failed to remove existing QPkg at {}",
+                    package_path.base_path().display().file_path_color()
+                )
+            })?;
+        }
         fs::create_dir_all(&base_path).with_context(|| {
             format!(
                 "Failed to create package path{}",
