@@ -380,6 +380,11 @@ impl FileRepository {
             )
         })?;
 
+        let mut file_repo = FileRepository::read()?;
+
+        file_repo.add_artifact_and_cache(qpkg.config.clone(), true)?;
+        file_repo.write()?;
+
         // write the qpkg file to the src path
         qpkg.write(&base_path).with_context(|| {
             format!(
