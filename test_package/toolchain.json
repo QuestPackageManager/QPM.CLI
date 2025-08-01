@@ -1,5 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.CLI/refs/heads/main/qpm.toolchain.schema.json",
   "compile_options": {},
-  "extern_dir": "extern"
+  "extern_dir": "extern",
+  "libs_dir": "extern\\libs",
+  "include_dir": "extern\\libs",
+  "build_out": "extern\\build",
+  "triplet_out": "extern\\build\\default",
+  "linked_binaries": {}
 }
