@@ -32,11 +32,12 @@ pub struct ResolvedDependency(pub PackageConfig, pub TripletId);
 
 impl ResolvedDependency {
     pub fn get_triplet_settings(&self) -> &PackageTriplet {
-        self.0
-            .triplets
-            .specific_triplets
-            .get(&self.1)
-            .expect("Triplet should always exist in the package's triplets")
+        self.0.triplets.get_triplet(&self.1).unwrap_or_else(|| {
+            panic!(
+                "Triplet of resolved dependency {} should always exist in the package's triplets",
+                self.1.triplet_id_color()
+            )
+        })
     }
 }
 
