@@ -4,8 +4,7 @@ use std::{
 };
 
 use qpm_package::models::{
-    package::{DependencyId, QPM_JSON},
-    qpkg::QPKG_JSON,
+    package::DependencyId,
     triplet::TripletId,
 };
 use semver::Version;

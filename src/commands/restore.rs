@@ -134,7 +134,7 @@ impl Command for RestoreCommand {
         let shared_package = shared_package_opt.expect("SharedPackage is None somehow!");
 
         // always write to reflect config changes
-        dependency::restore(".", &shared_package, &triplet_id, &resolved_deps, &mut repo)?;
+        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
         shared_package.write(".")?;
 
         println!(

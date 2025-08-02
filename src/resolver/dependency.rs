@@ -259,10 +259,11 @@ pub fn resolve<'a>(
 pub fn restore<P: AsRef<Path>>(
     workspace: P,
     shared_package: &SharedPackageConfig,
-    triplet: &TripletId,
     resolved_deps: &[ResolvedDependency],
     repository: &mut impl Repository,
 ) -> Result<()> {
+    let triplet_id = &shared_package.restored_triplet;
+
     for ResolvedDependency(dep, dep_triplet) in resolved_deps {
         println!(
             "Pulling {}:{} ({})",
@@ -282,10 +283,10 @@ pub fn restore<P: AsRef<Path>>(
 
     repository.write_repo()?;
 
-    println!("Copying now {}", triplet.triplet_id_color());
+    println!("Copying now {}", triplet_id.triplet_id_color());
     FileRepository::copy_from_cache(
         &shared_package.config,
-        triplet,
+        triplet_id,
         resolved_deps,
         workspace.as_ref(),
     )?;

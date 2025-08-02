@@ -92,7 +92,7 @@ impl Command for BuildCommand {
                         .collect_vec();
 
                 // now restore
-                dependency::restore(".", &shared_package, triplet_id, &resolved_deps, &mut repo)?;
+                dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
                 shared_package.restored_triplet = triplet_id.clone();
                 shared_package.write(".")?;
             }
