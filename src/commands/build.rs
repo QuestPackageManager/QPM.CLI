@@ -131,10 +131,10 @@ impl Command for BuildCommand {
                     let triplet_id = TripletId(triplet_id);
                     let triplet = package
                         .triplets
-                        .get_triplet(&triplet_id)
+                        .get_triplet_settings(&triplet_id)
                         .context(format!("Failed to get triplet {triplet_id} from package"))?;
 
-                    build_triplet(&triplet_id, triplet).with_context(|| {
+                    build_triplet(&triplet_id, &triplet).with_context(|| {
                         format!("Failed to build triplet {}", triplet_id.triplet_id_color())
                     })?;
                 }

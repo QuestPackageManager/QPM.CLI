@@ -95,7 +95,11 @@ pub fn execute_qmod_zip_operation(
     let shared_package = SharedPackageConfig::read(".")?;
     let package = PackageConfig::read(".")?;
 
-    let triplet = shared_package.restored_triplet.clone();
+    let triplet_id = shared_package.restored_triplet.clone();
+    let triplet = package
+        .triplets
+        .get_triplet_settings(&triplet_id)
+        .expect("Triplet should exist in package");
 
     let new_manifest = generate_qmod_manifest(
         &package,
@@ -112,7 +116,7 @@ pub fn execute_qmod_zip_operation(
         let clean_script = &package.workspace.get_clean();
         if let Some(clean_script) = clean_script {
             println!("Running clean script");
-            scripts::invoke_script(clean_script, &[], &package, &triplet)?;
+            scripts::invoke_script(clean_script, &[], &package, &triplet_id)?;
         }
     }
 
@@ -122,23 +126,23 @@ pub fn execute_qmod_zip_operation(
         && !build_parameters.skip_build
     {
         println!("Running build script");
-        scripts::invoke_script(build_script, &[], &package, &triplet)?;
+        scripts::invoke_script(build_script, &[], &package, &triplet_id)?;
     }
 
     let mut include_dirs = additional_include_folders;
     include_dirs.extend(
         build_parameters
             .include_dirs
-            .unwrap_or(package.workspace.qmod_include_dirs),
+            .unwrap_or(triplet.qmod_include_dirs.clone()),
     );
 
     let include_files = build_parameters
         .include_files
-        .unwrap_or(package.workspace.qmod_include_files);
+        .unwrap_or(triplet.qmod_include_files.clone());
 
     let qmod_out = build_parameters
         .out_target
-        .or(package.workspace.qmod_output)
+        .or(triplet.qmod_output)
         .unwrap_or(format!("./{}", new_manifest.id).into());
 
     let look_for_files = |s: &str| {

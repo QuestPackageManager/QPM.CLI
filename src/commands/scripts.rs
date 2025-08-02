@@ -57,7 +57,7 @@ pub fn invoke_script(
         .get_triplet_settings(triplet_id)
         .context("Failed to get triplet settings")?;
 
-    let android_ndk_home = ndk::resolve_ndk_version(package);
+    let android_ndk_home = ndk::resolve_ndk_version(&triplet);
 
     for command_str in script_commands {
         let split = command_str.split_once(' ');

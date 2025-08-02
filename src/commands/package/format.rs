@@ -27,7 +27,7 @@ pub fn reserialize_package(sort: bool) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
     let triplet = package
         .triplets
-        .get_triplet_mut(&default_triplet_id())
+        .get_triplet_standalone_mut(&default_triplet_id())
         .context("Failed to get triplet settings")?;
 
     if sort {

@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
 use itertools::Itertools;
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::{package::PackageConfig, triplet::PackageTriplet};
 use semver::Version;
 
 use crate::models::config::get_combine_config;
 
 /// Resolves the NDK version based on the package configuration.
-pub fn resolve_ndk_version(package: &PackageConfig) -> Option<PathBuf> {
-    let ndk_requirement = package.workspace.ndk.as_ref()?;
+pub fn resolve_ndk_version(triplet: &PackageTriplet) -> Option<PathBuf> {
+    let ndk_requirement = triplet.ndk.as_ref()?;
 
     let ndk_installed_path_opt = get_combine_config()
         .get_ndk_installed()

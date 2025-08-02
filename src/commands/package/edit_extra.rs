@@ -30,7 +30,7 @@ impl Command for EditExtraArgs {
         let mut package = PackageConfig::read(".")?;
         let triplet = package
             .triplets
-            .get_triplet_mut(&TripletId(self.triplet))
+            .get_triplet_standalone_mut(&TripletId(self.triplet))
             .context("Failed to get triplet settings")?;
 
         let mut any_changed = false;

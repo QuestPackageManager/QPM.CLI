@@ -143,7 +143,13 @@ impl Command for RestoreCommand {
             resolved_deps.len()
         );
 
-        validate_ndk(&shared_package.config)?;
+        let triplet = shared_package
+            .config
+            .triplets
+            .get_triplet_settings(&triplet_id)
+            .expect("Triplet should exist in package");
+
+        validate_ndk(&triplet)?;
 
         Ok(())
     }
@@ -182,8 +188,8 @@ fn is_modified(
     false
 }
 
-pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
-    let Some(ndk_req) = package.workspace.ndk.as_ref() else {
+pub fn validate_ndk(triplet: &PackageTriplet) -> Result<()> {
+    let Some(ndk_req) = triplet.ndk.as_ref() else {
         return Ok(());
     };
 
