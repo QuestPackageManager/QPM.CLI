@@ -14,7 +14,7 @@ use serde::Deserialize;
 
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
-    qpackages::QPackagesPackage,
+    qpackages::{QPackagesPackage, QPackagesVersion},
     shared_package::SharedPackageConfig,
 };
 
@@ -61,7 +61,7 @@ impl QPMRepository {
     }
 
     /// Requests the appriopriate package info from qpackage.com
-    pub fn get_versions(id: &DependencyId) -> Result<Option<Vec<Version>>> {
+    pub fn get_versions(id: &DependencyId) -> Result<Option<Vec<QPackagesVersion>>> {
         Self::run_request(&format!("{id}?limit=0"))
             .with_context(|| format!("Getting list of versions for {}", id.dependency_id_color()))
     }
@@ -210,6 +210,7 @@ impl Repository for QPMRepository {
         let versions = Self::get_versions(id)?.map(|versions| {
             versions
                 .into_iter()
+                .map(|v| v.version)
                 .sorted_by(|a, b| a.cmp(b))
                 .rev()
                 .collect_vec()
