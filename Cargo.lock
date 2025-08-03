@@ -826,7 +826,6 @@ dependencies = [
  "gix-worktree",
  "gix-worktree-state",
  "once_cell",
- "prodash",
  "smallvec",
  "thiserror 2.0.12",
 ]
@@ -3116,7 +3115,7 @@ dependencies = [
 [[package]]
 name = "templatr"
 version = "0.1.0"
-source = "git+https://github.com/QuestPackageManager/templatr.git#08a194109d4153a0cf56b7a46a449a418d7855bc"
+source = "git+https://github.com/QuestPackageManager/templatr.git#12c5b51035c1581f197f18301f511d9bae139737"
 dependencies = [
  "clap",
  "color-eyre",
