@@ -50,6 +50,10 @@ pub struct QPkgCommand {
 
     /// Where to output the QPKG file
     pub qpkg_output: Option<PathBuf>,
+
+    /// Whether to resolve NDK
+    #[clap(long, default_value = "false")]
+    pub resolve_ndk: bool,
 }
 
 impl Command for QPkgCommand {
@@ -69,6 +73,7 @@ impl Command for QPkgCommand {
                 out_dir: Some(build_dir.clone()),
                 qmod: self.qmod,
                 build_script: None,
+                ndk_resolve: self.resolve_ndk,
             };
 
             command.execute().context("Failed to build qpkg")?;

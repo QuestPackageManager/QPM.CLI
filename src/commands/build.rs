@@ -13,7 +13,11 @@ use qpm_package::{
 };
 
 use crate::{
-    commands::{qmod::zip, scripts},
+    commands::{
+        ndk::{Ndk, PinArgs, ResolveArgs},
+        qmod::zip,
+        scripts,
+    },
     models::package::PackageConfigExtensions,
     repository::{self, local::FileRepository},
     resolver::dependency,
@@ -46,6 +50,10 @@ pub struct BuildCommand {
     /// The build script to run for each triplet
     #[clap(long)]
     pub build_script: Option<String>,
+
+    /// If to resolve NDK dependencies
+    #[clap(long, default_value = "false")]
+    pub ndk_resolve: bool,
 }
 
 impl Command for BuildCommand {
@@ -94,6 +102,20 @@ impl Command for BuildCommand {
                     dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
                     shared_package.restored_triplet = triplet_id.clone();
                     shared_package.write(".")?;
+
+                    if self.ndk_resolve {
+                        let ndk = Ndk {
+                            op: crate::commands::ndk::NdkOperation::Resolve(ResolveArgs {
+                                download: true,
+                                ignore_missing: false,
+                            }),
+                            triplet: Some(triplet_id.0.clone()),
+                            quiet: false,
+                        };
+
+                        ndk.execute()
+                            .context("Failed to resolve NDK dependencies")?;
+                    }
                 }
 
                 // run builld

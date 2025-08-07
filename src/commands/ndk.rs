@@ -40,11 +40,11 @@ pub struct Ndk {
 
     /// The triplet to use for the operation
     #[clap(long, short, global = true)]
-    triplet: Option<String>,
+    pub triplet: Option<String>,
 
     /// If true, does not print progress
     #[clap(long, short, global = true, default_value = "false")]
-    quiet: bool,
+    pub quiet: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -90,10 +90,11 @@ pub struct PinArgs {
 pub struct ResolveArgs {
     /// Download package if necessary
     #[clap(short, long, default_value = "false")]
-    download: bool,
+    pub download: bool,
 
+    // Ignore missing package
     #[clap(short, long, default_value = "false")]
-    ignore_missing: bool,
+    pub ignore_missing: bool,
 }
 
 fn fuzzy_match_ndk<'a>(
