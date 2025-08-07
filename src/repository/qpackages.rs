@@ -83,16 +83,16 @@ impl QPMRepository {
         Ok(vec)
     }
 
-    pub fn publish_package(package: &SharedPackageConfig, auth: &str) -> Result<()> {
+    pub fn publish_package(qpackage: &QPackagesPackage, auth: &str) -> Result<()> {
         let url = format!(
             "{}/{}/{}",
-            API_URL, &package.config.id, &package.config.version
+            API_URL, &qpackage.config.id, &qpackage.config.version
         );
 
         let resp = get_agent()
             .post(&url)
             .header("Authorization", auth)
-            .json(&package)
+            .json(&qpackage)
             .send()
             .with_context(|| format!("Failed to publish to {url}"))?;
 
