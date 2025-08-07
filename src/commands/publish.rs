@@ -26,6 +26,7 @@ use super::Command;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum Backend {
+    #[clap(name = "qpackages")]
     QPackages,
 }
 
