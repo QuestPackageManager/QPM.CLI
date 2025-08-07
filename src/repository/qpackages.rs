@@ -170,7 +170,7 @@ impl QPMRepository {
             }
         }
 
-        FileRepository::install_qpkg(cursor, false).with_context(|| {
+        FileRepository::install_qpkg(cursor, false, None).with_context(|| {
             format!(
                 "QPackages QPKG installation from {}:{}",
                 qpackage_config.config.id, qpackage_config.config.version

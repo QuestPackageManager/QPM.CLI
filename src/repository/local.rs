@@ -232,7 +232,7 @@ impl FileRepository {
         fs::remove_file(Self::global_file_repository_path())
     }
 
-    pub fn install_qpkg<T>(buffer: T, overwrite_existing: bool) -> color_eyre::Result<PackageConfig>
+    pub fn install_qpkg<T>(buffer: T, overwrite_existing: bool, version: Option<Version>) -> color_eyre::Result<PackageConfig>
     where
         T: Read + Seek,
     {
@@ -244,8 +244,12 @@ impl FileRepository {
             .by_name(QPKG_JSON)
             .with_context(|| format!("Failed to find {QPKG_JSON} in zip"))?;
 
-        let qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
+        let mut qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
             .with_context(|| format!("Failed to read {QPKG_JSON} from zip"))?;
+
+        if let Some(version) = version {
+            qpkg.config.version = version;
+        }
 
         let package_path: crate::models::package_files::PackageVersionPath =
             PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
@@ -364,7 +368,7 @@ impl FileRepository {
         }
 
         // now write the package config to the src path
-        qpkg.config.write(&base_path).with_context(|| {
+        qpkg.config.write(&qpkg_file_dst).with_context(|| {
             format!(
                 "Failed to write package config to {}",
                 headers_dst.display().file_path_color()
@@ -377,7 +381,7 @@ impl FileRepository {
         file_repo.write()?;
 
         // write the qpkg file to the src path
-        qpkg.write(&base_path).with_context(|| {
+        qpkg.write(&qpkg_file_dst).with_context(|| {
             format!(
                 "Failed to write QPkg file to {}",
                 headers_dst.display().file_path_color()

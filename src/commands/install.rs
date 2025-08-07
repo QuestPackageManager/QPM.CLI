@@ -30,6 +30,10 @@ pub struct InstallCommand {
     #[clap(short = 'u', long = "url")]
     qpkg_url: Option<String>,
 
+    /// Override the version of the qpkg to install
+    #[clap(long = "version")]
+    pub version_override: Option<String>,
+
     /// Whether to skip validation of the binaries
     #[clap(long, default_value = "false")]
     pub no_validate: bool,
@@ -50,14 +54,22 @@ impl Command for InstallCommand {
 }
 
 impl InstallCommand {
-    fn qpkg_install(&self) -> Result<(), color_eyre::eyre::Error> {
+    fn qpkg_install(self) -> Result<(), color_eyre::eyre::Error> {
+        let version = self
+            .version_override
+            .map(|v| {
+                v.parse::<semver::Version>()
+                    .context("Failed to parse version override")
+            })
+            .transpose()?;
+
         let package = if let Some(qpkg_path) = &self.qpkg_path {
             println!("Installing qpkg from path: {}", qpkg_path.display());
 
             let qpkg_file = File::open(qpkg_path).context("Failed to open qpkg file")?;
             let qpkg_file = BufReader::new(qpkg_file);
 
-            FileRepository::install_qpkg(qpkg_file, true).context("Installing qpkg zip failed")?
+            FileRepository::install_qpkg(qpkg_file, true, version).context("Installing qpkg zip failed")?
         } else if let Some(qpkg_url) = &self.qpkg_url {
             println!("Installing qpkg from URL: {qpkg_url}");
 
@@ -67,7 +79,7 @@ impl InstallCommand {
 
             let cursor = Cursor::new(bytes.get_ref());
 
-            FileRepository::install_qpkg(cursor, true).context("Installing qpkg zip failed")?
+            FileRepository::install_qpkg(cursor, true, version).context("Installing qpkg zip failed")?
         } else {
             bail!("Either --path or --url must be provided to install a qpkg");
         };
