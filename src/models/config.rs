@@ -175,7 +175,6 @@ pub fn ndk_default_path() -> PathBuf {
     // C:\Users\<UserName>\AppData\Local\Android\Sdk\ndk\*
 }
 
-
 #[cfg(not(windows))]
 pub fn ndk_default_path() -> PathBuf {
     dirs::data_dir().unwrap().join("QPM-RS2").join("ndk")

@@ -69,7 +69,8 @@ impl InstallCommand {
             let qpkg_file = File::open(qpkg_path).context("Failed to open qpkg file")?;
             let qpkg_file = BufReader::new(qpkg_file);
 
-            FileRepository::install_qpkg(qpkg_file, true, version).context("Installing qpkg zip failed")?
+            FileRepository::install_qpkg(qpkg_file, true, version)
+                .context("Installing qpkg zip failed")?
         } else if let Some(qpkg_url) = &self.qpkg_url {
             println!("Installing qpkg from URL: {qpkg_url}");
 
@@ -79,7 +80,8 @@ impl InstallCommand {
 
             let cursor = Cursor::new(bytes.get_ref());
 
-            FileRepository::install_qpkg(cursor, true, version).context("Installing qpkg zip failed")?
+            FileRepository::install_qpkg(cursor, true, version)
+                .context("Installing qpkg zip failed")?
         } else {
             bail!("Either --path or --url must be provided to install a qpkg");
         };

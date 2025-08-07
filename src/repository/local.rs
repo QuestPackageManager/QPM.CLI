@@ -232,7 +232,11 @@ impl FileRepository {
         fs::remove_file(Self::global_file_repository_path())
     }
 
-    pub fn install_qpkg<T>(buffer: T, overwrite_existing: bool, version: Option<Version>) -> color_eyre::Result<PackageConfig>
+    pub fn install_qpkg<T>(
+        buffer: T,
+        overwrite_existing: bool,
+        version: Option<Version>,
+    ) -> color_eyre::Result<PackageConfig>
     where
         T: Read + Seek,
     {

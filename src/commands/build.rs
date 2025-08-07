@@ -72,55 +72,54 @@ impl Command for BuildCommand {
 
         let mut repo = repository::useful_default_new(self.offline)?;
 
-        let mut build_triplet = |triplet_id: &TripletId,
-                                 triplet: &PackageTriplet|
-         -> color_eyre::Result<()> {
-            let shared_triplet = shared_package
-                .locked_triplet
-                .get(triplet_id)
-                .context("Failed to get triplet settings")?;
+        let mut build_triplet =
+            |triplet_id: &TripletId, triplet: &PackageTriplet| -> color_eyre::Result<()> {
+                let shared_triplet = shared_package
+                    .locked_triplet
+                    .get(triplet_id)
+                    .context("Failed to get triplet settings")?;
 
-            if shared_package.restored_triplet != *triplet_id {
-                println!(
-                    "Restoring dependencies for triplet {}",
-                    triplet_id.triplet_id_color()
-                );
+                if shared_package.restored_triplet != *triplet_id {
+                    println!(
+                        "Restoring dependencies for triplet {}",
+                        triplet_id.triplet_id_color()
+                    );
 
-                // restore for triplet
-                let resolved_deps =
-                    dependency::locked_resolve(&shared_package, &repo, shared_triplet)?
-                        .collect_vec();
+                    // restore for triplet
+                    let resolved_deps =
+                        dependency::locked_resolve(&shared_package, &repo, shared_triplet)?
+                            .collect_vec();
 
-                // now restore
-                dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
-                shared_package.restored_triplet = triplet_id.clone();
-                shared_package.write(".")?;
-            }
+                    // now restore
+                    dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
+                    shared_package.restored_triplet = triplet_id.clone();
+                    shared_package.write(".")?;
+                }
 
-            // run builld
-            if let Some(build_script) = &build_script {
-                println!(
-                    "Building QPKG for triplet {}",
-                    triplet_id.triplet_id_color()
-                );
-                scripts::invoke_script(build_script, &args, &package, triplet_id)?;
-            }
+                // run builld
+                if let Some(build_script) = &build_script {
+                    println!(
+                        "Building QPKG for triplet {}",
+                        triplet_id.triplet_id_color()
+                    );
+                    scripts::invoke_script(build_script, &args, &package, triplet_id)?;
+                }
 
-            let triplet_dir = out_dir.join(&triplet_id.0);
+                let triplet_dir = out_dir.join(&triplet_id.0);
 
-            // now copy binaries
-            copy_bins(
-                &triplet_dir,
-                &triplet.out_binaries.clone().unwrap_or_default(),
-            )?;
+                // now copy binaries
+                copy_bins(
+                    &triplet_dir,
+                    &triplet.out_binaries.clone().unwrap_or_default(),
+                )?;
 
-            // finally qmod
-            if self.qmod {
-                zip::execute_qmod_zip_operation(Default::default(), vec![triplet_dir.clone()])
-                    .context("Making triplet qmod")?;
-            }
-            Ok(())
-        };
+                // finally qmod
+                if self.qmod {
+                    zip::execute_qmod_zip_operation(Default::default(), vec![triplet_dir.clone()])
+                        .context("Making triplet qmod")?;
+                }
+                Ok(())
+            };
 
         match self.triplets {
             Some(triplets) => {

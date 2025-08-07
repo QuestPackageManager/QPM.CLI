@@ -15,7 +15,6 @@ use serde::Deserialize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     qpackages::{QPackagesPackage, QPackagesVersion},
-    shared_package::SharedPackageConfig,
 };
 
 use crate::{

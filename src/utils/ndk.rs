@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use itertools::Itertools;
-use qpm_package::models::{package::PackageConfig, triplet::PackageTriplet};
+use qpm_package::models::triplet::PackageTriplet;
 use semver::Version;
 
 use crate::models::config::get_combine_config;

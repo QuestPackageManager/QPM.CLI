@@ -91,4 +91,3 @@ fn test_dependency_download_specific() -> color_eyre::Result<()> {
 
     Ok(())
 }
-

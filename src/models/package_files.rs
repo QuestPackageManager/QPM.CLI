@@ -3,10 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use qpm_package::models::{
-    package::DependencyId,
-    triplet::TripletId,
-};
+use qpm_package::models::{package::DependencyId, triplet::TripletId};
 use semver::Version;
 
 use crate::models::config::UserConfig;
