@@ -7,7 +7,7 @@ use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::PackageConfig,
     qpackages::QPackagesPackage,
-    qpkg,
+    qpkg::{QPKG_JSON, QPkg},
     shared_package::{SharedPackageConfig, SharedTriplet},
     triplet::TripletId,
 };
@@ -74,18 +74,21 @@ impl PublishCommand {
 
         // validate config in QPKG matches
         {
-            let mut qpkg = ZipArchive::new(&mut cursor).context("Failed to read qpkg zip")?;
-            let qpkg_config = qpkg
-                .by_name("config.json")
-                .context("Failed to find config.json in qpkg")?;
-            let qpkg_config: PackageConfig = json::json_from_reader_fast(qpkg_config)
-                .context("Failed to parse config.json in qpkg")?;
+            let mut zip_archive =
+                ZipArchive::new(&mut cursor).context("Failed to read qpkg zip")?;
+            // get qpkg in memory
+            let qpkg_file = zip_archive
+                .by_name(QPKG_JSON)
+                .with_context(|| format!("Failed to find {QPKG_JSON} in zip"))?;
 
-            if qpkg_config != *package {
+            let qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
+                .with_context(|| format!("Failed to read {QPKG_JSON} from zip"))?;
+
+            if qpkg.config != *package {
                 bail!(
                     "QPKG config mismatch. Expected{:#?}\nGot {:#?}",
                     package,
-                    qpkg_config
+                    qpkg.config
                 );
             }
         }
