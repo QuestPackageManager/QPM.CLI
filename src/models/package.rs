@@ -9,9 +9,9 @@ use itertools::Itertools;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, QPM_JSON},
     shared_package::{
-        QPM_SHARED_JSON, SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo,
+        SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo, QPM_SHARED_JSON
     },
-    triplet::{PackageTriplet, PackageTripletDependency, TripletId, default_triplet_id},
+    triplet::{base_triplet_id, PackageTriplet, PackageTripletDependency, TripletId},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
@@ -231,7 +231,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
 
         let shared_package_config = SharedPackageConfig {
             config,
-            restored_triplet: triplet.unwrap_or(default_triplet_id()),
+            restored_triplet: triplet.unwrap_or(base_triplet_id()),
             locked_triplet,
         };
         Ok((shared_package_config, triplet_dependencies))

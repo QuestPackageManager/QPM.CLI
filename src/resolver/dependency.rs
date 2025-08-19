@@ -23,7 +23,7 @@ use pubgrub::{
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::{SharedPackageConfig, SharedTriplet},
-    triplet::{PackageTriplet, TripletId},
+    triplet::{PackageTriplet, TripletId, base_triplet_id},
 };
 
 /// Represents a resolved dependency
@@ -50,15 +50,15 @@ where
     repo: &'b R,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub struct PubgrubDependencyTarget(pub DependencyId, pub TripletId);
+pub struct PubgrubDependencyTarget(pub DependencyId, pub Option<TripletId>);
 
 impl Display for PubgrubDependencyTarget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}:{}",
+            "{}:{:?}",
             self.0.0.dependency_id_color(),
-            self.1.0.triplet_id_color()
+            self.1.triplet_id_color()
         )
     }
 }
@@ -96,14 +96,14 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
     ) -> Result<Dependencies<Self::P, Self::VS, Self::M>, PubgrubErrorWrapper> {
         // Root dependencies
         if package_triplet.0 == self.root.id
-            && package_triplet.1 == *self.root_triplet
+            && package_triplet.1.as_ref() == Some(self.root_triplet)
             && version == &self.root.version
         {
             // resolve dependencies of root
             let triplet = self
                 .root
                 .triplets
-                .get_triplet_settings(&package_triplet.1)
+                .get_triplet_settings(self.root_triplet)
                 .expect("Root triplet should always exist in the root package's triplets");
 
             let deps = triplet
@@ -112,10 +112,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
                 // add dev dependencies as well
                 .chain(triplet.dev_dependencies.iter())
                 .map(|(dep_id, dep)| {
-                    let pubgrub_dep = PubgrubDependencyTarget(
-                        dep_id.clone(),
-                        dep.triplet.clone().unwrap_or_default(),
-                    );
+                    let pubgrub_dep = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
 
                     let range = req_to_range(dep.version_range.clone());
                     (pubgrub_dep, range)
@@ -132,13 +129,20 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
                 format!("Could not find package {package_triplet} with version {version}")
             })?;
 
+        let base_triplet_id = base_triplet_id();
+        let target_triplet_id = package_triplet
+            .1
+            .as_ref()
+            .or(target_pkg.triplets.default.as_ref())
+            .unwrap_or(&base_triplet_id);
+
         let target_triplet = target_pkg
             .triplets
-            .get_triplet_settings(&package_triplet.1)
+            .get_triplet_settings(target_triplet_id)
             .with_context(|| {
                 format!(
                     "Could not find triplet {} for package {}",
-                    package_triplet.1.triplet_id_color(),
+                    target_triplet_id.triplet_id_color(),
                     package_triplet.0.dependency_id_color()
                 )
             })?;
@@ -147,10 +151,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             .dependencies
             .iter()
             .map(|(dep_id, dep)| {
-                let id = PubgrubDependencyTarget(
-                    dep_id.clone(),
-                    dep.triplet.clone().unwrap_or_default(),
-                );
+                let id = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
                 let range = req_to_range(dep.version_range.clone());
                 (id, range)
             })
@@ -225,7 +226,7 @@ pub fn resolve<'a>(
         repo: repository,
     };
     let time = Instant::now();
-    let target = PubgrubDependencyTarget(root.id.clone(), triplet.clone());
+    let target = PubgrubDependencyTarget(root.id.clone(), Some(triplet.clone()));
     let result = match pubgrub::resolve(&resolver, target, root.version.clone()) {
         Ok(deps) => Ok(deps.into_iter().filter_map(move |(id, version)| {
             if id.0 == root.id && version == root.version {
@@ -235,7 +236,12 @@ pub fn resolve<'a>(
             let package = repository
                 .get_package(&id.0, &version.into())
                 .expect("Failed to get package")?;
-            Some(ResolvedDependency(package, id.1))
+
+            let triplet =
+                id.1.or(package.triplets.default.clone())
+                    .unwrap_or(base_triplet_id());
+
+            Some(ResolvedDependency(package, triplet))
         })),
 
         Err(PubGrubError::NoSolution(tree)) => {

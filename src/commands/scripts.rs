@@ -5,10 +5,7 @@ use clap::Args;
 use color_eyre::eyre::{ContextCompat, anyhow, bail};
 use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
-use qpm_package::models::{
-    package::PackageConfig,
-    triplet::{TripletId, default_triplet_id},
-};
+use qpm_package::models::{package::PackageConfig, triplet::{base_triplet_id, TripletId}};
 
 use crate::{models::package::PackageConfigExtensions, utils::ndk};
 
@@ -38,7 +35,7 @@ impl Command for ScriptsCommand {
 
         let supplied_args = self.args.unwrap_or_default();
 
-        let triplet_id = self.triplet.map(TripletId).unwrap_or(default_triplet_id());
+        let triplet_id = self.triplet.map(TripletId).unwrap_or(base_triplet_id());
 
         invoke_script(script, &supplied_args, &package, &triplet_id)?;
 

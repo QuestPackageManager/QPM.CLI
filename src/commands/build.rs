@@ -14,7 +14,7 @@ use qpm_package::{
 
 use crate::{
     commands::{
-        ndk::{Ndk, PinArgs, ResolveArgs},
+        ndk::{Ndk, ResolveArgs},
         qmod::zip,
         scripts,
     },

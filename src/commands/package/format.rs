@@ -2,9 +2,7 @@ use std::fs;
 
 use clap::Args;
 use color_eyre::{Result, eyre::ContextCompat};
-use qpm_package::models::{
-    package::PackageConfig, shared_package::SharedPackageConfig, triplet::default_triplet_id,
-};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig, triplet::base_triplet_id};
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
 
@@ -27,7 +25,7 @@ pub fn reserialize_package(sort: bool) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
     let triplet = package
         .triplets
-        .get_triplet_standalone_mut(&default_triplet_id())
+        .get_triplet_standalone_mut(&base_triplet_id())
         .context("Failed to get triplet settings")?;
 
     if sort {
