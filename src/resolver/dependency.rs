@@ -52,6 +52,12 @@ where
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PubgrubDependencyTarget(pub DependencyId, pub Option<TripletId>);
 
+impl PubgrubDependencyTarget {
+    pub fn get_triplet<'a>(&'a self, package: &'a PackageConfig) -> Option<&'a TripletId> {
+        self.1.as_ref().or(package.triplets.default.as_ref())
+    }
+}
+
 impl Display for PubgrubDependencyTarget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -91,12 +97,12 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
     fn get_dependencies(
         &self,
-        package_triplet: &PubgrubDependencyTarget,
+        pubgrub_target: &PubgrubDependencyTarget,
         version: &VersionWrapper,
     ) -> Result<Dependencies<Self::P, Self::VS, Self::M>, PubgrubErrorWrapper> {
         // Root dependencies
-        if package_triplet.0 == self.root.id
-            && package_triplet.1.as_ref() == Some(self.root_triplet)
+        if pubgrub_target.0 == self.root.id
+            && pubgrub_target.1.as_ref() == Some(self.root_triplet)
             && version == &self.root.version
         {
             // resolve dependencies of root
@@ -124,17 +130,18 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         // Find dependencies of dependencies
         let target_pkg = self
             .repo
-            .get_package(&package_triplet.0, &version.clone().into())?
+            .get_package(&pubgrub_target.0, &version.clone().into())?
             .with_context(|| {
-                format!("Could not find package {package_triplet} with version {version}")
+                format!("Could not find package {pubgrub_target} with version {version}")
             })?;
 
-        let base_triplet_id = base_triplet_id();
-        let target_triplet_id = package_triplet
-            .1
-            .as_ref()
-            .or(target_pkg.triplets.default.as_ref())
-            .unwrap_or(&base_triplet_id);
+        let Some(target_triplet_id) = pubgrub_target.get_triplet(&target_pkg) else {
+            return Ok(Dependencies::Unavailable(format!(
+                "No triplet specified for the package {}:{}",
+                pubgrub_target.0.dependency_id_color(),
+                version.version_id_color()
+            )));
+        };
 
         let target_triplet = target_pkg
             .triplets
@@ -143,7 +150,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
                 format!(
                     "Could not find triplet {} for package {}",
                     target_triplet_id.triplet_id_color(),
-                    package_triplet.0.dependency_id_color()
+                    pubgrub_target.0.dependency_id_color()
                 )
             })?;
 
@@ -226,20 +233,21 @@ pub fn resolve<'a>(
         repo: repository,
     };
     let time = Instant::now();
-    let target = PubgrubDependencyTarget(root.id.clone(), Some(triplet.clone()));
-    let result = match pubgrub::resolve(&resolver, target, root.version.clone()) {
-        Ok(deps) => Ok(deps.into_iter().filter_map(move |(id, version)| {
-            if id.0 == root.id && version == root.version {
+    let root_target = PubgrubDependencyTarget(root.id.clone(), Some(triplet.clone()));
+    let result = match pubgrub::resolve(&resolver, root_target, root.version.clone()) {
+        Ok(deps) => Ok(deps.into_iter().filter_map(move |(target, version)| {
+            if target.0 == root.id && version == root.version {
                 return None;
             }
 
             let package = repository
-                .get_package(&id.0, &version.into())
+                .get_package(&target.0, &version.into())
                 .expect("Failed to get package")?;
 
-            let triplet =
-                id.1.or(package.triplets.default.clone())
-                    .unwrap_or(base_triplet_id());
+            let triplet = target
+                .get_triplet(&package)
+                .cloned()
+                .expect("Triplet should always be specified for resolved dependencies");
 
             Some(ResolvedDependency(package, triplet))
         })),
