@@ -91,7 +91,7 @@ jobs:
           #   prefix: macos-x64
           #   suffix: macos-x64
 
-          - os: macos-13
+          - os: macos-15
             file-name: qpm2
             prefix: macos-arm64
             suffix: macos-arm64
