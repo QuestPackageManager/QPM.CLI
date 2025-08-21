@@ -107,8 +107,9 @@ interface QPM2 {
     license?: string;
   };
   triplets: {
-    default: QPM2Triplet;
-    [key: string]: QPM2Triplet;
+    default?: string;
+    base: QPM2Triplet
+    [key: string]: QPM2Triplet | string | undefined;
   };
   configVersion: string;
   toolchainOut: string;
@@ -171,7 +172,8 @@ const qpm2: QPM2 = {
     license: "",
   },
   triplets: {
-    default: {
+    default: "base",
+    base: {
       dependencies: dependencies,
       devDependencies: devDependencies,
       compileOptions: qpm1.info.additionalData?.compileOptions,
