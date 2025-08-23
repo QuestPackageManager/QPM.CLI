@@ -5,7 +5,11 @@ use clap::Args;
 use color_eyre::eyre::{ContextCompat, anyhow, bail};
 use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
-use qpm_package::models::{package::PackageConfig, triplet::{base_triplet_id, TripletId}};
+use qpm_package::models::{
+    package::PackageConfig,
+    shared_package::SharedPackageConfig,
+    triplet::{TripletId, base_triplet_id},
+};
 
 use crate::{models::package::PackageConfigExtensions, utils::ndk};
 
@@ -17,6 +21,7 @@ pub struct ScriptsCommand {
 
     args: Option<Vec<String>>,
 
+    /// Triplet to run the script for, if not specified, the restored triplet is used
     #[clap(long, short)]
     triplet: Option<String>,
 }
@@ -35,7 +40,14 @@ impl Command for ScriptsCommand {
 
         let supplied_args = self.args.unwrap_or_default();
 
-        let triplet_id = self.triplet.map(TripletId).unwrap_or(base_triplet_id());
+        let triplet_id = self
+            .triplet
+            .map(TripletId)
+            .or_else(|| {
+                let shared_package = SharedPackageConfig::read(".");
+                Some(shared_package.ok()?.restored_triplet)
+            })
+            .unwrap_or(base_triplet_id());
 
         invoke_script(script, &supplied_args, &package, &triplet_id)?;
 

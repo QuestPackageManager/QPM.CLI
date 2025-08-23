@@ -7,7 +7,7 @@ use color_eyre::{
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::SharedPackageConfig,
-    triplet::{PackageTripletDependency, TripletId},
+    triplet::{PackageTripletDependency, TripletId, base_triplet_id},
 };
 use semver::{Version, VersionReq};
 
@@ -45,7 +45,7 @@ pub struct DependencyOperationAddArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
 
-    /// Triplet to add the dependency to, if not specified, the default triplet is used
+    /// Triplet to add the dependency to, if not specified, the restored triplet is used
     #[clap(long, short)]
     pub triplet: Option<String>,
 
@@ -71,6 +71,7 @@ pub struct DependencyOperationDownloadArgs {
     #[clap(short, long)]
     pub version: Option<Version>,
 
+    /// Triplet to download the dependency for, if not specified, the restored triplet is used
     #[clap(long, short)]
     pub triplet: Option<String>,
 
@@ -84,7 +85,7 @@ pub struct DependencyOperationRemoveArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
 
-    /// Triplet to remove the dependency from, if not specified, the default triplet is used
+    /// Triplet to remove the dependency from, if not specified, the restored triplet is used
     #[clap(long, short)]
     pub triplet: Option<String>,
 
@@ -135,9 +136,18 @@ impl Command for DependencyOperationAddArgs {
             Option::None => None,
         };
 
+        let triplet = self
+            .triplet
+            .map(TripletId)
+            .or_else(|| {
+                let shared_package = SharedPackageConfig::read(".");
+                let restored = shared_package.ok()?.restored_triplet;
+                Some(restored)
+            });
+
         put_dependency(
             &id,
-            self.triplet.map(TripletId).as_ref(),
+            triplet.as_ref(),
             version,
             additional_data,
             self.sort,

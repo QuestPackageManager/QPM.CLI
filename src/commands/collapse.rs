@@ -18,6 +18,7 @@ pub struct CollapseCommand {
     #[clap(long, default_value = "false")]
     offline: bool,
 
+    /// Triplet to collapse, if not specified, all triplets are collapsed
     #[clap(long, short)]
     pub triplet: Option<String>,
 
