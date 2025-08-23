@@ -13,6 +13,7 @@ interface QPM1 {
     author?: string;
 
     additionalData?: {
+      headersOnly?: boolean,
       overrideSoName?: string;
       cmake?: boolean;
       toolchainOut?: string;
@@ -108,7 +109,6 @@ interface QPM2 {
   };
   triplets: {
     default?: string;
-    base: QPM2Triplet
     [key: string]: QPM2Triplet | string | undefined;
   };
   configVersion: string;
@@ -148,8 +148,14 @@ const devDependencies = qpm1.dependencies
   }, {} as Record<string, QPM2Dep>);
 
 const qpm2Bin =
-  "./build/" +
-  (qpm1.info.additionalData?.overrideSoName ?? `${qpm1.info.id}.so`);
+  qpm1.info.additionalData?.headersOnly ? null :
+    (qpm1.info.additionalData?.overrideSoName ?? `lib${qpm1.info.id}.so`);
+const outBinaries = qpm2Bin ? [qpm2Bin] : [];
+
+const tripletName: string =
+    qpm1.info.additionalData?.headersOnly ? "headersOnly"
+  : qpm1.info.additionalData?.overrideSoName?.endsWith(".a") ? "static"
+  : "shared";
 
 const qpm2: QPM2 = {
   id: qpm1.info.id,
@@ -172,12 +178,12 @@ const qpm2: QPM2 = {
     license: "",
   },
   triplets: {
-    default: "base",
-    base: {
+    default: tripletName,
+    [tripletName]: {
       dependencies: dependencies,
       devDependencies: devDependencies,
       compileOptions: qpm1.info.additionalData?.compileOptions,
-      outBinaries: [qpm2Bin],
+      outBinaries,
       qmodId: qpm1.info.id,
       qmodTemplate: "mod.template.json",
       qmodUrl: qpm1.info.additionalData?.modLink,

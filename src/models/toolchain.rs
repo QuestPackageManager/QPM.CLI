@@ -24,6 +24,7 @@ pub struct ToolchainData {
 
     pub libs_dir: PathBuf,
     pub include_dir: PathBuf,
+    pub shared_dir: PathBuf,
 
     pub build_out: PathBuf,
     pub triplet_out: PathBuf,
@@ -136,7 +137,8 @@ pub fn write_toolchain_file(
 
     let extern_dir = shared_config.config.dependencies_directory.clone();
     let libs_dir = FileRepository::libs_dir(&extern_dir);
-    let include_dir = FileRepository::libs_dir(&extern_dir);
+    let include_dir = FileRepository::headers_path(&extern_dir);
+    let shared_dir = shared_config.config.shared_directory.clone();
     let build_out = FileRepository::build_path(&extern_dir);
     let triplet_out = build_out.join(&shared_config.restored_triplet.0);
 
@@ -145,6 +147,7 @@ pub fn write_toolchain_file(
         extern_dir,
         libs_dir,
         include_dir,
+        shared_dir,
 
         build_out,
         triplet_out,
