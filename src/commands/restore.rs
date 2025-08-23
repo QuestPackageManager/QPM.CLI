@@ -66,7 +66,7 @@ impl Command for RestoreCommand {
         let triplet_id = TripletId(self.triplet);
         let triplet = package
             .triplets
-            .get_triplet_settings(&triplet_id)
+            .get_merged_triplet(&triplet_id)
             .with_context(|| format!("Triplet {} not found", triplet_id.triplet_id_color()))?;
 
         let mut repo = repository::useful_default_new(self.offline)?;
@@ -146,7 +146,7 @@ impl Command for RestoreCommand {
         let triplet = shared_package
             .config
             .triplets
-            .get_triplet_settings(&triplet_id)
+            .get_merged_triplet(&triplet_id)
             .expect("Triplet should exist in package");
 
         validate_ndk(&triplet)?;

@@ -44,7 +44,7 @@ impl Command for EditQmodJsonCommand {
         let shared_package = SharedPackageConfig::read(".")?;
         let triplet = package
             .triplets
-            .get_triplet_settings(&shared_package.restored_triplet)
+            .get_merged_triplet(&shared_package.restored_triplet)
             .context("Restored triplet not in package config")?;
 
         let mod_template = triplet

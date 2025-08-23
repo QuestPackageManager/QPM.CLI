@@ -1,9 +1,5 @@
 use std::{
-    cmp::Reverse,
-    error::Error,
-    fmt::{Display, Formatter},
-    path::Path,
-    time::Instant,
+    borrow::Cow, cmp::Reverse, error::Error, fmt::{Display, Formatter}, path::Path, time::Instant
 };
 
 use super::semver::{VersionWrapper, req_to_range};
@@ -31,8 +27,8 @@ use qpm_package::models::{
 pub struct ResolvedDependency(pub PackageConfig, pub TripletId);
 
 impl ResolvedDependency {
-    pub fn get_triplet_settings(&self) -> PackageTriplet {
-        self.0.triplets.get_triplet_settings(&self.1).unwrap_or_else(|| {
+    pub fn get_merged_triplet(&self) -> Cow<'_, PackageTriplet> {
+        self.0.triplets.get_merged_triplet(&self.1).unwrap_or_else(|| {
             panic!(
                 "Triplet of resolved dependency {} should always exist in the package's triplets",
                 self.1.triplet_id_color()
@@ -109,7 +105,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             let triplet = self
                 .root
                 .triplets
-                .get_triplet_settings(self.root_triplet)
+                .get_merged_triplet(self.root_triplet)
                 .expect("Root triplet should always exist in the root package's triplets");
 
             let deps = triplet
@@ -145,7 +141,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
         let target_triplet = target_pkg
             .triplets
-            .get_triplet_settings(target_triplet_id)
+            .get_merged_triplet(target_triplet_id)
             .with_context(|| {
                 format!(
                     "Could not find triplet {} for package {}",

@@ -47,9 +47,11 @@ pub fn write_toolchain_file(
                 .ok()??;
             let dep_triplet_config = dep_config
                 .triplets
-                .get_triplet_settings(&dep_triplet.restored_triplet)?;
+                .get_merged_triplet(&dep_triplet.restored_triplet)?
+                .into_owned();
 
             let package_id = &dep_config.id;
+            // Prepend the extern dir and package id to the include paths
             let prepend_path = |dir: &String| format!("{extern_dir}/includes/{package_id}/{dir}");
 
             let mut compile_options = dep_triplet_config.compile_options?;
@@ -121,7 +123,7 @@ pub fn write_toolchain_file(
                     });
                 let dep_triplet_config = dep_config
                 .triplets
-                .get_triplet_settings(&dep_triplet.restored_triplet)
+                .get_merged_triplet(&dep_triplet.restored_triplet)
                 .unwrap_or_else(|| panic!(
                     "Failed to get triplet settings for package '{}' version '{}' triplet '{}'",
                     dep_id, dep_triplet.restored_version, dep_triplet.restored_triplet

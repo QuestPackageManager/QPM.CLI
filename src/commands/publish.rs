@@ -147,7 +147,7 @@ fn check_triplet(
 ) -> Result<(), color_eyre::eyre::Error> {
     let triplet = package
         .triplets
-        .get_triplet_settings(triplet_id)
+        .get_merged_triplet(triplet_id)
         .context("Failed to get triplet settings")?;
     let resolved_deps = &shared_triplet.restored_dependencies;
     for (dep_id, dep) in resolved_deps {

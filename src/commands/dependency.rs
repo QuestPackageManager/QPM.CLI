@@ -175,7 +175,7 @@ fn put_dependency(
             .specific_triplets
             .get_mut(triplet)
             .context("Triplet not found")?,
-        None => &mut package.triplets.base,
+        None => &mut package.triplets.base.get_or_insert_default(),
     };
 
     let existing_dep = triplet.dependencies.get(id);
@@ -209,7 +209,7 @@ fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<(
             .specific_triplets
             .get_mut(&TripletId(triplet))
             .context("Triplet not found")?,
-        None => &mut package.triplets.base,
+        None => &mut package.triplets.base.get_or_insert_default(),
     };
 
     triplet

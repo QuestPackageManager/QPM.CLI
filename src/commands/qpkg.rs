@@ -139,7 +139,7 @@ impl Command for QPkgCommand {
 
         let triplets: HashMap<TripletId, QPkgTripletInfo> = package
             .triplets
-            .iter_triplets()
+            .iter_merged_triplets()
             // Filter triplets based on the provided triplet IDs
             .filter(|(triplet_id, _)| {
                 self.triplets.is_none() || self.triplets.as_ref().unwrap().contains(&triplet_id.0)

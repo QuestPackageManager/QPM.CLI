@@ -351,7 +351,7 @@ impl FileRepository {
         }
 
         // assert that the triplets binaries are present
-        for (triplet_id, triplet) in qpkg.config.triplets.iter_triplets() {
+        for (triplet_id, triplet) in qpkg.config.triplets.iter_merged_triplets() {
             let triplet_path = package_path.clone().triplet(triplet_id.clone());
 
             for binary in triplet.out_binaries.iter().flatten() {
@@ -504,7 +504,7 @@ impl FileRepository {
     ) -> Result<PackageFiles> {
         let package_triplet = package
             .triplets
-            .get_triplet_settings(triplet)
+            .get_merged_triplet(triplet)
             .expect("Triplet settings not found");
 
         let dep_cache_path = PackageIdPath::new(package.id.clone())
@@ -530,7 +530,7 @@ impl FileRepository {
             );
         }
 
-        let expected_binaries = package_triplet.out_binaries.unwrap_or_default();
+        let expected_binaries = package_triplet.out_binaries.clone().unwrap_or_default();
         let binaries: Vec<PathBuf> = expected_binaries
             .iter()
             .map(|b| dep_cache_path.binary_path(b))
@@ -586,7 +586,7 @@ impl FileRepository {
     ) -> Result<HashMap<PathBuf, PathBuf>> {
         let triplet_config = package
             .triplets
-            .get_triplet_settings(triplet)
+            .get_merged_triplet(triplet)
             .context("Failed to get triplet settings")?;
 
         // validate exists dependencies

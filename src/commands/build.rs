@@ -152,7 +152,7 @@ impl Command for BuildCommand {
                     let triplet_id = TripletId(triplet_id);
                     let triplet = package
                         .triplets
-                        .get_triplet_settings(&triplet_id)
+                        .get_merged_triplet(&triplet_id)
                         .context(format!("Failed to get triplet {triplet_id} from package"))?;
 
                     build_triplet(&triplet_id, &triplet).with_context(|| {
@@ -162,7 +162,7 @@ impl Command for BuildCommand {
             }
             None => {
                 // build all triplets
-                for (triplet_id, triplet) in package.triplets.iter_triplets() {
+                for (triplet_id, triplet) in package.triplets.iter_merged_triplets() {
                     println!("Building triplet {}", triplet_id.triplet_id_color());
                     build_triplet(&triplet_id, triplet.as_ref()).with_context(|| {
                         format!("Failed to build triplet {}", triplet_id.triplet_id_color())

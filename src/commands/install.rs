@@ -103,8 +103,9 @@ impl InstallCommand {
         let restored_triplet = shared_package
             .config
             .triplets
-            .get_triplet_settings(&restored_triplet_id)
-            .context("Failed to get triplet")?;
+            .get_merged_triplet(&restored_triplet_id)
+            .context("Failed to get triplet")?
+            .into_owned();
         let binaries = restored_triplet.out_binaries.unwrap_or_default();
         if !self.no_validate {
             println!("Skipping validation of binaries");

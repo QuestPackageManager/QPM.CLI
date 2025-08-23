@@ -277,7 +277,7 @@ fn do_resolve(
 
     let triplet = package
         .triplets
-        .get_triplet_settings(triplet_id)
+        .get_merged_triplet(triplet_id)
         .context("Failed to get triplet settings")?;
 
     let ndk_requirement = triplet.ndk.clone();

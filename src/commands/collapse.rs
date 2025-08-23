@@ -40,7 +40,7 @@ impl Command for CollapseCommand {
                 println!("Listing dependencies for all triplets");
                 for triplet in package
                     .triplets
-                    .iter_triplets()
+                    .iter_merged_triplets()
                     .sorted_by(|a, b| a.0.cmp(&b.0))
                 {
                     println!(
@@ -72,7 +72,7 @@ fn list_triplet_dependencies(
         let package = &resolved_dep.0;
         let triplet = &resolved_dep.1;
 
-        let triplet_config = resolved_dep.get_triplet_settings();
+        let triplet_config = resolved_dep.get_merged_triplet();
 
         let sum = triplet_config.dependencies.len();
 

@@ -184,7 +184,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         // for each triplet, resolve the dependencies
         let triplet_dependencies: HashMap<TripletId, _> = config
             .triplets
-            .iter_triplets()
+            .iter_merged_triplets()
             .map(|(triplet_id, _triplet)| -> color_eyre::Result<_> {
                 let resolved = resolve(&config, repository, &triplet_id)?.collect_vec();
 
@@ -200,11 +200,11 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                 restored_version: resolved_dep.0.version.clone(),
                 restored_triplet: resolved_dep.1.clone(),
                 restored_binaries: resolved_dep
-                    .get_triplet_settings()
+                    .get_merged_triplet()
                     .out_binaries
                     .clone()
                     .unwrap_or_default(),
-                restored_env: resolved_dep.get_triplet_settings().env.clone(),
+                restored_env: resolved_dep.get_merged_triplet().env.clone(),
             };
             (resolved_dep.0.id.clone(), shared_triplet_dependency_info)
         }
@@ -214,7 +214,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             .map(|(package_triplet_id, dependencies)| {
                 let package_triplet = config
                     .triplets
-                    .get_triplet_settings(package_triplet_id)
+                    .get_merged_triplet(package_triplet_id)
                     .expect("Failed to get triplet settings");
 
                 let restored_dependencies = dependencies.iter().map(make_shared_triplet).collect();
@@ -240,7 +240,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         let package_triplet = self
             .config
             .triplets
-            .get_triplet_settings(&self.restored_triplet)
+            .get_merged_triplet(&self.restored_triplet)
             .expect("Triplet should exist");
 
         // Map of directly referenced dependencies
@@ -263,15 +263,15 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                 // get the triplet settings for the dependency
                 let dep_package_triplet = dep_package
                     .triplets
-                    .get_triplet_settings(&shared_dep_triplet.restored_triplet)
+                    .get_merged_triplet(&shared_dep_triplet.restored_triplet)
                     .expect("Triplet should exist in package");
 
                 let result = DependencyBundle {
                     dep_triplet,
 
                     // grabbed from repo
+                    restored_triplet: dep_package_triplet.into_owned(),
                     restored_config: dep_package,
-                    restored_triplet: dep_package_triplet,
                 };
                 Some((dep_id.clone(), result))
             })
@@ -345,7 +345,7 @@ impl SharedTripletExtensions for SharedTriplet {
 
         //         let triplet = package
         //             .triplets
-        //             .get_triplet_settings(&dep.restored_triplet)
+        //             .get_merged_triplet(&dep.restored_triplet)
         //             .context("Triplet should exist in package for environment variables")?;
 
         //         Ok(triplet.env)

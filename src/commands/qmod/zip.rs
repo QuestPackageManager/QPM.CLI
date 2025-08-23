@@ -98,8 +98,9 @@ pub fn execute_qmod_zip_operation(
     let triplet_id = shared_package.restored_triplet.clone();
     let triplet = package
         .triplets
-        .get_triplet_settings(&triplet_id)
-        .expect("Triplet should exist in package");
+        .get_merged_triplet(&triplet_id)
+        .expect("Triplet should exist in package")
+        .into_owned();
 
     let new_manifest = generate_qmod_manifest(
         &package,

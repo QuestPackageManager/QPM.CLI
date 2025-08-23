@@ -56,7 +56,7 @@ pub(crate) fn generate_qmod_manifest(
     let shared_triplet = shared_package.get_restored_triplet();
     let triplet = package
         .triplets
-        .get_triplet_settings(&shared_package.restored_triplet)
+        .get_merged_triplet(&shared_package.restored_triplet)
         .context("Restored triplet not in package config")?;
 
     let mod_template = triplet
@@ -89,7 +89,8 @@ pub(crate) fn generate_qmod_manifest(
 
     let mod_id = triplet
         .qmod_id
-        .unwrap_or(shared_package.config.id.0.clone());
+        .as_ref()
+        .unwrap_or(&shared_package.config.id.0);
 
     let preprocess_data = PreProcessingData {
         version: shared_package.config.version.to_string(),

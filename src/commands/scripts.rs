@@ -63,7 +63,7 @@ pub fn invoke_script(
 ) -> Result<(), color_eyre::eyre::Error> {
     let triplet = package
         .triplets
-        .get_triplet_settings(triplet_id)
+        .get_merged_triplet(triplet_id)
         .context("Failed to get triplet settings")?;
 
     let android_ndk_home = ndk::resolve_ndk_version(&triplet);
