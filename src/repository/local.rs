@@ -331,6 +331,11 @@ impl FileRepository {
                 fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
             }
 
+            println!(
+                "Installing triplet {} with {} files",
+                triplet_id.triplet_id_color(),
+                triplet_info.files.len().file_path_color()
+            );
             for file in &triplet_info.files {
                 let src_file = tmp_path.join(file);
                 let dst_file = bin_dir.join(file.file_name().unwrap());
@@ -348,14 +353,6 @@ impl FileRepository {
         // assert that the triplets binaries are present
         for (triplet_id, triplet) in qpkg.config.triplets.iter_triplets() {
             let triplet_path = package_path.clone().triplet(triplet_id.clone());
-            let triplet_bin_path = triplet_path.binaries_path();
-            if !triplet_bin_path.exists() {
-                bail!(
-                    "Triplet binaries for {} not found in {}",
-                    triplet_id.triplet_id_color(),
-                    triplet_bin_path.display().file_path_color()
-                );
-            }
 
             for binary in triplet.out_binaries.iter().flatten() {
                 // {cache}/{id}/{version}/{triplet}/lib/{binary}
