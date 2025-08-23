@@ -1,17 +1,13 @@
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
-use color_eyre::{
-    Result, Section,
-    eyre::{Context, ContextCompat},
-    owo_colors::OwoColorize,
-};
+use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
 use itertools::Itertools;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, QPM_JSON},
     shared_package::{
-        SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo, QPM_SHARED_JSON
+        QPM_SHARED_JSON, SharedPackageConfig, SharedTriplet, SharedTripletDependencyInfo,
     },
-    triplet::{base_triplet_id, PackageTriplet, PackageTripletDependency, TripletId},
+    triplet::{PackageTriplet, PackageTripletDependency, TripletId, base_triplet_id},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
@@ -165,14 +161,16 @@ impl PackageConfigExtensions for SharedPackageConfig {
     }
 }
 
+/// Stores information about a dependency bundle
+/// This includes the package config and triplet settings for the dependency
 struct DependencyBundle<'a> {
-    triplet: &'a TripletId,
+    /// Package of the dependency
+    restored_config: PackageConfig,
+    /// Triplet settings of the dependency
+    restored_triplet: PackageTriplet,
 
-    dep_config: PackageConfig,
-    dep_triplet: PackageTriplet,
-
-    shared_restored_triplet: &'a SharedTripletDependencyInfo,
-    restored_triplet: &'a PackageTripletDependency,
+    /// The triplet dependency as specified in the root package
+    dep_triplet: &'a PackageTripletDependency,
 }
 
 impl SharedPackageConfigExtensions for SharedPackageConfig {
@@ -238,12 +236,6 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     }
 
     fn to_mod_json(self, repo: &impl Repository) -> ModJson {
-        //        Self {
-        //     id: dep.id,
-        //     version_range: dep.version_range,
-        //     mod_link: dep.additional_data.mod_link,
-        // }
-
         // List of dependencies we are directly referencing in qpm.json
         let package_triplet = self
             .config
@@ -251,6 +243,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             .get_triplet_settings(&self.restored_triplet)
             .expect("Triplet should exist");
 
+        // Map of directly referenced dependencies
         let direct_dependencies: HashMap<DependencyId, _> = package_triplet
             .dependencies
             .iter()
@@ -274,14 +267,11 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
                     .expect("Triplet should exist in package");
 
                 let result = DependencyBundle {
-                    triplet: &shared_dep_triplet.restored_triplet,
-
-                    shared_restored_triplet: shared_dep_triplet,
-                    restored_triplet: dep_triplet,
+                    dep_triplet,
 
                     // grabbed from repo
-                    dep_config: dep_package,
-                    dep_triplet: dep_package_triplet,
+                    restored_config: dep_package,
+                    restored_triplet: dep_package_triplet,
                 };
                 Some((dep_id.clone(), result))
             })
@@ -293,12 +283,12 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         let mods: Vec<ModDependency> = direct_dependencies
             .values()
             // Removes any dependency without a qmod link
-            .filter(|result| result.dep_triplet.qmod_url.is_some())
+            .filter(|result| result.restored_triplet.qmod_url.is_some())
             .map(|result| ModDependency {
-                version_range: result.restored_triplet.version_range.clone(),
-                id: result.dep_config.id.0.clone(),
-                mod_link: result.dep_triplet.qmod_url.clone(),
-                required: result.restored_triplet.qmod_required,
+                version_range: result.dep_triplet.version_range.clone(),
+                id: result.restored_config.id.0.clone(),
+                mod_link: result.restored_triplet.qmod_url.clone(),
+                required: result.dep_triplet.qmod_required,
             })
             .collect();
 

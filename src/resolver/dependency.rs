@@ -23,7 +23,7 @@ use pubgrub::{
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::{SharedPackageConfig, SharedTriplet},
-    triplet::{PackageTriplet, TripletId, base_triplet_id},
+    triplet::{PackageTriplet, TripletId},
 };
 
 /// Represents a resolved dependency
@@ -311,7 +311,7 @@ pub fn restore<P: AsRef<Path>>(
 }
 
 pub fn locked_resolve<'a, R: Repository>(
-    root: &'a SharedPackageConfig,
+    _root: &'a SharedPackageConfig,
     repository: &'a R,
     triplet: &'a SharedTriplet,
 ) -> Result<impl Iterator<Item = ResolvedDependency> + 'a> {

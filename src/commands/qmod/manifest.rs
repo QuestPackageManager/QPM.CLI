@@ -105,7 +105,7 @@ pub(crate) fn generate_qmod_manifest(
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data, mod_template)?;
 
     let repo = repository::useful_default_new(build_parameters.offline)?;
-    let template_mod_json: ModJson = shared_package.clone().to_mod_json(&repo);
+    let template_mod_json: ModJson = shared_package.to_mod_json(&repo);
 
     // Merge the existing json with the template mod json
     existing_json = ModJson::merge_modjson(existing_json, template_mod_json);

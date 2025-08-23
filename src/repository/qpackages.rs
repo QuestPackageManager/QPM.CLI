@@ -8,7 +8,6 @@ use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
 use sha2::{Digest, Sha256};
-use std::io::Read;
 
 use serde::Deserialize;
 
@@ -20,7 +19,7 @@ use qpm_package::models::{
 use crate::{
     models::{
         package::PackageConfigExtensions, package_files::PackageIdPath,
-        qpackages::QPackageExtensions, qpkg::QPkgExtensions,
+        qpackages::QPackageExtensions,
     },
     network::agent::{download_file_report, get_agent},
     repository::local::FileRepository,

@@ -7,7 +7,7 @@ use color_eyre::{
 use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     shared_package::SharedPackageConfig,
-    triplet::{PackageTripletDependency, TripletId, base_triplet_id},
+    triplet::{PackageTripletDependency, TripletId},
 };
 use semver::{Version, VersionReq};
 
