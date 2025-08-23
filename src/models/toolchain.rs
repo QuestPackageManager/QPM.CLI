@@ -137,7 +137,7 @@ pub fn write_toolchain_file(
 
     let extern_dir = shared_config.config.dependencies_directory.clone();
     let libs_dir = FileRepository::libs_dir(&extern_dir);
-    let include_dir = FileRepository::libs_dir(&extern_dir);
+    let include_dir = FileRepository::headers_path(&extern_dir);
     let shared_dir = shared_config.config.shared_directory.clone();
     let build_out = FileRepository::build_path(&extern_dir);
     let triplet_out = build_out.join(&shared_config.restored_triplet.0);
