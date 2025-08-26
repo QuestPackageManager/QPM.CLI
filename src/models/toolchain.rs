@@ -16,6 +16,7 @@ use crate::{
 use super::schemas::{SchemaLinks, WithSchema};
 
 #[derive(Serialize, JsonSchema, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ToolchainData {
     /// Compile options
     pub compile_options: PackageTripletCompileOptions,
