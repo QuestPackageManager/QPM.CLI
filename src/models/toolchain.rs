@@ -5,6 +5,7 @@ use qpm_package::models::{
     extra::PackageTripletCompileOptions, package::DependencyId, shared_package::SharedPackageConfig,
 };
 use schemars::JsonSchema;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -14,7 +15,7 @@ use crate::{
 
 use super::schemas::{SchemaLinks, WithSchema};
 
-#[derive(Serialize, JsonSchema, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, JsonSchema, Deserialize, Debug, Clone)]
 pub struct ToolchainData {
     /// Compile options
     pub compile_options: PackageTripletCompileOptions,
@@ -28,6 +29,10 @@ pub struct ToolchainData {
 
     pub build_out: PathBuf,
     pub triplet_out: PathBuf,
+
+    pub package_id: String,
+    pub package_version: Version,
+    pub restored_triplet: String,
 
     pub linked_binaries: HashMap<DependencyId, Vec<PathBuf>>,
 }
@@ -135,6 +140,10 @@ pub fn write_toolchain_file(
             })
             .collect();
 
+    let package_id = shared_config.config.id.clone();
+    let package_version = shared_config.config.version.clone();
+    let restored_triplet = shared_config.restored_triplet.clone();
+
     let extern_dir = shared_config.config.dependencies_directory.clone();
     let libs_dir = FileRepository::libs_dir(&extern_dir);
     let include_dir = FileRepository::headers_path(&extern_dir);
@@ -153,6 +162,10 @@ pub fn write_toolchain_file(
         triplet_out,
 
         linked_binaries,
+
+        package_id: package_id.0,
+        restored_triplet: restored_triplet.0,
+        package_version,
     };
     let file = File::create(toolchain_path)?;
     serde_json::to_writer_pretty(
