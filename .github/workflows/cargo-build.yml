@@ -77,12 +77,12 @@ jobs:
         include:
           - os: ubuntu-latest
             file-name: qpm
-            prefix: linux
+            prefix: linux-x64
             suffix: linux-x64
 
           - os: ubuntu-latest
             file-name: qpm
-            prefix: linux-static
+            prefix: linux-x64-static
             suffix: linux-x64-static
             target: x86_64-unknown-linux-musl
 
@@ -99,7 +99,7 @@ jobs:
 
           - os: windows-latest
             file-name: qpm.exe
-            prefix: windows
+            prefix: windows-x64
             suffix: windows-x64
 
           - os: windows-latest
