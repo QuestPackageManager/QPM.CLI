@@ -22,7 +22,7 @@ pub mod resolver;
 pub mod terminal;
 pub mod utils;
 
-#[cfg(benchmark)]
+#[cfg(test)]
 mod benchmark;
 
 #[cfg(test)]
