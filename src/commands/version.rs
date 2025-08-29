@@ -108,7 +108,7 @@ impl Command for VersionCommand {
                         }
                         github::download_github_artifact_url(&input_branch)
                     }
-                    None => github::nightly_github_artifact_url(),
+                    None => github::bleeding_release_github_artifact_url(),
                 };
 
                 println!("Downloading {download_url}");

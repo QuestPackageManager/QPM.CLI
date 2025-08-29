@@ -81,7 +81,7 @@ jobs:
 
           - os: ubuntu-latest
             file-name: qpm
-            prefix: linux-x64-static
+            prefix: linux-x64-musl
             target: x86_64-unknown-linux-musl
 
           - os: macos-13

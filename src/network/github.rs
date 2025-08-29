@@ -8,13 +8,13 @@ const GITHUB_REPO: &str = "QPM.CLI";
 const GITHUB_ACTION: &str = "cargo-build";
 
 #[cfg(windows)]
-const GITHUB_ARTIFACT_NAME: &str = "windows-qpm.exe";
+const GITHUB_ARTIFACT_NAME: &str = "windows-x64-qpm.exe";
 
 #[cfg(target_os = "linux")]
-const GITHUB_ARTIFACT_NAME: &str = "linux-qpm";
+const GITHUB_ARTIFACT_NAME: &str = "linux-x64-qpm";
 
 #[cfg(target_os = "macos")]
-const GITHUB_ARTIFACT_NAME: &str = "macos-qpm";
+const GITHUB_ARTIFACT_NAME: &str = "macos-arm64-qpm";
 
 #[derive(Serialize, Deserialize)]
 pub struct GithubBranchResponse {
@@ -72,7 +72,7 @@ pub fn download_github_artifact_url(sha: &str) -> String {
     )
 }
 
-pub fn nightly_github_artifact_url() -> String {
+pub fn bleeding_release_github_artifact_url() -> String {
     #[cfg(windows)]
     return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding/qpm-windows-x64.zip".to_string();
 
