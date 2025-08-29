@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           # Get the last tag that isn't bleeding
-          LAST_TAG=$((git tag --merged HEAD --sort=-creatordate | grep -v '^bleeding$' | head -n 1) || true)
+          LAST_TAG=$((git tag --merged HEAD --sort=-creatordate | grep -v '^bleeding' | head -n 1) || true)
           echo "Last tag: $LAST_TAG"
           
           # Use version input or tag, fallback to default

@@ -74,14 +74,14 @@ pub fn download_github_artifact_url(sha: &str) -> String {
 
 pub fn nightly_github_artifact_url() -> String {
     #[cfg(windows)]
-    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding/qpm-windows-x64.zip".to_string();
+    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding2/qpm-windows-x64.zip".to_string();
 
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding/qpm-macos-x64.zip".to_string();
+    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding2/qpm-macos-x64.zip".to_string();
 
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding/qpm-macos-arm64.zip".to_string();
+    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding2/qpm-macos-arm64.zip".to_string();
 
     #[cfg(target_os = "linux")]
-    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding/qpm-linux-x64.zip".to_string();
+    return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding2/qpm-linux-x64.zip".to_string();
 }
