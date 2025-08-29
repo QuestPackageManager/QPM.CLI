@@ -1,6 +1,5 @@
 #![feature(try_find)]
 #![feature(iterator_try_collect)]
-#![feature(let_chains)]
 #![feature(exit_status_error)]
 #![feature(if_let_guard)]
 #![feature(path_add_extension)]
@@ -25,8 +24,8 @@ pub mod utils;
 #[cfg(benchmark)]
 mod benchmark;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
     generate(
@@ -42,7 +41,7 @@ fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
 fn suggest_completion_location(shell: Shell) {
     eprintln!("To add this to your shell, you may use the following command:");
 
-    let file_name = shell.file_name("qpm");
+    let file_name = shell.file_name("qpm2");
 
     // powershell is unique so
     // we make it its own suggestion

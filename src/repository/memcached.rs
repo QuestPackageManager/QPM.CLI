@@ -3,17 +3,15 @@ use color_eyre::Result;
 use semver::Version;
 use std::{cell::UnsafeCell, collections::HashMap};
 
-use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-};
+use qpm_package::models::package::{DependencyId, PackageConfig};
 
 use super::Repository;
 
 pub struct MemcachedRepository<R: Repository> {
     // interior mutability
-    packages_cache: UnsafeCell<HashMap<String, HashMap<Version, SharedPackageConfig>>>,
-    versions_cache: UnsafeCell<HashMap<String, Vec<PackageVersion>>>,
-    package_list: UnsafeCell<Option<Vec<String>>>,
+    packages_cache: UnsafeCell<HashMap<DependencyId, HashMap<Version, PackageConfig>>>,
+    versions_cache: UnsafeCell<HashMap<DependencyId, Vec<Version>>>,
+    package_list: UnsafeCell<Option<Vec<DependencyId>>>,
 
     inner_repo: R,
 }
@@ -31,7 +29,7 @@ impl<R: Repository> MemcachedRepository<R> {
 }
 
 impl<R: Repository> Repository for MemcachedRepository<R> {
-    fn get_package_names(&self) -> Result<Vec<String>> {
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
         let package_list_opt = self.package_list.get_mut_safe();
 
         if package_list_opt.is_none() {
@@ -42,7 +40,7 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
         Ok(package_list_opt.clone().unwrap())
     }
 
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
         let cache = self.versions_cache.get_mut_safe().get(id);
 
         if let Some(c) = cache {
@@ -54,14 +52,14 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
         if let Some(versions) = &versions {
             self.versions_cache
                 .get_mut_safe()
-                .entry(id.to_string())
+                .entry(id.clone())
                 .insert_entry(versions.clone());
         }
 
         Ok(versions)
     }
 
-    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>> {
         let cache = self
             .packages_cache
             .get_safe()
@@ -77,16 +75,16 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
         if let Some(config) = &config {
             self.packages_cache
                 .get_mut_safe()
-                .entry(config.config.info.id.clone())
+                .entry(config.id.clone())
                 .or_default()
-                .entry(config.config.info.version.clone())
+                .entry(config.version.clone())
                 .insert_entry(config.clone());
         }
 
         Ok(config)
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
         self.inner_repo.add_to_db_cache(config, permanent)
     }
 

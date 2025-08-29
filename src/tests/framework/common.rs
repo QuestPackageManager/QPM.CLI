@@ -29,7 +29,7 @@ pub fn test_command(
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
 
     // Run the command using assert_cmd
-    Command::cargo_bin("qpm")
+    Command::cargo_bin("qpm2")
         .wrap_err("Failed to find qpm binary")?
         .args(args)
         .current_dir(temp.path())
@@ -83,7 +83,7 @@ pub fn test_command_check_files(
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
 
     // Run the command
-    Command::cargo_bin("qpm")
+    Command::cargo_bin("qpm2")
         .wrap_err("Failed to find qpm binary")?
         .args(args)
         .current_dir(temp.path())

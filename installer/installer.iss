@@ -8,7 +8,7 @@
 #define MyAppPublisher "QuestPackageManager"
 #define MyAppDescription "Quest Package Manager (QPM) is a command-line tool for managing and creating Quest mod projects. It functions as a package manager specifically designed for these projects, simplifying the process of handling mods and their dependencies."
 #define MyAppURL "https://github.com/QuestPackageManager/QPM.CLI"
-#define MyAppExeName "qpm.exe"
+#define MyAppExeName "qpm2.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -31,14 +31,14 @@ InfoAfterFile=.\information.txt
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=.\
-OutputBaseFilename=qpm-installer
+OutputBaseFilename=qpm2-installer
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
 
 ; Taken from https://stackoverflow.com/a/46609047/11395424. Credit to author Wojciech Mleczek
-; Adds qpm to PATH on installation and remove on uninstallation
+; Adds qpm2 to PATH on installation and remove on uninstallation
 [Code]
 const SystemEnvironmentKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
 const UserEnvironmentKey = 'Environment';

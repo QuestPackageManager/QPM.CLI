@@ -1,11 +1,14 @@
 use clap::Args;
+use color_eyre::eyre::Context;
+use itertools::Itertools;
 use owo_colors::OwoColorize;
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::{package::PackageConfig, triplet::TripletId};
 
 use crate::{
     models::package::PackageConfigExtensions,
     repository::{self},
     resolver::dependency::resolve,
+    terminal::colors::QPMColor,
 };
 
 use super::Command;
@@ -14,34 +17,87 @@ use super::Command;
 pub struct CollapseCommand {
     #[clap(long, default_value = "false")]
     offline: bool,
+
+    /// Triplet to collapse, if not specified, all triplets are collapsed
+    #[clap(long, short)]
+    pub triplet: Option<String>,
+
+    #[clap(long, short)]
+    pub env: bool,
 }
 
 impl Command for CollapseCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let binding = repository::useful_default_new(self.offline)?;
-        let resolved = resolve(&package, &binding)?;
-        for shared_package in resolved {
-            println!(
-                "{} --> {} ({} restored dependencies)",
-                &shared_package.config.info.id.bright_red(),
-                &shared_package.config.info.version.bright_green(),
-                shared_package
-                    .restored_dependencies
-                    .len()
-                    .to_string()
-                    .yellow()
-            );
+        let repo = repository::useful_default_new(self.offline)?;
+        match self.triplet {
+            Some(triplet) => {
+                let triplet_id = TripletId(triplet);
 
-            for shared_dep in shared_package.restored_dependencies.iter() {
-                println!(
-                    " - {}: ({}) --> {}",
-                    &shared_dep.dependency.id,
-                    &shared_dep.dependency.version_range,
-                    &shared_dep.version
-                );
+                list_triplet_dependencies(package, &repo, &triplet_id, self.env)?
+            }
+            None => {
+                println!("Listing dependencies for all triplets");
+                for triplet in package
+                    .triplets
+                    .iter_merged_triplets()
+                    .sorted_by(|a, b| a.0.cmp(&b.0))
+                {
+                    println!(
+                        "Listing dependencies for triplet {}",
+                        triplet.0.triplet_id_color()
+                    );
+                    list_triplet_dependencies(package.clone(), &repo, &triplet.0, self.env)
+                        .with_context(|| {
+                            format!(
+                                "Failed to list dependencies for triplet {}",
+                                triplet.0.triplet_id_color()
+                            )
+                        })?;
+                }
             }
         }
         Ok(())
     }
+}
+
+fn list_triplet_dependencies(
+    package: PackageConfig,
+    repo: &impl repository::Repository,
+    triplet_id: &TripletId,
+    print_env: bool,
+) -> Result<(), color_eyre::eyre::Error> {
+    let resolved = resolve(&package, repo, triplet_id)?;
+    for resolved_dep in resolved.sorted_by(|a, b| a.0.id.cmp(&b.0.id)) {
+        let package = &resolved_dep.0;
+        let triplet = &resolved_dep.1;
+
+        let triplet_config = resolved_dep.get_merged_triplet();
+
+        let sum = triplet_config.dependencies.len();
+
+        println!(
+            "{} --> {}/{} ({} restored dependencies)",
+            package.id.dependency_id_color(),
+            package.version.version_id_color(),
+            triplet.triplet_id_color(),
+            sum.to_string().yellow()
+        );
+
+        if print_env {
+            println!("Environment variables:");
+            for (key, value) in triplet_config.env.iter() {
+                println!(" - {}: {}", key.cyan(), value.green());
+            }
+        }
+
+        for (dep_id, shared_dep) in triplet_config.dependencies.iter() {
+            println!(
+                " - {}: ({})",
+                &dep_id.dependency_id_color(),
+                &shared_dep.version_range.dependency_version_color(),
+            );
+        }
+    }
+    Ok(())
 }

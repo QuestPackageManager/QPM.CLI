@@ -70,7 +70,7 @@ pub fn get_ndk_str_versions_str(
     manifest
         .remote_package
         .iter()
-        .filter(|&p| (p.path.starts_with("ndk;") && get_host_archive(p).is_some()))
+        .filter(|&p| p.path.starts_with("ndk;") && get_host_archive(p).is_some())
         .map(|p| (p.path.split_once(';').unwrap().1, p))
         .collect()
 }

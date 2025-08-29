@@ -52,7 +52,7 @@ impl UserConfig {
     }
 
     pub fn global_config_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-RS")
+        dirs::config_dir().unwrap().join("QPM-RS2")
     }
 
     pub fn read_global() -> Result<Self> {
@@ -148,9 +148,9 @@ impl Default for UserConfig {
     fn default() -> Self {
         Self {
             symlink: Some(true),
-            cache: Some(dirs::data_dir().unwrap().join("QPM-RS").join("cache")),
+            cache: Some(dirs::data_dir().unwrap().join("QPM-RS2").join("cache")),
             timeout: Some(60000),
-            ndk_download_path: Some(dirs::data_dir().unwrap().join("QPM-RS").join("ndk")),
+            ndk_download_path: Some(ndk_default_path()),
         }
     }
 }
@@ -162,4 +162,20 @@ pub fn get_keyring() -> keyring::Entry {
 #[inline]
 pub fn get_publish_keyring() -> keyring::Entry {
     keyring::Entry::new("qpm", "publish").unwrap()
+}
+
+#[cfg(windows)]
+pub fn ndk_default_path() -> PathBuf {
+    // Android studio NDK location
+    dirs::data_local_dir()
+        .unwrap()
+        .join("Android")
+        .join("Sdk")
+        .join("ndk")
+    // C:\Users\<UserName>\AppData\Local\Android\Sdk\ndk\*
+}
+
+#[cfg(not(windows))]
+pub fn ndk_default_path() -> PathBuf {
+    dirs::data_dir().unwrap().join("QPM-RS2").join("ndk")
 }

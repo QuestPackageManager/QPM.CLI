@@ -1,13 +1,14 @@
 use clap::Args;
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 use semver::Version;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use qpm_qmod::models::mod_json::ModJson;
 
-use color_eyre::Result;
+use color_eyre::{Result, eyre::ContextCompat};
 
-use crate::models::mod_json::ModJsonExtensions;
+use crate::models::{mod_json::ModJsonExtensions, package::PackageConfigExtensions};
 
 /// Some properties are not editable through the qmod create command, these properties are either editable through the package, or not at all
 #[derive(Args, Debug, Clone)]
@@ -41,6 +42,18 @@ pub struct CreateQmodJsonOperationArgs {
 pub(crate) fn execute_qmod_create_operation(
     create_parameters: CreateQmodJsonOperationArgs,
 ) -> Result<()> {
+    let package = PackageConfig::read(".")?;
+    let shared_package = SharedPackageConfig::read(".")?;
+    let triplet = package
+        .triplets
+        .get_merged_triplet(&shared_package.restored_triplet)
+        .context("Restored triplet not in package config")?;
+
+    let mod_template = triplet
+        .qmod_template
+        .as_deref()
+        .unwrap_or_else(|| Path::new("mod.template.json"));
+
     let schema_version = match &create_parameters.schema_version {
         Option::Some(s) => s.clone(),
         Option::None => Version::new(1, 1, 0),
@@ -67,6 +80,6 @@ pub(crate) fn execute_qmod_create_operation(
         ..Default::default()
     };
 
-    json.write(&PathBuf::from(ModJson::get_template_name()))?;
+    json.write(&PathBuf::from(mod_template))?;
     Ok(())
 }

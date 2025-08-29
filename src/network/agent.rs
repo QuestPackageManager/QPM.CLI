@@ -24,7 +24,7 @@ pub fn get_agent() -> &'static reqwest::blocking::Client {
             .tcp_keepalive(Duration::from_secs(5))
             .tcp_nodelay(false)
             .https_only(true)
-            .user_agent(format!("questpackagemanager-rust2/{}", env!("CARGO_PKG_VERSION")).as_str())
+            .user_agent(format!("questpackagemanager-rs3/{}", env!("CARGO_PKG_VERSION")).as_str())
             .build()
             .expect("Client agent was not buildable")
     })

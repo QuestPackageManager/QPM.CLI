@@ -1,32 +1,26 @@
 use std::collections::HashMap;
 
 use qpm_package::models::{
-    dependency::{Dependency, SharedDependency, SharedPackageConfig},
-    extra::AdditionalPackageMetadata,
-    package::{PackageConfig, PackageDependency, PackageMetadata},
+    package::{PackageConfig, DependencyId},
+    shared_package::SharedPackageConfig,
 };
 use semver::{Version, VersionReq};
 
-use qpm_cli::repository::local::FileRepository;
+use crate::repository::local::FileRepository;
 
 pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
     SharedPackageConfig {
+        restored_triplet: Default::default(),
+        locked_triplet: Default::default(),
         config: PackageConfig {
-            version: PackageConfig::default().version,
-            shared_dir: "shared".into(),
-            workspace: Default::default(),
-            dependencies_dir: "extern".into(),
-            info: PackageMetadata {
-                name: name.to_string(),
-                id: name.to_string(),
-                url: None,
-                version: ver,
-                additional_data: Default::default(),
-            },
-            dependencies: vec![],
+            id: DependencyId(name.to_string()),
+            version: ver,
+            shared_directory: "shared".into(),
+            dependencies_directory: "extern".into(),
+            additional_data: Default::default(),
+            triplets: Default::default(),
             ..Default::default()
         },
-        restored_dependencies: vec![],
     }
 }
 pub fn build_artifact_and_depend(
@@ -35,37 +29,18 @@ pub fn build_artifact_and_depend(
     shared_dep: &SharedPackageConfig,
     range: VersionReq,
 ) -> SharedPackageConfig {
-    let dep = Dependency {
-        id: shared_dep.config.info.id.clone(),
-        version_range: range.clone(),
-        additional_data: shared_dep.config.info.additional_data.clone(),
-    };
-    let p_dep = PackageDependency {
-        id: shared_dep.config.info.id.clone(),
-        version_range: range,
-        additional_data: Default::default(),
-    };
     SharedPackageConfig {
+        restored_triplet: Default::default(),
+        locked_triplet: Default::default(),
         config: PackageConfig {
-            version: PackageConfig::default().version,
-            workspace: Default::default(),
-            shared_dir: "shared".into(),
-
-            dependencies_dir: "extern".into(),
-            info: PackageMetadata {
-                name: name.to_string(),
-                id: name.to_string(),
-                url: None,
-                version: ver,
-                additional_data: Default::default(),
-            },
-            dependencies: vec![p_dep],
+            id: DependencyId(name.to_string()),
+            version: ver,
+            shared_directory: "shared".into(),
+            dependencies_directory: "extern".into(),
+            additional_data: Default::default(),
+            triplets: Default::default(),
             ..Default::default()
         },
-        restored_dependencies: vec![SharedDependency {
-            dependency: dep,
-            version: shared_dep.config.info.version.clone(),
-        }],
     }
 }
 pub fn build_artifact_and_depends(
@@ -74,40 +49,18 @@ pub fn build_artifact_and_depends(
     deps: &[(&SharedPackageConfig, VersionReq)],
 ) -> SharedPackageConfig {
     SharedPackageConfig {
+        restored_triplet: Default::default(),
+        locked_triplet: Default::default(),
         config: PackageConfig {
-            version: PackageConfig::default().version,
-            workspace: Default::default(),
-            shared_dir: "shared".into(),
-
-            dependencies_dir: "extern".into(),
-            info: PackageMetadata {
-                name: name.to_string(),
-                id: name.to_string(),
-                url: None,
-                version: ver,
-                additional_data: AdditionalPackageMetadata::default(),
-            },
-            dependencies: deps
-                .iter()
-                .map(|(shared_config, range)| PackageDependency {
-                    id: shared_config.config.info.id.clone(),
-                    version_range: range.clone(),
-                    additional_data: Default::default(),
-                })
-                .collect(),
+            id: DependencyId(name.to_string()),
+            version: ver,
+            shared_directory: "shared".into(),
+            dependencies_directory: "extern".into(),
+            additional_data: Default::default(),
+            triplets: Default::default(),
+            // If you need to represent dependencies, you may need to encode them in `additional_data` or another valid field.
             ..Default::default()
         },
-        restored_dependencies: deps
-            .iter()
-            .map(|(shared_config, range)| SharedDependency {
-                dependency: Dependency {
-                    id: shared_config.config.info.id.clone(),
-                    version_range: range.clone(),
-                    additional_data: shared_config.config.info.additional_data.clone(),
-                },
-                version: shared_config.config.info.version.clone(),
-            })
-            .collect(),
     }
 }
 
@@ -142,8 +95,8 @@ pub fn get_mock_repository() -> FileRepository {
         artifacts: [artifact1, artifact2, artifact3, artifact4, artifact5]
             .map(|a| {
                 (
-                    a.config.info.id.clone(),
-                    HashMap::from([(a.config.info.version.clone(), a)]),
+                    a.config.id.clone(),
+                    HashMap::from([(a.config.version.clone(), a.config.clone())]),
                 )
             })
             .into_iter()
