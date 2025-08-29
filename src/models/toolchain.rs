@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
+use itertools::Itertools;
 use qpm_package::models::{
     extra::PackageTripletCompileOptions, package::DependencyId, shared_package::SharedPackageConfig,
 };
@@ -43,7 +44,7 @@ pub fn write_toolchain_file(
     repo: &impl Repository,
     toolchain_path: &std::path::PathBuf,
 ) -> Result<()> {
-    let extern_dir = &shared_config.config.dependencies_directory.display();
+    let extern_dir = &shared_config.config.dependencies_directory;
     let compile_options = shared_config
         .get_restored_triplet()
         .restored_dependencies
@@ -59,7 +60,14 @@ pub fn write_toolchain_file(
 
             let package_id = &dep_config.id;
             // Prepend the extern dir and package id to the include paths
-            let prepend_path = |dir: &String| format!("{extern_dir}/includes/{package_id}/{dir}");
+            let prepend_path = |dir: &String| {
+                extern_dir
+                    .join("includes")
+                    .join(&package_id.0)
+                    .join(dir)
+                    .to_string_lossy()
+                    .to_string()
+            };
 
             let mut compile_options = dep_triplet_config.compile_options?;
 
@@ -108,38 +116,42 @@ pub fn write_toolchain_file(
             }
         });
 
-    let linked_binaries =
-        shared_config
-            .get_restored_triplet()
-            .restored_dependencies
-            .iter()
-            .filter_map(|(dep_id, dep_triplet)| {
-                let dep_config = repo
-                    .get_package(dep_id, &dep_triplet.restored_version)
-                    .unwrap_or_else(|e| {
-                        panic!(
-                            "Failed to get package config for package '{}' version '{}': {}",
-                            dep_id, dep_triplet.restored_version, e
-                        )
-                    })
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Package config not found for package '{}' version '{}'",
-                            dep_id, dep_triplet.restored_version
-                        )
-                    });
-                let dep_triplet_config = dep_config
-                .triplets
-                .get_merged_triplet(&dep_triplet.restored_triplet)
-                .unwrap_or_else(|| panic!(
-                    "Failed to get triplet settings for package '{}' version '{}' triplet '{}'",
-                    dep_id, dep_triplet.restored_version, dep_triplet.restored_triplet
-                ));
+    let extern_binaries = FileRepository::libs_dir(extern_dir);
 
-                let out_binaries = dep_triplet_config.out_binaries.clone()?;
-                Some((dep_id.clone(), out_binaries))
-            })
-            .collect();
+    let linked_binaries = shared_config
+        .get_restored_triplet()
+        .restored_dependencies
+        .iter()
+        .map(|(dep_id, dep_triplet)| {
+            let dep_config = repo
+                .get_package(dep_id, &dep_triplet.restored_version)
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to get package config for package '{}' version '{}': {}",
+                        dep_id, dep_triplet.restored_version, e
+                    )
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Package config not found for package '{}' version '{}'",
+                        dep_id, dep_triplet.restored_version
+                    )
+                });
+            let collect_files_of_package = FileRepository::collect_files_of_package(
+                &dep_config,
+                &dep_triplet.restored_triplet,
+            )
+            .expect("Failed to collect files of package");
+
+            let binaries = collect_files_of_package
+                .binaries
+                .into_iter()
+                .map(|bin| extern_binaries.join(bin))
+                .collect_vec();
+
+            (dep_id.clone(), binaries)
+        })
+        .collect();
 
     let package_id = shared_config.config.id.clone();
     let package_version = shared_config.config.version.clone();
