@@ -203,14 +203,21 @@ fn put_dependency(
 fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
 
-    let triplet = match dependency_args.triplet {
-        Some(triplet) => package
+    let triplet = dependency_args
+            .triplet
+            .map(TripletId)
+            .or_else(|| {
+                let shared_package = SharedPackageConfig::read(".");
+                let restored = shared_package.ok()?.restored_triplet;
+                Some(restored)
+            })
+            .context("No triplet specified")?;
+
+    let triplet = package
             .triplets
             .specific_triplets
-            .get_mut(&TripletId(triplet))
-            .context("Triplet not found")?,
-        None => &mut package.triplets.base.get_or_insert_default(),
-    };
+            .get_mut(&triplet)
+            .context("Triplet not found")?;
 
     triplet
         .dependencies
