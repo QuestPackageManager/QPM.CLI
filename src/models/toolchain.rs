@@ -146,7 +146,7 @@ pub fn write_toolchain_file(
             let binaries = collect_files_of_package
                 .binaries
                 .into_iter()
-                .map(|bin| extern_binaries.join(bin))
+                .map(|bin| extern_binaries.join(bin.file_name().unwrap()))
                 .collect_vec();
 
             (dep_id.clone(), binaries)
