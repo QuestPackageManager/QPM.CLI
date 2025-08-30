@@ -44,7 +44,7 @@ pub fn write_toolchain_file(
     repo: &impl Repository,
     toolchain_path: &std::path::PathBuf,
 ) -> Result<()> {
-    let extern_dir = &shared_config.config.dependencies_directory;
+    let extern_dir = shared_config.config.dependencies_directory.clone();
     let compile_options = shared_config
         .get_restored_triplet()
         .restored_dependencies
@@ -116,7 +116,7 @@ pub fn write_toolchain_file(
             }
         });
 
-    let extern_binaries = FileRepository::libs_dir(extern_dir);
+    let extern_binaries = FileRepository::libs_dir(&extern_dir);
 
     let linked_binaries = shared_config
         .get_restored_triplet()
@@ -157,7 +157,6 @@ pub fn write_toolchain_file(
     let package_version = shared_config.config.version.clone();
     let restored_triplet = shared_config.restored_triplet.clone();
 
-    let extern_dir = shared_config.config.dependencies_directory.clone();
     let libs_dir = FileRepository::libs_dir(&extern_dir);
     let include_dir = FileRepository::headers_path(&extern_dir);
     let shared_dir = shared_config.config.shared_directory.clone();
