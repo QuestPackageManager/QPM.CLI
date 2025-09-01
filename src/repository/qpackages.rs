@@ -28,8 +28,7 @@ use crate::{
 
 use super::Repository;
 
-// const API_URL: &str = "https://2.qpackages.com";
-const API_URL: &str = "https://qpackages.com";
+const API_URL: &str = "https://new.qpackages.com";
 
 #[derive(Default)]
 pub struct QPMRepository {}
