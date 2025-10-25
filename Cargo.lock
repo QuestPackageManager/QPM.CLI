@@ -650,9 +650,9 @@ dependencies = [
 
 [[package]]
 name = "deranged"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a41953f86f8a05768a6cda24def994fd2f424b04ec5c719cf89989779f199071"
+checksum = "ececcb659e7ba858fb4f10388c250a7252eb0a27373f1a72b8748afdd248e587"
 dependencies = [
  "powerfmt",
 ]
@@ -3018,7 +3018,7 @@ dependencies = [
 [[package]]
 name = "quest_emu"
 version = "0.1.0"
-source = "git+https://github.com/Fernthedev/quest_emu_setup.git#3311255afea4dfa24b37bf55bb1c52065670bdcb"
+source = "git+https://github.com/Fernthedev/quest_emu_setup.git#c8edf9c010bbe74725b038f943517077c8025fa1"
 dependencies = [
  "byteorder",
  "bytes",
