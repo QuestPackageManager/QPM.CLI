@@ -3018,7 +3018,7 @@ dependencies = [
 [[package]]
 name = "quest_emu"
 version = "0.1.0"
-source = "git+https://github.com/Fernthedev/quest_emu_setup.git#c8edf9c010bbe74725b038f943517077c8025fa1"
+source = "git+https://github.com/Fernthedev/quest_emu_setup.git#4a30bfc74750f226fa74cd1b74d88dbbaca8832d"
 dependencies = [
  "byteorder",
  "bytes",
