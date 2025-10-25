@@ -17,10 +17,11 @@ required-features = []
 
 
 [features]
-default = ["templatr", "network_test", "cli", "gitoxide"]
+default = ["templatr", "network_test", "cli", "gitoxide", "quest_emu"]
 templatr = ["dep:templatr"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:pbr"]
 gitoxide = ["dep:gix"]
+quest_emu = ["dep:quest_emu"]
 network_test = []
 
 [build-dependencies]
@@ -47,6 +48,8 @@ qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", 
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
+quest_emu = { git = "https://github.com/Fernthedev/quest_emu_setup.git", optional = true }
+
 pathdiff = "0.2"
 
 # No need for tracing support
