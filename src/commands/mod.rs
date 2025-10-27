@@ -77,6 +77,13 @@ pub enum MainCommand {
     #[cfg(feature = "templatr")]
     Templatr(templatr::TemplatrCommand),
 
+    #[cfg(feature = "quest_emu")]
+    Emu {
+        yes: bool,
+        #[command(subcommand)]
+        main_command: quest_emu::commands::MainCommand,
+    },
+
     Version(version::VersionCommand),
 
     #[command(hide = true)]
@@ -104,8 +111,15 @@ impl Command for MainCommand {
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
             MainCommand::GenSchema(g) => g.execute(),
+
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),
+
+            #[cfg(feature = "quest_emu")]
+            MainCommand::Emu { yes, main_command } => quest_emu::commands::Command::execute(
+                main_command,
+                &quest_emu::commands::GlobalContext { yes },
+            ),
         }
     }
 }

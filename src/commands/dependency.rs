@@ -14,7 +14,7 @@ use semver::{Version, VersionReq};
 
 use crate::{
     models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-    repository::{self, Repository, local::FileRepository},
+    repository::{self, Repository},
     terminal::colors::QPMColor,
 };
 

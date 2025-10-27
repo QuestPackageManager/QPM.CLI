@@ -1,6 +1,6 @@
 use color_eyre::{
     Result,
-    eyre::{Context, ContextCompat, OptionExt, bail, ensure},
+    eyre::{Context, OptionExt, bail, ensure},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
