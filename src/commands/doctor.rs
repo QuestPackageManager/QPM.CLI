@@ -79,15 +79,18 @@ impl Command for DoctorCommand {
         if File::open("./qpm.json").is_ok() {
             let ndk_path = env::var("ANDROID_NDK_HOME");
 
-            if ndk_path.is_ok() {
-                println!("NDK {} found in path!", ndk_path.unwrap());
-            } else if let Err(err) = ndk_path
-                && File::open("./ndkpath.txt").is_err()
-            {
-                return Err(anyhow!(
-                    "No ndkpath.txt or ANDROID_NDK_HOME environment variable found!"
-                )
-                .error(err));
+            match ndk_path {
+                Ok(ndk) => {
+                    println!("NDK {} found in path!", ndk);
+                }
+                Err(err) => {
+                    if File::open("./ndkpath.txt").is_err() {
+                        return Err(anyhow!(
+                            "No ndkpath.txt or ANDROID_NDK_HOME environment variable found!"
+                        )
+                        .error(err));
+                    }
+                }
             }
         };
 
