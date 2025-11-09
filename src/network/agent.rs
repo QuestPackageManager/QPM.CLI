@@ -13,56 +13,55 @@ use color_eyre::{
 
 use crate::models::config::get_combine_config;
 
-static AGENT: sync::OnceLock<reqwest::blocking::Client> = sync::OnceLock::new();
+static AGENT: sync::OnceLock<ureq::Agent> = sync::OnceLock::new();
 
-pub fn get_agent() -> &'static reqwest::blocking::Client {
+pub fn get_agent() -> &'static ureq::Agent {
     let timeout = get_combine_config().timeout.unwrap_or(5000);
 
     AGENT.get_or_init(|| {
-        reqwest::blocking::ClientBuilder::new()
-            .connect_timeout(Duration::from_millis(timeout.into()))
-            .tcp_keepalive(Duration::from_secs(5))
-            .tcp_nodelay(false)
+        ureq::Agent::config_builder()
+            .timeout_connect(Some(Duration::from_millis(timeout.into())))
+            .no_delay(false)
             .https_only(true)
             .user_agent(format!("questpackagemanager-rs3/{}", env!("CARGO_PKG_VERSION")).as_str())
             .build()
-            .expect("Client agent was not buildable")
+            .new_agent()
     })
 }
-
 pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
-    let mut request = get_agent().get(url).build()?;
+    // Perform the request with ureq
+    let response = get_agent()
+        .get(url)
+        .call()
+        .with_context(|| format!("Unable to download file {url}"))?;
+    let mut body = response.into_body();
 
-    request.timeout_mut().take(); // Set to none
+    // Read content-length header if present
+    let expected_amount = body.content_length().map(|s| s as usize).unwrap_or(0);
 
-    let mut response = get_agent()
-        .execute(request)
-        .with_context(|| format!("Unable to download file {url}"))?
-        .error_for_status()?;
+    let mut reader = body.as_reader();
 
-    let expected_amount = response.content_length().unwrap_or(0) as usize;
     let mut written: usize = 0;
-
     let mut temp_buf = vec![0u8; 1024];
 
     loop {
-        let read = response.read(&mut temp_buf);
-
-        match read {
+        match reader.read(&mut temp_buf) {
             // EOF
             Ok(0) => break,
 
             Ok(amount) => {
                 written += amount;
-                buffer.write_all(&temp_buf[0..amount])?;
+                buffer.write_all(&temp_buf[..amount])?;
                 callback(written, expected_amount);
             }
+
             Err(e) if e.kind() == ErrorKind::Interrupted => {
                 sleep(Duration::from_millis(1));
             }
+
             Err(e) => {
                 return Err(e)
                     .with_context(|| format!("Failed to continue reading bytes from {url}"));
@@ -93,23 +92,32 @@ pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback:
 where
     F: FnMut(usize, usize),
 {
-    use pbr::ProgressBar;
+    use indicatif::{ProgressBar, ProgressDrawTarget, ProgressState};
 
-    let mut progress_bar = ProgressBar::new(0);
-    progress_bar.set_units(pbr::Units::Bytes);
+    let progress_bar = ProgressBar::no_length().with_style(
+        indicatif::ProgressStyle::with_template(
+            "[{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        )?
+        .with_key("eta", |state: &ProgressState, w: &mut dyn std::fmt::Write| {
+            write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+        })
+        .progress_chars("=>-"),
+    );
+
+    progress_bar.enable_steady_tick(Duration::from_millis(100));
 
     if env::var("CI") == Ok("true".to_string()) {
-        progress_bar.set_max_refresh_rate(Some(Duration::from_millis(500)));
+        progress_bar.set_draw_target(ProgressDrawTarget::stderr_with_hz(2));
     }
 
     let result = download_file(url, buffer, |current, expected| {
-        progress_bar.total = expected as u64;
-        progress_bar.set(current as u64);
+        progress_bar.set_length(expected as u64);
+        progress_bar.set_position(current as u64);
 
         callback(current, expected)
     });
 
-    progress_bar.finish_println("Finished download!");
+    progress_bar.finish_with_message("Finished download!");
     println!();
 
     result

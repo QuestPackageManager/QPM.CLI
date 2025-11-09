@@ -160,7 +160,7 @@ fn put_dependency(
     triplet: Option<&TripletId>,
     version: VersionReq,
     new_triplet_dep: Option<PackageTripletDependency>,
-    sort: bool,
+    _sort: bool,
 ) -> Result<()> {
     println!(
         "Adding dependency with id {} and version {}",

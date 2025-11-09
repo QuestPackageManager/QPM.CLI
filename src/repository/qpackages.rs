@@ -5,7 +5,6 @@ use color_eyre::{
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use reqwest::StatusCode;
 use semver::Version;
 use sha2::{Digest, Sha256};
 
@@ -15,6 +14,7 @@ use qpm_package::models::{
     package::{DependencyId, PackageConfig},
     qpackages::{QPackagesPackage, QPackagesVersion},
 };
+use ureq::http::StatusCode;
 
 use crate::{
     models::{
@@ -42,17 +42,21 @@ impl QPMRepository {
 
         let response = get_agent()
             .get(&url)
-            .send()
+            .call()
             .with_context(|| format!("Unable to make request to qpackages.com {url}"))?;
 
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
         }
 
-        response.error_for_status_ref()?;
+        // ureq::Response doesn't provide `error_for_status_ref`; ensure we got a 2xx status
+        if !response.status().is_success() {
+            bail!("Request to {url} failed with status {}", response.status());
+        }
 
         let result: T = response
-            .json()
+            .into_body()
+            .read_json()
             .with_context(|| format!("Into json failed for http request for {url}"))?;
 
         Ok(Some(result))
@@ -90,8 +94,7 @@ impl QPMRepository {
         let resp = get_agent()
             .post(&url)
             .header("Authorization", auth)
-            .json(&qpackage)
-            .send()
+            .send_json(qpackage)
             .with_context(|| format!("Failed to publish to {url}"))?;
 
         if resp.status() == StatusCode::UNAUTHORIZED {
@@ -100,7 +103,14 @@ impl QPMRepository {
                 API_URL
             );
         }
-        resp.error_for_status()?;
+        if !resp.status().is_success() {
+            bail!(
+                "Could not publish to {}: HTTP {}",
+                API_URL,
+                resp.status()
+            );
+        }
+
         Ok(())
     }
 
