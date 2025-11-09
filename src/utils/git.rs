@@ -92,8 +92,8 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
         &token, &user, &repo, &tag
     );
 
-    let data = match get_agent().get(asset_data_link).send() {
-        Ok(o) => o.json::<GithubReleaseData>().unwrap(),
+    let data = match get_agent().get(asset_data_link).call() {
+        Ok(o) => o.into_body().read_json::<GithubReleaseData>().unwrap(),
         Err(e) => {
             let error_string = e.to_string().replace(token, "***");
             bail!("{}", error_string);

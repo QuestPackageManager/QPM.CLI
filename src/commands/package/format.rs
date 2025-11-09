@@ -23,7 +23,7 @@ impl Command for FormatArgs {
 
 pub fn reserialize_package(sort: bool) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
-    let triplet = package
+    let _triplet = package
         .triplets
         .get_triplet_standalone_mut(&base_triplet_id())
         .context("Failed to get triplet settings")?;
