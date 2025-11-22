@@ -10,6 +10,7 @@ use color_eyre::{
     Result,
     eyre::{Context, ensure},
 };
+use reqwest::header::CONTENT_LENGTH;
 
 use crate::models::config::get_combine_config;
 
@@ -44,6 +45,11 @@ where
         .error_for_status()?;
 
     let expected_amount = response.content_length().unwrap_or(0) as usize;
+
+    if expected_amount == 0 {
+        println!("Unable to determine content length for download from {url}");
+    }
+
     let mut written: usize = 0;
 
     let mut temp_buf = vec![0u8; 1024];
@@ -70,10 +76,10 @@ where
         }
     }
 
-    ensure!(
-        written == expected_amount,
-        "Read: 0x{written:x} Expected: 0x{expected_amount:x}"
-    );
+    if written != expected_amount {
+        println!("Downloaded size does not match expected size!");
+        println!("Read: 0x{written:x} Expected: 0x{expected_amount:x}");
+    }
 
     Ok(expected_amount)
 }
