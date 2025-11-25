@@ -41,10 +41,23 @@ jobs:
         with:
           path: artifacts
 
-      - name: Release Artifact Upload
+      - name: Zip each artifact directory
+        run: |
+          for dir in artifacts/*/; do
+            zip -r "${dir%/}.zip" "$dir"
+          done
+
+      - name: Bleeding Artifact Upload
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*
+          body: |
+            This is an automatic release generated from the last successful commit to the main branch.  While this was a successful build, the resulting binary may not be fully stable.
+
+            SHA: ${{ github.sha }}
+          name: 'Latest Build on main'
+          tag_name: bleeding
+          prerelease: true
+          files: artifacts/**/*.zip
 
   winget:
     runs-on: ubuntu-latest
