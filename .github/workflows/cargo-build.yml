@@ -77,30 +77,30 @@ jobs:
         include:
           - os: ubuntu-latest
             file-name: qpm
-            prefix: linux-x64
+            suffix: linux-x64
 
           - os: ubuntu-latest
             file-name: qpm
-            prefix: linux-x64-musl
+            suffix: linux-x64-musl
             target: x86_64-unknown-linux-musl
 
           - os: macos-13
             file-name: qpm
-            prefix: macos-x64
+            suffix: macos-x64
 
           - os: macos-13
             file-name: qpm
-            prefix: macos-arm64
+            suffix: macos-arm64
             target: aarch64-apple-darwin
 
           - os: windows-latest
             file-name: qpm.exe
-            prefix: windows-x64
+            suffix: windows-x64
 
           - os: windows-latest
             file-name: qpm.exe
             target: aarch64-pc-windows-msvc
-            prefix: windows-arm64
+            suffix: windows-arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -184,10 +184,10 @@ jobs:
           args: --release
 
       - name: Artifact Upload
-        if: matrix.prefix != ''
+        if: matrix.suffix != ''
         uses: actions/upload-artifact@v4
         with:
-          name: qpm-${{matrix.prefix}}
+          name: qpm-${{matrix.suffix}}
           path: target/${{ matrix.target }}/release/${{matrix.file-name}}
           if-no-files-found: error
 
@@ -210,7 +210,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
         with:
-          name: installer-${{ matrix.prefix }}
+          name: installer-${{ matrix.suffix }}
           path: ./installer/qpm-installer.exe
           if-no-files-found: error
 
