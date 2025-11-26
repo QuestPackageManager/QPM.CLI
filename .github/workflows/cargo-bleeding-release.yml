@@ -46,7 +46,8 @@ jobs:
       - name: Zip each artifact directory
         run: |
           for dir in artifacts/*/; do
-            zip -r "${dir%/}.zip" "$dir"
+            base=$(basename "$dir")
+            (cd "$dir" && zip -r "../${base}.zip" .)
           done
 
       - name: Bleeding Artifact Upload
