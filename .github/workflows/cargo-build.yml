@@ -92,7 +92,7 @@ jobs:
           - os: macos-15
             file-name: qpm
             suffix: macos-arm64
-            target: aarch64-apple-darwin
+            # target: aarch64-apple-darwin
             run_test: true
 
           - os: windows-latest
