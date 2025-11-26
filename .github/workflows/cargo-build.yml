@@ -78,6 +78,7 @@ jobs:
           - os: ubuntu-latest
             file-name: qpm
             suffix: linux-x64
+            run_test: true
 
           - os: ubuntu-latest
             file-name: qpm
@@ -92,10 +93,12 @@ jobs:
             file-name: qpm
             suffix: macos-arm64
             target: aarch64-apple-darwin
+            run_test: true
 
           - os: windows-latest
             file-name: qpm.exe
             suffix: windows-x64
+            run_test: true
 
           - os: windows-latest
             file-name: qpm.exe
@@ -175,7 +178,7 @@ jobs:
           args: --release --target ${{ matrix.target }}
       # Cargo CLI tests depend on build
       - name: Cargo test
-        if: matrix.target == ''
+        if: matrix.run_test == true
         uses: actions-rs/cargo@v1
         env:
           QPM_DISABLE_GLOBAL_CONFIG: "1" # Disable global config operations during tests
