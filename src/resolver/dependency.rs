@@ -12,6 +12,7 @@ use color_eyre::{
     Result,
     eyre::{Context, ContextCompat, bail},
 };
+use owo_colors::OwoColorize;
 use pubgrub::{
     DefaultStringReporter, Dependencies, DependencyProvider, PackageResolutionStatistics,
     PubGrubError, Reporter,
@@ -153,6 +154,23 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         let deps = target_triplet
             .dependencies
             .iter()
+            // TODO: remove any private dependencies
+            // .filter(|dep| !dep.1.version_range.additional_data.is_private.unwrap_or(false))
+            .inspect(|(dep_id, _)| {
+                if **dep_id == self.root.id {
+                    println!(
+                        "{}",
+                        format!(
+                            "Warning: Package {} depends on root package {}",
+                            target_pkg.id.dependency_id_color(),
+                            self.root.id.dependency_id_color()
+                        )
+                        .yellow()
+                    );
+                }
+            })
+            // skip root package to avoid circular deps
+            .filter(|dep| *dep.0 != self.root.id)
             .map(|(dep_id, dep)| {
                 let id = PubgrubDependencyTarget(dep_id.clone(), dep.triplet.clone());
                 let range = req_to_range(dep.version_range.clone());
