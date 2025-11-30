@@ -17,6 +17,7 @@ use color_eyre::{
     eyre::{Context, bail},
 };
 use itertools::Itertools;
+use owo_colors::OwoColorize;
 use pubgrub::{
     DefaultStringReporter, Dependencies, DependencyProvider, PackageResolutionStatistics,
     PubGrubError, Reporter,
@@ -81,6 +82,21 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             .into_iter()
             // remove any private dependencies
             .filter(|dep| !dep.additional_data.is_private.unwrap_or(false))
+            .inspect(|dep| {
+                if dep.id == self.root.info.id {
+                    println!(
+                        "{}",
+                        format!(
+                            "Warning: Package {} depends on root package {}",
+                            package.dependency_id_color(),
+                            self.root.info.id.dependency_id_color()
+                        )
+                        .yellow()
+                    );
+                }
+            })
+            // skip root package to avoid circular deps
+            .filter(|dep| dep.id != self.root.info.id)
             .map(|dep| {
                 let id = dep.id;
                 let range = req_to_range(dep.version_range);
