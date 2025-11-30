@@ -182,7 +182,7 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
                     &shared_dep.dependency.id, path_str
                 ));
                 if path.is_file() {
-                    write!(
+                    writeln!(
                         result,
                         "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
                         extern_path.display()
