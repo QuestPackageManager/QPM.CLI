@@ -184,7 +184,7 @@ pub fn write_extern_cmake(dep: &SharedPackageConfig, repo: &impl Repository) -> 
                 if path.is_file() {
                     writeln!(
                         result,
-                        "add_library(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
+                        "target_sources(${{COMPILE_ID}} SHARED ${{EXTERN_DIR}}/{})",
                         extern_path.display()
                     )?;
                 } else {
