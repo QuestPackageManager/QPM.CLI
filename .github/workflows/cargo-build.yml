@@ -219,7 +219,7 @@ jobs:
 
   macos-universal:
     name: Create macOS Universal Binary
-    runs-on: macos-13
+    runs-on: macos-15
     needs: [build]
     steps:
       - name: Download Intel macOS build
