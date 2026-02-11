@@ -1,4 +1,4 @@
-use std::process::Stdio;
+use std::process::{Stdio, exit};
 
 use clap::Args;
 
@@ -94,7 +94,7 @@ pub fn invoke_script(
 
         let code = c.spawn()?.wait()?.code().unwrap_or_else(|| 1);
         if code != 0 {
-            break;
+            exit(code);
         }
     }
     Ok(())
