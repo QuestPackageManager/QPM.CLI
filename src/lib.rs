@@ -3,6 +3,7 @@
 #![feature(exit_status_error)]
 #![feature(if_let_guard)]
 #![feature(path_add_extension)]
+#![feature(path_is_empty)]
 
 #[cfg(feature = "cli")]
 pub mod commands;
