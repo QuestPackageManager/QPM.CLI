@@ -1,4 +1,4 @@
-use std::process::Stdio;
+use std::process::{Stdio, exit};
 
 use clap::Args;
 
@@ -12,10 +12,12 @@ use crate::{models::package::PackageConfigExtensions, utils::ndk};
 use super::Command;
 
 #[derive(Args)]
+#[command(disable_help_flag = true)]
 pub struct ScriptsCommand {
     script: String,
 
-    args: Option<Vec<String>>,
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    args: Vec<String>,
 }
 
 impl Command for ScriptsCommand {
@@ -30,13 +32,11 @@ impl Command for ScriptsCommand {
             bail!("Could not find script {}", self.script);
         }
 
-        let supplied_args = self.args.unwrap_or_default();
-
         let Some(script) = script else {
             return Ok(());
         };
 
-        invoke_script(script, &supplied_args, &package)?;
+        invoke_script(script, &self.args, &package)?;
 
         Ok(())
     }
@@ -92,7 +92,10 @@ pub fn invoke_script(
             c.env("ANDROID_NDK_HOME", path);
         }
 
-        c.spawn()?.wait()?.exit_ok()?;
+        let code = c.spawn()?.wait()?.code().unwrap_or_else(|| 1);
+        if code != 0 {
+            exit(code);
+        }
     }
     Ok(())
 }
