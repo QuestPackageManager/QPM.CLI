@@ -42,7 +42,14 @@ jobs:
 
       - name: Delay 10s
         run: sleep 10
-        
+
+      - name: Zip each artifact directory
+        run: |
+          for dir in artifacts/*/; do
+            base=$(basename "$dir")
+            (cd "$dir" && zip -r "../${base}.zip" .)
+          done
+
       - name: Bleeding Artifact Upload
         uses: softprops/action-gh-release@v1
         with:
@@ -53,4 +60,4 @@ jobs:
           name: 'Latest Build on main'
           tag_name: bleeding2
           prerelease: true
-          files: artifacts/**/*
+          files: artifacts/**/*.zip

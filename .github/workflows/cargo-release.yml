@@ -41,10 +41,17 @@ jobs:
         with:
           path: artifacts
 
-      - name: Release Artifact Upload
+      - name: Zip each artifact directory
+        run: |
+          for dir in artifacts/*/; do
+            base=$(basename "$dir")
+            (cd "$dir" && zip -r "../${base}.zip" .)
+          done
+
+      - name: Bleeding Artifact Upload
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*
+          files: artifacts/**/*.zip
 
   winget:
     runs-on: ubuntu-latest
