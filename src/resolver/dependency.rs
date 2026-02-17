@@ -12,6 +12,7 @@ use color_eyre::{
     Result,
     eyre::{Context, ContextCompat, bail},
 };
+use itertools::Itertools;
 use owo_colors::OwoColorize;
 use pubgrub::{
     DefaultStringReporter, Dependencies, DependencyProvider, PackageResolutionStatistics,

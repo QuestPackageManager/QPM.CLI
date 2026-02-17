@@ -1,4 +1,4 @@
-use std::process::Stdio;
+use std::process::{Stdio, exit};
 
 use clap::Args;
 
@@ -16,14 +16,16 @@ use crate::{models::package::PackageConfigExtensions, utils::ndk};
 use super::Command;
 
 #[derive(Args)]
+#[command(disable_help_flag = true)]
 pub struct ScriptsCommand {
     script: String,
-
-    args: Option<Vec<String>>,
 
     /// Triplet to run the script for, if not specified, the restored triplet is used
     #[clap(long, short)]
     triplet: Option<String>,
+
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    args: Vec<String>,
 }
 
 impl Command for ScriptsCommand {
@@ -38,8 +40,6 @@ impl Command for ScriptsCommand {
             bail!("Could not find script {}", self.script);
         };
 
-        let supplied_args = self.args.unwrap_or_default();
-
         let triplet_id = self
             .triplet
             .map(TripletId)
@@ -49,7 +49,7 @@ impl Command for ScriptsCommand {
             })
             .unwrap_or(base_triplet_id());
 
-        invoke_script(script, &supplied_args, &package, &triplet_id)?;
+        invoke_script(script, &self.args, &package, &triplet_id)?;
 
         Ok(())
     }
@@ -128,7 +128,10 @@ pub fn invoke_script(
             c.env("ANDROID_NDK_HOME", path);
         }
 
-        c.spawn()?.wait()?.exit_ok()?;
+        let code = c.spawn()?.wait()?.code().unwrap_or_else(|| 1);
+        if code != 0 {
+            exit(code);
+        }
     }
     Ok(())
 }

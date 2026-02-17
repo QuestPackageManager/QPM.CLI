@@ -215,6 +215,11 @@ pub fn validate_ndk(triplet: &PackageTriplet) -> Result<()> {
     }
 
     let ndk_path = Path::new(ndk_path_str.trim());
+    if ndk_path.as_os_str().is_empty() {
+        eprintln!("NDK Path is empty, skipping validate NDK version!");
+        return Ok(());
+    }
+
     if !ndk_path.exists() {
         bail!("NDK Path {} does not exist!", ndk_path.display());
     }

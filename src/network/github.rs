@@ -72,7 +72,7 @@ pub fn download_github_artifact_url(sha: &str) -> String {
     )
 }
 
-pub fn nightly_github_artifact_url() -> String {
+pub fn bleeding_release_github_artifact_url() -> String {
     #[cfg(windows)]
     return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding2/qpm-windows-x64.zip".to_string();
 
