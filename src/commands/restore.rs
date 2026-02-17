@@ -4,7 +4,7 @@ use clap::Args;
 
 use color_eyre::{
     Section,
-    eyre::{ContextCompat, Result, bail, eyre},
+    eyre::{Context, ContextCompat, Result, bail, eyre},
 };
 use itertools::Itertools;
 use qpm_package::models::{
@@ -57,7 +57,8 @@ pub(crate) fn is_ignored() -> bool {
 
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        let package = PackageConfig::read(".")?;
+        let package =
+            PackageConfig::read(".").context("Reading package config for restoring")?;
         // optionally does not exist
         let mut shared_package_opt = SharedPackageConfig::exists(".")
             .then(|| SharedPackageConfig::read("."))
@@ -75,7 +76,7 @@ impl Command for RestoreCommand {
         // manually
         // no shared.qpm.json
         // dependencies have been updated
-        let unlocked = self.update || is_modified(&shared_package_opt, &triplet_id, &triplet);
+        let unlocked = self.update || is_modified(&shared_package_opt, &package);
 
         if !unlocked && is_ignored() {
             eprintln!("It seems that the current repository has {QPM_SHARED_JSON} ignored. ");
@@ -155,39 +156,40 @@ impl Command for RestoreCommand {
     }
 }
 
-fn is_modified(
-    shared_package_opt: &Option<SharedPackageConfig>,
-    triplet_id: &TripletId,
-    triplet: &PackageTriplet,
-) -> bool {
+fn is_modified(shared_package_opt: &Option<SharedPackageConfig>, package: &PackageConfig) -> bool {
     let Some(shared_package) = shared_package_opt else {
         return true;
     };
 
-    let Some(locked_triplet) = shared_package.locked_triplet.get(triplet_id) else {
-        return true;
-    };
-
-    if locked_triplet.restored_dependencies.keys().len() != triplet.dependencies.len() {
+    // we just naively compare the package configs for now,
+    // if they are different, we consider it modified.
+    // This means that any change to the package config will cause an unlocked restore, even if the triplet dependencies are not affected.
+    // We can optimize this later by only comparing the relevant parts of the package config (like dependencies and triplets).
+    if shared_package.config != *package {
         return true;
     }
 
-    for (dep_id, dep) in triplet.dependencies.iter() {
-        // if the dependency is not in the locked triplet, it is modified
-        let Some(locked_dep) = locked_triplet.restored_dependencies.get(dep_id) else {
-            return true;
-        };
-        if dep
-            .triplet
-            .as_ref()
-            .is_some_and(|t| *t != locked_dep.restored_triplet)
-        {
-            return true;
-        }
-        if !dep.version_range.matches(&locked_dep.restored_version) {
-            return true;
-        }
-    }
+    // // return true if the triplet is not locked
+    // let Some(locked_triplet) = shared_package.locked_triplet.get(triplet_id) else {
+    //     return true;
+    // };
+
+    // // if the number of dependencies is different, it is modified
+
+    // for (dep_id, dep) in triplet.dependencies.iter() {
+    //     // if the dependency is not in the locked triplet, it is modified
+    //     let Some(locked_dep) = locked_triplet.restored_dependencies.get(dep_id) else {
+    //         return true;
+    //     };
+    //     if let Some(dep_triplet) = &dep.triplet
+    //         && *dep_triplet != locked_dep.restored_triplet
+    //     {
+    //         return true;
+    //     }
+    //     if !dep.version_range.matches(&locked_dep.restored_version) {
+    //         return true;
+    //     }
+    // }
 
     false
 }
