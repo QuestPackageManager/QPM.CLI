@@ -1,6 +1,6 @@
 [package]
 name = "qpm_cli"
-version = "0.1.0"
+version = "2.0.0"
 edition = "2024"
 repository = "https://github.com/QuestPackageManager/QPM.CLI"
 
@@ -9,7 +9,7 @@ rust-version = "1.90"
 
 # Rename binary
 [[bin]]
-name = "qpm"
+name = "qpm2"
 path = "src/main.rs"
 
 [lib]
@@ -20,9 +20,9 @@ required-features = []
 default = ["templatr", "network_test", "cli", "gitoxide", "quest_emu"]
 templatr = ["dep:templatr"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:pbr"]
-gitoxide = ["dep:gix"]
 quest_emu = ["dep:quest_emu"]
 network_test = []
+gitoxide = ["dep:gix"]
 
 [build-dependencies]
 vergen = { version = "8", features = [
@@ -44,7 +44,7 @@ color-eyre = "0.6"
 
 [dependencies]
 #qpm
-qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", tag = "v0.1.0" }
+qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "qpm2" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
@@ -67,6 +67,10 @@ reqwest = { version = "0.12", features = [
     "rustls-tls",
 ], default-features = false }
 
+gix = { version = "*", features = [
+
+], optional = true, default-features = false }
+
 clap = { version = "4", features = ["derive"], optional = true }
 clap_complete = { version = "4", optional = true }
 
@@ -82,16 +86,6 @@ owo-colors = "4"
 dirs = "6.0.0"
 keyring = "3"
 
-gix = { version = "*", features = [
-    "command",
-    "attributes",
-    "progress-tree",
-    "worktree-mutation",
-    "blocking-network-client",
-    "blocking-http-transport-reqwest-rust-tls",
-], optional = true, default-features = false }
-
-# Use PR with symlink fix for Unix systems.
 zip = { version = "6", default-features = false, features = [
     "zstd",
     "nt-time",
@@ -108,20 +102,22 @@ symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.14"
 schemars = { version = "0.8", features = ["semver"] }
+sha2 = "0.10.9"
+hex = "0.4.3"
 
-[target.aarch64-apple-darwin.dependencies]
-# Allow cross compiles
-openssl = { version = "0.10", features = ["vendored"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
-[target.x86_64-apple-darwin.dependencies]
-# Statically link openssl
-openssl = { version = "0.10", features = ["vendored"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
+# [target.aarch64-apple-darwin.dependencies]
+# # Allow cross compiles
+# openssl = { version = "0.10", features = ["vendored"] }
+# openssl-sys = { version = "0.9", features = ["vendored"] }
+# [target.x86_64-apple-darwin.dependencies]
+# # Statically link openssl
+# openssl = { version = "0.10", features = ["vendored"] }
+# openssl-sys = { version = "0.9", features = ["vendored"] }
 
-[target.x86_64-unknown-linux-musl.dependencies]
-# Statically link openssl
-openssl = { version = "0.10", features = ["vendored"] }
-openssl-sys = { version = "0.9", features = ["vendored"] }
+# [target.x86_64-unknown-linux-musl.dependencies]
+# # Statically link openssl
+# openssl = { version = "0.10", features = ["vendored"] }
+# openssl-sys = { version = "0.9", features = ["vendored"] }
 
 [profile.release]
 opt-level = 3

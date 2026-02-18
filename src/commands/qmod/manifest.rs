@@ -1,19 +1,18 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Args;
-use qpm_package::extensions::package_metadata::PackageMetadataExtensions;
-use semver::VersionReq;
+use qpm_package::models::shared_package::SharedPackageConfig;
+use qpm_package::models::triplet::{QPM_ENV_GAME_ID, QPM_ENV_GAME_VERSION};
 
 use qpm_qmod::models::mod_json::ModJson;
 
 use crate::models::mod_json::{ModJsonExtensions, PreProcessingData};
 use crate::models::package::{PackageConfigExtensions, SharedPackageConfigExtensions};
-
-use qpm_package::models::dependency::SharedPackageConfig;
+use crate::repository;
 
 use qpm_package::models::package::PackageConfig;
 
-use color_eyre::eyre::ensure;
+use color_eyre::eyre::{ContextCompat, ensure};
 
 use color_eyre::Result;
 
@@ -54,29 +53,64 @@ pub(crate) fn generate_qmod_manifest(
     shared_package: SharedPackageConfig,
     build_parameters: ManifestQmodOperationArgs,
 ) -> Result<ModJson> {
-    ensure!(
-        std::path::Path::new("mod.template.json").exists(),
-        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\""
-    );
-    println!("Generating mod.json file from template using qpm.shared.json...");
+    let shared_triplet = shared_package.get_restored_triplet();
+    let triplet = package
+        .triplets
+        .get_merged_triplet(&shared_package.restored_triplet)
+        .context("Restored triplet not in package config")?;
 
-    let binary = shared_package
-        .config
-        .info
-        .get_so_name()
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string());
+    let mod_template = triplet
+        .qmod_template
+        .as_deref()
+        .unwrap_or_else(|| Path::new("mod.template.json"));
+
+    ensure!(
+        mod_template.exists(),
+        "QMod template file {} does not exist. Hint: use \"qmod create\"",
+        mod_template.display()
+    );
+
+    println!(
+        "Generating mod.json file from template {} using qpm.shared.json...",
+        mod_template.display()
+    );
+
+    let env = &shared_triplet.env;
+
+    let game_version = env.get(QPM_ENV_GAME_VERSION);
+    let game_id = env.get(QPM_ENV_GAME_ID);
+
+    let binaries = triplet
+        .out_binaries
+        .iter()
+        .flatten()
+        .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+        .collect();
+
+    let mod_id = triplet
+        .qmod_id
+        .as_ref()
+        .unwrap_or(&shared_package.config.id.0);
 
     let preprocess_data = PreProcessingData {
-        version: shared_package.config.info.version.to_string(),
-        mod_id: shared_package.config.info.id.clone(),
-        mod_name: shared_package.config.info.name.clone(),
-        binary,
+        version: shared_package.config.version.to_string(),
+        mod_id: mod_id.clone(),
+
+        game_id: game_id.cloned(),
+        game_version: game_version.cloned(),
+
+        binaries,
+
+        additional_env: env.clone(),
     };
-    let mut existing_json = ModJson::read_and_preprocess(preprocess_data)?;
-    let template_mod_json: ModJson = shared_package.to_mod_json();
-    let legacy_0_1_0 = package.matches_version(&VersionReq::parse("^0.1.0")?);
-    existing_json = ModJson::merge_modjson(existing_json, template_mod_json, legacy_0_1_0);
+    let mut existing_json = ModJson::read_and_preprocess(preprocess_data, mod_template)?;
+
+    let repo = repository::useful_default_new(build_parameters.offline)?;
+    let template_mod_json: ModJson = shared_package.to_mod_json(&repo);
+
+    // Merge the existing json with the template mod json
+    existing_json = ModJson::merge_modjson(existing_json, template_mod_json);
+
     if let Some(excluded) = build_parameters.exclude_libs {
         let exclude_filter = |lib_name: &String| -> bool {
             // returning false means don't include
@@ -86,6 +120,8 @@ pub(crate) fn generate_qmod_manifest(
 
         existing_json.mod_files.retain(exclude_filter);
         existing_json.library_files.retain(exclude_filter);
+        existing_json.late_mod_files.retain(exclude_filter);
+        existing_json.mod_files.retain(exclude_filter);
         // whitelist libraries
     } else if let Some(included) = build_parameters.include_libs {
         let include_filter = |lib_name: &String| -> bool {
@@ -96,6 +132,8 @@ pub(crate) fn generate_qmod_manifest(
 
         existing_json.mod_files.retain(include_filter);
         existing_json.library_files.retain(include_filter);
+        existing_json.mod_files.retain(include_filter);
+        existing_json.late_mod_files.retain(include_filter);
     }
     Ok(existing_json)
 }

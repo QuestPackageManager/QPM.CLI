@@ -1,27 +1,42 @@
-use std::{fs::File, path::PathBuf};
+use std::{collections::HashMap, fs::File, path::PathBuf};
 
 use color_eyre::eyre::Result;
-use qpm_package::models::{dependency::SharedPackageConfig, extra::CompileOptions};
+use itertools::Itertools;
+use qpm_package::models::{
+    extra::PackageTripletCompileOptions, package::DependencyId, shared_package::SharedPackageConfig,
+};
 use schemars::JsonSchema;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::repository::Repository;
+use crate::{
+    models::package::SharedPackageConfigExtensions,
+    repository::{Repository, local::FileRepository},
+};
 
 use super::schemas::{SchemaLinks, WithSchema};
 
-#[derive(Serialize, JsonSchema, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, JsonSchema, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ToolchainData {
     /// Compile options
-    pub compile_options: CompileOptions,
+    pub compile_options: PackageTripletCompileOptions,
 
     /// Path to the extern directory
     pub extern_dir: PathBuf,
 
-    /// Output path for the binary
-    pub binary_out: Option<PathBuf>,
+    pub libs_dir: PathBuf,
+    pub include_dir: PathBuf,
+    pub shared_dir: PathBuf,
 
-    /// Output path for the debug binary
-    pub debug_binary_out: Option<PathBuf>,
+    pub build_out: PathBuf,
+    pub triplet_out: PathBuf,
+
+    pub package_id: String,
+    pub package_version: Version,
+    pub restored_triplet: String,
+
+    pub linked_binaries: HashMap<DependencyId, Vec<PathBuf>>,
 }
 
 pub fn write_toolchain_file(
@@ -29,18 +44,32 @@ pub fn write_toolchain_file(
     repo: &impl Repository,
     toolchain_path: &std::path::PathBuf,
 ) -> Result<()> {
-    let extern_dir = &shared_config.config.dependencies_dir.display();
+    let extern_dir = shared_config.config.dependencies_directory.clone();
     let compile_options = shared_config
+        .get_restored_triplet()
         .restored_dependencies
         .iter()
-        .filter_map(|s| {
-            let shared_config = repo.get_package(&s.dependency.id, &s.version).ok()??;
+        .filter_map(|(dep_id, dep_triplet)| {
+            let dep_config = repo
+                .get_package(dep_id, &dep_triplet.restored_version)
+                .ok()??;
+            let dep_triplet_config = dep_config
+                .triplets
+                .get_merged_triplet(&dep_triplet.restored_triplet)?
+                .into_owned();
 
-            let package_id = &shared_config.config.info.id;
+            let package_id = &dep_config.id;
+            // Prepend the extern dir and package id to the include paths
+            let prepend_path = |dir: &String| {
+                extern_dir
+                    .join("includes")
+                    .join(&package_id.0)
+                    .join(dir)
+                    .to_string_lossy()
+                    .to_string()
+            };
 
-            let prepend_path = |dir: &String| format!("{extern_dir}/includes/{package_id}/{dir}");
-
-            let mut compile_options = shared_config.config.info.additional_data.compile_options?;
+            let mut compile_options = dep_triplet_config.compile_options?;
 
             // prepend path
             compile_options.include_paths = compile_options
@@ -52,7 +81,7 @@ pub fn write_toolchain_file(
 
             Some(compile_options)
         })
-        .fold(CompileOptions::default(), |acc, x| {
+        .fold(PackageTripletCompileOptions::default(), |acc, x| {
             let c_flags: Vec<String> = acc
                 .c_flags
                 .unwrap_or_default()
@@ -78,28 +107,77 @@ pub fn write_toolchain_file(
                 .into_iter()
                 .chain(x.system_includes.unwrap_or_default())
                 .collect();
-            let cpp_features: Vec<String> = acc
-                .cpp_features
-                .unwrap_or_default()
-                .into_iter()
-                .chain(x.cpp_features.unwrap_or_default())
-                .collect();
 
-            CompileOptions {
+            PackageTripletCompileOptions {
                 c_flags: Some(c_flags),
                 cpp_flags: Some(cpp_flags),
                 include_paths: Some(include_paths),
                 system_includes: Some(system_includes),
-                cpp_features: Some(cpp_features),
             }
         });
 
+    let extern_binaries = FileRepository::libs_dir(&extern_dir);
+
+    let linked_binaries = shared_config
+        .get_restored_triplet()
+        .restored_dependencies
+        .iter()
+        .map(|(dep_id, dep_triplet)| {
+            let dep_config = repo
+                .get_package(dep_id, &dep_triplet.restored_version)
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to get package config for package '{}' version '{}': {}",
+                        dep_id, dep_triplet.restored_version, e
+                    )
+                })
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Package config not found for package '{}' version '{}'",
+                        dep_id, dep_triplet.restored_version
+                    )
+                });
+            let collect_files_of_package = FileRepository::collect_files_of_package(
+                &dep_config,
+                &dep_triplet.restored_triplet,
+            )
+            .expect("Failed to collect files of package");
+
+            let binaries = collect_files_of_package
+                .binaries
+                .into_iter()
+                .map(|bin| extern_binaries.join(bin.file_name().unwrap()))
+                .collect_vec();
+
+            (dep_id.clone(), binaries)
+        })
+        .collect();
+
+    let package_id = shared_config.config.id.clone();
+    let package_version = shared_config.config.version.clone();
+    let restored_triplet = shared_config.restored_triplet.clone();
+
+    let libs_dir = FileRepository::libs_dir(&extern_dir);
+    let include_dir = FileRepository::headers_path(&extern_dir);
+    let shared_dir = shared_config.config.shared_directory.clone();
+    let build_out = FileRepository::build_path(&extern_dir);
+    let triplet_out = build_out.join(&shared_config.restored_triplet.0);
+
     let toolchain = ToolchainData {
         compile_options,
-        extern_dir: shared_config.config.dependencies_dir.clone(),
-        // TODO:
-        binary_out: None,
-        debug_binary_out: None,
+        extern_dir,
+        libs_dir,
+        include_dir,
+        shared_dir,
+
+        build_out,
+        triplet_out,
+
+        linked_binaries,
+
+        package_id: package_id.0,
+        restored_triplet: restored_triplet.0,
+        package_version,
     };
     let file = File::create(toolchain_path)?;
     serde_json::to_writer_pretty(

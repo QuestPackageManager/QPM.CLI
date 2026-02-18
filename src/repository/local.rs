@@ -1,31 +1,36 @@
 use color_eyre::{
     Result,
-    eyre::{Context, OptionExt, bail, ensure},
+    eyre::{Context, ContextCompat, OptionExt, bail, ensure},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
+use qpm_package::models::{
+    package::{DependencyId, PackageConfig, QPM_JSON},
+    qpkg::{QPKG_JSON, QPkg},
+    shared_package::QPM_SHARED_JSON,
+    triplet::TripletId,
+};
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, hash_map::Entry},
+    collections::{HashMap, HashSet, hash_map::Entry},
     fs,
-    io::{BufReader, Write},
+    io::{BufReader, Read, Seek, Write},
     ops::Not,
     path::{Path, PathBuf},
 };
-
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
-};
+use zip::ZipArchive;
 
 use crate::{
     models::{
         config::get_combine_config,
         package::PackageConfigExtensions,
+        package_files::PackageIdPath,
+        qpkg::QPkgExtensions,
         schemas::{SchemaLinks, WithSchema},
     },
+    resolver::dependency::ResolvedDependency,
     terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
 };
@@ -34,9 +39,10 @@ use super::Repository;
 
 // All files must exist
 pub struct PackageFiles {
+    /// Paths to the header files of the package on the filesystem.
     pub headers: PathBuf,
-    pub release_binary: Option<PathBuf>,
-    pub debug_binary: Option<PathBuf>,
+    /// Paths to the binary files of the package on the filesystem.
+    pub binaries: Vec<PathBuf>,
     // pub extras: Vec<PathBuf>,
 }
 
@@ -45,38 +51,34 @@ pub struct PackageFiles {
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
 pub struct FileRepository {
     #[serde(default)]
-    pub artifacts: HashMap<String, HashMap<Version, SharedPackageConfig>>,
+    pub artifacts: HashMap<DependencyId, HashMap<Version, PackageConfig>>,
 }
 
 impl FileRepository {
     pub fn get_artifacts_from_id(
         &self,
-        id: &str,
-    ) -> Option<&HashMap<Version, SharedPackageConfig>> {
+        id: &DependencyId,
+    ) -> Option<&HashMap<Version, PackageConfig>> {
         self.artifacts.get(id)
     }
 
-    pub fn get_artifact(&self, id: &str, version: &Version) -> Option<&SharedPackageConfig> {
-        match self.artifacts.get(id) {
-            Some(artifacts) => artifacts.get(version),
-            None => None,
-        }
+    pub fn get_artifact(&self, id: &DependencyId, version: &Version) -> Option<&PackageConfig> {
+        self.artifacts.get(id)?.get(version)
     }
 
     /// for adding to cache from local or network
     pub fn add_artifact_to_map(
         &mut self,
-        package: SharedPackageConfig,
+        package: PackageConfig,
         overwrite_existing: bool,
     ) -> Result<()> {
-        if !self.artifacts.contains_key(&package.config.info.id) {
-            self.artifacts
-                .insert(package.config.info.id.clone(), HashMap::new());
+        if !self.artifacts.contains_key(&package.id) {
+            self.artifacts.insert(package.id.clone(), HashMap::new());
         }
 
-        let id_artifacts = self.artifacts.get_mut(&package.config.info.id).unwrap();
+        let id_artifacts = self.artifacts.get_mut(&package.id).unwrap();
 
-        let entry = id_artifacts.entry(package.config.info.version.clone());
+        let entry = id_artifacts.entry(package.version.clone());
 
         match entry {
             Entry::Occupied(mut e) => {
@@ -95,85 +97,71 @@ impl FileRepository {
     /// for local qpm-rs installs
     pub fn add_artifact_and_cache(
         &mut self,
-        package: SharedPackageConfig,
-        project_folder: PathBuf,
-        binary_path: Option<PathBuf>,
-        debug_binary_path: Option<PathBuf>,
-        copy: bool,
+        package: PackageConfig,
         overwrite_existing: bool,
     ) -> Result<()> {
-        if copy {
-            Self::copy_to_cache(
-                &package,
-                project_folder,
-                binary_path,
-                debug_binary_path,
-                false,
-            )?;
-        }
         self.add_artifact_to_map(package, overwrite_existing)?;
 
         Ok(())
     }
 
-    fn copy_to_cache(
-        package: &SharedPackageConfig,
+    #[deprecated(note = "Use qpkg_install instead")]
+    pub fn copy_to_cache(
+        package: &PackageConfig,
+        triplet: &TripletId,
         project_folder: PathBuf,
-        binary_path: Option<PathBuf>,
-        debug_binary_path: Option<PathBuf>,
+        binaries: Vec<PathBuf>,
         validate: bool,
     ) -> Result<()> {
         println!(
             "Adding cache for local dependency {} {}",
-            package.config.info.id.bright_red(),
-            package.config.info.version.bright_green()
+            package.id.bright_red(),
+            package.version.bright_green()
         );
-        let config = get_combine_config();
-        let cache_path = config
-            .cache
-            .as_ref()
-            .unwrap()
-            .join(&package.config.info.id)
-            .join(package.config.info.version.to_string());
+        let cache_path = PackageIdPath(package.id.clone())
+            .version(package.version.clone())
+            .triplet(triplet.clone());
 
-        let tmp_path = cache_path.join("tmp");
-        let src_path = cache_path.join("src");
-        let lib_path = cache_path.join("lib");
-
-        if src_path.exists() {
-            fs::remove_dir_all(&src_path).context("Failed to remove existing src folder")?;
+        let tmp_path = cache_path.tmp_path();
+        if tmp_path.exists() {
+            fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
         }
 
-        fs::create_dir_all(&src_path).context("Failed to create lib path")?;
-
-        if let Some(binary_path_unwrapped) = &binary_path {
-            let so_path = lib_path.join(package.config.info.get_so_name2());
-
-            copy_things(binary_path_unwrapped, &so_path)?;
+        if cache_path.src_path().exists() {
+            fs::remove_dir_all(cache_path.src_path())
+                .context("Failed to remove existing src folder")?;
         }
 
-        if let Some(debug_binary_path_unwrapped) = &debug_binary_path {
-            let debug_bin_name = package
-                .config
-                .info
-                .get_so_name2()
-                .with_extension("debug.so");
+        fs::create_dir_all(cache_path.src_path()).context("Failed to create lib path")?;
 
-            let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
+        for binary_src in binaries {
+            if !binary_src.exists() {
+                bail!(
+                    "Binary {} does not exist, cannot copy to cache!",
+                    binary_src.display().bright_yellow()
+                );
+            }
 
-            copy_things(debug_binary_path_unwrapped, &debug_so_path)?;
+            let binary_dst = cache_path
+                .binaries_path()
+                .join(binary_src.file_name().unwrap());
+
+            copy_things(&binary_src, &binary_dst)?;
         }
 
-        let original_shared_path = project_folder.join(&package.config.shared_dir);
+        let original_shared_path = project_folder.join(&package.shared_directory);
 
         copy_things(
             &original_shared_path,
-            &src_path.join(&package.config.shared_dir),
+            &cache_path.src_path().join(&package.shared_directory),
         )?;
-        copy_things(&project_folder.join("qpm.json"), &src_path.join("qpm.json"))?;
         copy_things(
-            &project_folder.join("qpm.shared.json"),
-            &src_path.join("qpm.shared.json"),
+            &project_folder.join(QPM_JSON),
+            &cache_path.src_path().join(QPM_JSON),
+        )?;
+        copy_things(
+            &project_folder.join(QPM_SHARED_JSON),
+            &cache_path.src_path().join(QPM_SHARED_JSON),
         )?;
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
@@ -182,21 +170,16 @@ impl FileRepository {
         }
 
         if validate {
-            let package_path = src_path;
-            let downloaded_package = SharedPackageConfig::read(package_path)?;
+            let package_path = cache_path.src_path();
+            let downloaded_package = PackageConfig::read(package_path)?;
 
             // check if downloaded config is the same version as expected, if not, panic
-            if downloaded_package.config.info.version != package.config.info.version {
+            if downloaded_package.version != package.version {
                 bail!(
                     "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                    package.config.info.id.bright_red(),
-                    downloaded_package
-                        .config
-                        .info
-                        .version
-                        .to_string()
-                        .bright_green(),
-                    package.config.info.version.to_string().bright_green(),
+                    package.id.dependency_id_color(),
+                    downloaded_package.version.red(),
+                    package.version.green(),
                 )
             }
         }
@@ -235,24 +218,192 @@ impl FileRepository {
         Ok(())
     }
 
+    /// Returns the path to the global file repository
     pub fn global_file_repository_path() -> PathBuf {
         Self::global_repository_dir().join("qpm.repository.json")
     }
 
+    /// Returns the global repository directory, which is usually in the user's config directory
     pub fn global_repository_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-RS")
+        dirs::config_dir().unwrap().join("QPM-RS2")
     }
 
     pub fn clear() -> Result<(), std::io::Error> {
         fs::remove_file(Self::global_file_repository_path())
     }
 
+    pub fn install_qpkg<T>(
+        buffer: T,
+        overwrite_existing: bool,
+        version: Option<Version>,
+    ) -> color_eyre::Result<PackageConfig>
+    where
+        T: Read + Seek,
+    {
+        // Extract to tmp folder
+        let mut zip_archive = ZipArchive::new(buffer).context("Reading zip")?;
+
+        // get qpkg in memory
+        let qpkg_file = zip_archive
+            .by_name(QPKG_JSON)
+            .with_context(|| format!("Failed to find {QPKG_JSON} in zip"))?;
+
+        let mut qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
+            .with_context(|| format!("Failed to read {QPKG_JSON} from zip"))?;
+
+        if let Some(version) = version {
+            qpkg.config.version = version;
+        }
+
+        let package_path: crate::models::package_files::PackageVersionPath =
+            PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
+
+        let tmp_path = package_path.tmp_path();
+        let qpkg_file_dst = package_path.qpkg_json_dir();
+        let headers_dst = package_path.src_path();
+        let base_path = package_path.base_path();
+
+        if QPkg::exists(&base_path) {
+            match overwrite_existing {
+                false => {
+                    bail!(
+                        "QPKG already exists {}",
+                        base_path.display().file_path_color()
+                    );
+                }
+                true => {
+                    println!(
+                        "Overwriting existing QPKG {}",
+                        base_path.display().file_path_color()
+                    );
+                }
+            }
+        }
+
+        // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
+        if base_path.exists() {
+            fs::remove_dir_all(&base_path).with_context(|| {
+                format!(
+                    "Failed to remove existing QPkg at {}",
+                    package_path.base_path().display().file_path_color()
+                )
+            })?;
+        }
+        fs::create_dir_all(&base_path).with_context(|| {
+            format!(
+                "Failed to create package path{}",
+                package_path.base_path().display().file_path_color()
+            )
+        })?;
+
+        // make tmp_path
+        fs::create_dir_all(&tmp_path).with_context(|| {
+            format!(
+                "Failed to create tmp folder {}",
+                tmp_path.display().file_path_color()
+            )
+        })?;
+
+        // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
+        fs::create_dir_all(&headers_dst)
+            .with_context(|| format!("Failed to create lib path {headers_dst:?}"))?;
+
+        // now extract the zip to the tmp path
+        zip_archive.extract(&tmp_path).context("Zip extraction")?;
+
+        // copy headers to src folder
+        fs::rename(tmp_path.join(&qpkg.shared_dir), &headers_dst).with_context(|| {
+            format!(
+                "Failed to copy headers from {} to {}",
+                tmp_path.display().file_path_color(),
+                headers_dst.display().file_path_color()
+            )
+        })?;
+
+        // copy binaries to lib folder
+        for (triplet_id, triplet_info) in &qpkg.triplets {
+            let bin_dir = package_path
+                .clone()
+                .triplet(triplet_id.clone())
+                .binaries_path();
+
+            if !bin_dir.exists() {
+                fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
+            }
+
+            println!(
+                "Installing triplet {} with {} files",
+                triplet_id.triplet_id_color(),
+                triplet_info.files.len().file_path_color()
+            );
+            for file in &triplet_info.files {
+                let src_file = tmp_path.join(file);
+                let dst_file = bin_dir.join(file.file_name().unwrap());
+                // copy as {cache}/{id}/{version}/{triplet}/lib/{file_name}
+                fs::rename(&src_file, &dst_file).with_context(|| {
+                    format!(
+                        "Failed to copy file from {} to {}",
+                        src_file.display().file_path_color(),
+                        dst_file.display().file_path_color()
+                    )
+                })?;
+            }
+        }
+
+        // assert that the triplets binaries are present
+        for (triplet_id, triplet) in qpkg.config.triplets.iter_merged_triplets() {
+            let triplet_path = package_path.clone().triplet(triplet_id.clone());
+
+            for binary in triplet.out_binaries.iter().flatten() {
+                // {cache}/{id}/{version}/{triplet}/lib/{binary}
+                let binary_path = triplet_path.binary_path(binary);
+                if !binary_path.exists() {
+                    bail!(
+                        "Binary {} not found in triplet {} at {}",
+                        binary.display().file_path_color(),
+                        triplet_id.triplet_id_color(),
+                        binary_path.display().file_path_color()
+                    );
+                }
+            }
+        }
+
+        // now write the package config to the src path
+        qpkg.config.write(&qpkg_file_dst).with_context(|| {
+            format!(
+                "Failed to write package config to {}",
+                headers_dst.display().file_path_color()
+            )
+        })?;
+
+        let mut file_repo = FileRepository::read()?;
+
+        file_repo.add_artifact_and_cache(qpkg.config.clone(), true)?;
+        file_repo.write()?;
+
+        // write the qpkg file to the src path
+        qpkg.write(&qpkg_file_dst).with_context(|| {
+            format!(
+                "Failed to write QPkg file to {}",
+                headers_dst.display().file_path_color()
+            )
+        })?;
+
+        // clear up tmp folder if it still exists
+        if tmp_path.exists() {
+            std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
+        }
+
+        Ok(qpkg.config)
+    }
+
     pub fn copy_from_cache(
         package: &PackageConfig,
-        restored_deps: &[SharedPackageConfig],
+        triplet: &TripletId,
+        restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<()> {
-        let files = Self::collect_deps(package, restored_deps, workspace_dir)?;
+        let files = Self::collect_deps(package, triplet, restored_deps, workspace_dir)?;
 
         let config = get_combine_config();
         let symlink = config.symlink.unwrap_or(true);
@@ -269,9 +420,34 @@ impl FileRepository {
             ..Default::default()
         };
 
+        let extern_dir = workspace_dir.join(&package.dependencies_directory);
+
+        ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
+
+        let extern_binaries = Self::libs_dir(&extern_dir);
+        let extern_headers = Self::headers_path(&extern_dir);
+
+        // delete if needed extern/libs and extern/includes
+        if extern_binaries.exists() {
+            fs::remove_dir_all(&extern_binaries)
+                .with_context(|| format!("Unable to delete {extern_binaries:?}"))?;
+        }
+        if extern_headers.exists() {
+            fs::remove_dir_all(&extern_headers)
+                .with_context(|| format!("Unable to delete {extern_headers:?}"))?;
+        }
+
         for (src, dest) in files {
             fs::create_dir_all(dest.parent().unwrap())?;
             let symlink_result = if symlink {
+                if !src.exists() {
+                    bail!(
+                        "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
+                        src.display().bright_yellow(),
+                        "qpm2 cache clear".bright_yellow()
+                    );
+                }
+
                 if src.is_file() {
                     symlink::symlink_file(&src, &dest)
                 } else {
@@ -286,13 +462,13 @@ impl FileRepository {
                 eprintln!(
                     "Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}",
                     e.bright_red(),
-                    "qpm config symlink disable".bright_yellow()
+                    "qpm2 config symlink disable".bright_yellow()
                 );
                 #[cfg(not(windows))]
                 eprintln!(
                     "Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}",
                     e.bright_red(),
-                    "qpm config symlink disable".bright_yellow()
+                    "qpm2 config symlink disable".bright_yellow()
                 );
             }
 
@@ -302,7 +478,7 @@ impl FileRepository {
                     bail!(
                         "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
                         src.display().bright_yellow(),
-                        "qpm cache clear".bright_yellow()
+                        "qpm2 cache clear".bright_yellow()
                     );
                 } else if src.is_dir() {
                     std::fs::create_dir_all(&dest)
@@ -320,316 +496,250 @@ impl FileRepository {
         Ok(())
     }
 
-    #[inline]
-    pub fn get_package_versions_cache_path(id: &str) -> PathBuf {
-        let user_config = get_combine_config();
-        let base_path = user_config.cache.as_ref().unwrap();
-
-        // cache/{id}
-        base_path.join(id)
-    }
-
-    #[inline]
-    pub fn get_package_cache_path(id: &str, version: &Version) -> PathBuf {
-        // cache/{id}/{version}
-        Self::get_package_versions_cache_path(id).join(version.to_string())
-    }
-
     /// Collects all files of a package from the cache.
     /// Returns a `PackageFiles` struct containing the paths to the headers, release binary, and debug binary.
-    pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
-        let dep_cache_path = Self::get_package_cache_path(&package.info.id, &package.info.version);
+    pub fn collect_files_of_package(
+        package: &PackageConfig,
+        triplet: &TripletId,
+    ) -> Result<PackageFiles> {
+        let package_triplet = package
+            .triplets
+            .get_merged_triplet(triplet)
+            .expect("Triplet settings not found");
 
-        if !dep_cache_path.exists() {
+        let dep_cache_path = PackageIdPath::new(package.id.clone())
+            .version(package.version.clone())
+            .triplet(triplet.clone());
+
+        if !dep_cache_path.triplet_path().exists() {
             bail!(
                 "Missing cache for dependency {}:{}",
-                package.info.id.dependency_id_color(),
-                package.info.version.dependency_version_color()
+                package.id.dependency_id_color(),
+                package.version.dependency_version_color()
             );
         }
 
-        let libs_path = dep_cache_path.join("lib");
-        let src_path = dep_cache_path.join("src");
+        let headers_path = dep_cache_path.src_path();
 
-        if !src_path.exists() {
+        if !headers_path.exists() {
             bail!(
-                "Missing src for dependency {}:{}",
-                package.info.id.dependency_id_color(),
-                package.info.version.dependency_version_color()
+                "Missing src for dependency {}:{} at {}",
+                package.id.dependency_id_color(),
+                package.version.dependency_version_color(),
+                headers_path.display().file_path_color()
             );
         }
 
-        let exposed_headers = src_path.join(&package.shared_dir);
+        let expected_binaries = package_triplet.out_binaries.clone().unwrap_or_default();
+        let binaries: Vec<PathBuf> = expected_binaries
+            .iter()
+            .map(|b| dep_cache_path.binary_path(b))
+            .collect();
 
-        if package.info.additional_data.headers_only.unwrap_or(false) {
-            return Ok(PackageFiles {
-                headers: exposed_headers,
-                debug_binary: None,
-                release_binary: None,
-            });
+        // ensure no duplicates
+        let mut seen = HashSet::new();
+        for bin in &binaries {
+            if !bin.exists() {
+                bail!(
+                    "Missing binary {} for dependency {}:{}",
+                    bin.display().bright_yellow(),
+                    package.id.dependency_id_color(),
+                    package.version.dependency_version_color()
+                );
+            }
+
+            if !seen.insert(bin.clone()) {
+                bail!(
+                    "Duplicate binary {} for dependency {}:{}",
+                    bin.display().bright_yellow(),
+                    package.id.dependency_id_color(),
+                    package.version.dependency_version_color()
+                );
+            }
         }
-
-        // get so name or release so name
-
-        // get so name or release so name
-        let release_bin_name = package
-            .info
-            .get_so_name2()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-
-        let debug_bin_name = package
-            .info
-            .get_so_name2()
-            .with_extension("debug.so")
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-
-        let release_binary = libs_path.join(&release_bin_name);
-        let debug_binary = libs_path.join(&debug_bin_name);
-
-        if !release_binary.exists() && !debug_binary.exists() {
-            bail!(
-                "Missing binary {release_bin_name}/{debug_bin_name:?} for {}:{}",
-                package.info.id.dependency_id_color(),
-                package.info.version.dependency_version_color()
-            );
-        }
-
-        let release_binary = release_binary.exists().then_some(release_binary);
-        let debug_binary = debug_binary.exists().then_some(debug_binary);
 
         Ok(PackageFiles {
-            headers: exposed_headers,
-            debug_binary,
-            release_binary,
+            headers: headers_path,
+            binaries,
         })
+    }
+
+    pub fn libs_dir(extern_dir: &Path) -> PathBuf {
+        extern_dir.join("libs")
+    }
+
+    pub fn headers_path(extern_dir: &Path) -> PathBuf {
+        extern_dir.join("includes")
+    }
+
+    pub fn build_path(extern_dir: &Path) -> PathBuf {
+        extern_dir.join("build")
     }
 
     /// Collects all dependencies of a package from the cache.
     /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
         package: &PackageConfig,
-        restored_deps: &[SharedPackageConfig],
+        triplet: &TripletId,
+        restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
-        // let package = shared_package.config;
-        let restored_dependencies_map: HashMap<&String, &SharedPackageConfig> = restored_deps
-            .iter()
-            .map(|p| (&p.config.info.id, p))
-            .collect();
+        let triplet_config = package
+            .triplets
+            .get_merged_triplet(triplet)
+            .context("Failed to get triplet settings")?;
 
         // validate exists dependencies
-        let missing_dependencies: Vec<_> = restored_dependencies_map
+        let missing_dependencies: Vec<_> = restored_deps
             .iter()
-            .filter(|(_, r)| {
-                !Self::get_package_cache_path(&r.config.info.id, &r.config.info.version).exists()
+            .filter_map(|r| {
+                let package_path = PackageIdPath::new(r.0.id.clone())
+                    .version(r.0.version.clone())
+                    .triplet(r.1.clone())
+                    .triplet_path();
+                // if the package path does not exist, return the id and version
+                package_path
+                    .exists()
+                    .not()
+                    .then_some(format!("{}:{}/{}", r.0.id, r.0.version, r.1))
             })
-            .map(|(_, r)| format!("{}:{}", r.config.info.id, r.config.info.version))
             .collect();
 
         if !missing_dependencies.is_empty() {
             bail!("Missing dependencies in cache: {:?}", missing_dependencies);
         }
 
-        let extern_dir = workspace_dir.join(&package.dependencies_dir);
+        let extern_dir = workspace_dir.join(&package.dependencies_directory);
 
         ensure!(extern_dir != workspace_dir, "Extern dir is workspace dir!");
 
-        // delete if needed
-        if extern_dir.exists() {
-            fs::remove_dir_all(&extern_dir)
-                .with_context(|| format!("Unable to delete {extern_dir:?}"))?;
-        }
+        let extern_binaries = Self::libs_dir(&extern_dir);
+        let extern_headers = Self::headers_path(&extern_dir);
 
-        let extern_binaries = extern_dir.join("libs");
-        let extern_headers = extern_dir.join("includes");
         let mut paths = HashMap::<PathBuf, PathBuf>::new();
 
         // direct deps (binaries)
-
         let deps: Vec<_> = restored_deps
             .iter()
-            .map(|p| Self::collect_files_of_package(&p.config).map(|f| (p, f)))
+            .map(|resolved_dep| -> color_eyre::Result<_> {
+                let collect_files_of_package =
+                    Self::collect_files_of_package(&resolved_dep.0, &resolved_dep.1)?;
+
+                Ok((resolved_dep, collect_files_of_package))
+            })
             .try_collect()?;
 
         let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) =
             // partition by direct dependencies and indirect
-            deps.into_iter().partition(|(dep, _)| {
-                package
+            deps.into_iter().partition(|(unknown_dep, _)| {
+                triplet_config
                     .dependencies
                     .iter()
-                    .any(|d| d.id == dep.config.info.id)
+                    .any(|direct_dep| *direct_dep.0 == unknown_dep.0.id)
             });
 
-        for (direct_dep, direct_dep_files) in direct_deps {
-            let project_deps_headers_target =
-                extern_headers.join(direct_dep.config.info.id.clone());
+        // direct dependencies copy the binaries to the extern_binaries folder
+        for (direct_dep, direct_dep_files) in &direct_deps {
+            for binary in &direct_dep_files.binaries {
+                let file_name = binary.file_name().expect("Failed to get file name");
 
-            let exposed_headers = direct_dep_files.headers;
-            let not_header_only = direct_dep
-                .config
-                .info
-                .additional_data
-                .headers_only
-                .unwrap_or(false)
-                .not();
-            let release_binary = not_header_only
-                // not header only
-                .then_some(direct_dep_files.release_binary)
-                .flatten();
+                if !binary.exists() {
+                    bail!(
+                        "Missing binary {} for dependency {}:{}",
+                        binary.display().bright_yellow(),
+                        direct_dep.0.id.dependency_id_color(),
+                        direct_dep.0.version.dependency_version_color()
+                    );
+                }
 
-            let debug_binary = not_header_only
-                .then_some(direct_dep_files.debug_binary)
-                .flatten();
-
-            if not_header_only
-                && ((release_binary.is_none() || !release_binary.as_ref().unwrap().exists())
-                    && (debug_binary.is_none() || !debug_binary.as_ref().unwrap().exists()))
-            {
-                bail!(
-                    "Missing binary for {}:{}",
-                    direct_dep.config.info.id.dependency_id_color(),
-                    direct_dep.config.version.dependency_version_color()
-                );
+                // copy to extern/libs/{file_name}
+                paths.insert(binary.clone(), extern_binaries.join(file_name));
             }
-
-            if !exposed_headers.exists() {
-                bail!(
-                    "Missing header files for {}:{}",
-                    direct_dep.config.info.id.dependency_id_color(),
-                    direct_dep.config.version.dependency_version_color()
-                );
-            }
-
-            if let Some(src_binary) = release_binary {
-                let file_name = src_binary.file_name().expect("Failed to get file name");
-
-                paths.insert(src_binary.clone(), extern_binaries.join(file_name));
-            }
-
-            if let Some(src_binary) = debug_binary {
-                let file_name = src_binary.file_name().expect("Failed to get file name");
-
-                paths.insert(src_binary.clone(), extern_binaries.join(file_name));
-            }
-
-            paths.insert(
-                exposed_headers,
-                project_deps_headers_target.join(&direct_dep.config.shared_dir),
-            );
         }
 
         // Get headers of all dependencies restored
-        for (indirect_dep, indirect_dep_files) in indirect_deps {
-            let project_deps_headers_target =
-                extern_headers.join(indirect_dep.config.info.id.clone());
+        for (dep, dep_files) in direct_deps.into_iter().chain(indirect_deps.into_iter()) {
+            let project_deps_headers_target = extern_headers.join(dep.0.id.0.clone());
 
-            let exposed_headers = indirect_dep_files.headers;
+            let exposed_headers = dep_files.headers;
             if !exposed_headers.exists() {
                 bail!(
-                    "Missing header files for {}:{}",
-                    indirect_dep.config.info.id.dependency_id_color(),
-                    indirect_dep.config.version.dependency_version_color()
+                    "Missing header files {} for {}:{}",
+                    exposed_headers.display().file_path_color(),
+                    dep.0.id.dependency_id_color(),
+                    dep.0.version.dependency_version_color()
                 );
             }
 
-            paths.insert(
-                exposed_headers,
-                project_deps_headers_target.join(&indirect_dep.config.shared_dir),
-            );
-        }
-
-        // extra files
-        // while this is looped twice, generally I'd assume the compiler to properly
-        // optimize this and it's better readability
-        for referenced_dependency in &package.dependencies {
-            let shared_dep = restored_dependencies_map
-                .get(&referenced_dependency.id)
-                .unwrap();
-
-            let dep_cache_path = Self::get_package_cache_path(
-                &referenced_dependency.id,
-                &shared_dep.config.info.version,
-            );
-            let src_path = dep_cache_path.join("src");
-
-            let extern_headers_dep = extern_headers.join(&referenced_dependency.id);
-
-            if let Some(extras) = &referenced_dependency.additional_data.extra_files {
-                for extra in extras {
-                    let extra_src = src_path.join(extra);
-
-                    if !extra_src.exists() {
-                        bail!(
-                            "Missing extra {extra} for dependency {}:{}",
-                            referenced_dependency.id,
-                            shared_dep.config.info.version.to_string()
-                        );
-                    }
-
-                    paths.insert(extra_src, extern_headers_dep.join(extra));
-                }
-            }
+            paths.insert(exposed_headers, project_deps_headers_target);
         }
 
         paths.retain(|src, _| src.exists());
 
+        // ensure no collisions
+        let mut seen = HashSet::new();
+        for (src, dest) in &paths {
+            if !seen.insert(dest) {
+                bail!(
+                    "Collision detected for {} and {}",
+                    src.display().bright_yellow(),
+                    dest.display().bright_yellow()
+                );
+            }
+        }
+
         Ok(paths)
     }
 
-    pub fn remove_package_versions(&mut self, package: &String) -> Result<()> {
+    pub fn remove_package_versions(&mut self, package: &DependencyId) -> Result<()> {
         self.artifacts.remove(package);
-        let packages_path = Self::get_package_versions_cache_path(package);
+        let packages_path = PackageIdPath::new(package.clone()).versions_path();
         if !packages_path.exists() {
             return Ok(());
         }
         std::fs::remove_dir_all(packages_path)?;
         Ok(())
     }
-    pub fn remove_package(&mut self, package: &String, version: &Version) -> Result<()> {
+    pub fn remove_package(&mut self, package: &DependencyId, version: &Version) -> Result<()> {
         self.artifacts
             .get_mut(package)
             .ok_or_eyre(format!("No package found {package}/{version}"))?
             .remove(version);
 
-        let packages_path = Self::get_package_cache_path(package, version);
+        let packages_path = PackageIdPath::new(package.clone())
+            .version(version.clone())
+            .base_path();
+
         if !packages_path.exists() {
             return Ok(());
         }
+
         std::fs::remove_dir_all(packages_path)?;
         Ok(())
     }
 }
 
 impl Repository for FileRepository {
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
         Ok(self.get_artifacts_from_id(id).map(|artifacts| {
             artifacts
                 .keys()
-                .map(|version| PackageVersion {
-                    id: id.to_string(),
-                    version: version.clone(),
-                })
-                .sorted_by(|a, b| a.version.cmp(&b.version))
+                .sorted()
                 .rev() // highest first
+                .cloned()
                 .collect()
         }))
     }
 
-    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>> {
         Ok(self.get_artifact(id, version).cloned())
     }
 
-    fn get_package_names(&self) -> Result<Vec<String>> {
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
         Ok(self.artifacts.keys().cloned().collect())
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
         if !permanent {
             return Ok(());
         }
@@ -641,12 +751,12 @@ impl Repository for FileRepository {
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        let exist_in_db = self
-            .get_artifact(&config.info.id, &config.info.version)
-            .is_some();
-        let file = FileRepository::collect_files_of_package(config);
+        let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
+        let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        Ok(exist_in_db && file.is_ok())
+        let config = PackageConfig::read(package_path.qpm_json_dir());
+
+        Ok(exist_in_db && package_path.src_path().exists() && config.is_ok())
     }
 
     fn write_repo(&self) -> Result<()> {

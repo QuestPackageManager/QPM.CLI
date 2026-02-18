@@ -6,7 +6,7 @@ use std::{
 use clap::Subcommand;
 use color_eyre::{Result, eyre::Context};
 use owo_colors::OwoColorize;
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 use walkdir::WalkDir;
 
@@ -58,7 +58,8 @@ impl Command for CacheCommand {
 }
 
 fn clear(clear_params: ClearCommand) -> Result<()> {
-    match (clear_params.package, clear_params.version) {
+    let dep_id = clear_params.package.map(DependencyId);
+    match (dep_id, clear_params.version) {
         (Some(package), None) => {
             let mut file_repo = FileRepository::read()?;
             file_repo.remove_package_versions(&package)?;
@@ -131,7 +132,7 @@ fn legacy_fix() -> Result<()> {
         if !qpm_path.exists() {
             continue;
         }
-        let shared_path = path.join(PackageConfig::read(qpm_path)?.shared_dir);
+        let shared_path = path.join(PackageConfig::read(qpm_path)?.shared_directory);
 
         for entry in WalkDir::new(shared_path) {
             let entry_path = entry.unwrap().into_path();

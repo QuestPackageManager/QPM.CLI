@@ -1,36 +1,34 @@
 use bytes::{BufMut, BytesMut};
 use color_eyre::{
-    Result, Section,
-    eyre::{Context, OptionExt, bail},
+    Result,
+    eyre::{Context, ContextCompat, OptionExt, bail},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
-use std::{
-    fs::{self, File},
-    io::{BufWriter, Cursor},
-    path::Path,
-};
-use zip::ZipArchive;
+use sha2::{Digest, Sha256};
 
 use serde::Deserialize;
 
-use qpm_package::{
-    extensions::package_metadata::PackageMetadataExtensions,
-    models::{backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig},
+use qpm_package::models::{
+    package::{DependencyId, PackageConfig},
+    qpackages::{QPackagesPackage, QPackagesVersion},
 };
 
 use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
+    models::{
+        package::PackageConfigExtensions, package_files::PackageIdPath,
+        qpackages::QPackageExtensions,
+    },
     network::agent::{download_file_report, get_agent},
+    repository::local::FileRepository,
     terminal::colors::QPMColor,
-    utils::git,
 };
 
 use super::Repository;
 
-const API_URL: &str = "https://qpackages.com";
+const API_URL: &str = "https://new.qpackages.com";
 
 #[derive(Default)]
 pub struct QPMRepository {}
@@ -61,12 +59,12 @@ impl QPMRepository {
     }
 
     /// Requests the appriopriate package info from qpackage.com
-    pub fn get_versions(id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    pub fn get_versions(id: &DependencyId) -> Result<Option<Vec<QPackagesVersion>>> {
         Self::run_request(&format!("{id}?limit=0"))
             .with_context(|| format!("Getting list of versions for {}", id.dependency_id_color()))
     }
 
-    pub fn get_shared_package(id: &str, ver: &Version) -> Result<Option<SharedPackageConfig>> {
+    pub fn get_qpackage(id: &DependencyId, ver: &Version) -> Result<Option<QPackagesPackage>> {
         Self::run_request(&format!("{id}/{ver}")).with_context(|| {
             format!(
                 "Getting shared package config {}:{}",
@@ -76,23 +74,23 @@ impl QPMRepository {
         })
     }
 
-    pub fn get_packages() -> Result<Vec<String>> {
+    pub fn get_packages() -> Result<Vec<DependencyId>> {
         let vec = Self::run_request("")
             .context("qpackages.com packages list failed")?
             .ok_or_eyre("No packages found?")?;
         Ok(vec)
     }
 
-    pub fn publish_package(package: &SharedPackageConfig, auth: &str) -> Result<()> {
+    pub fn publish_package(qpackage: &QPackagesPackage, auth: &str) -> Result<()> {
         let url = format!(
             "{}/{}/{}",
-            API_URL, &package.config.info.id, &package.config.info.version
+            API_URL, &qpackage.config.id, &qpackage.config.version
         );
 
         let resp = get_agent()
             .post(&url)
             .header("Authorization", auth)
-            .json(&package)
+            .json(&qpackage)
             .send()
             .with_context(|| format!("Failed to publish to {url}"))?;
 
@@ -106,7 +104,9 @@ impl QPMRepository {
         Ok(())
     }
 
-    fn download_package(&self, config: &PackageConfig) -> Result<()> {
+    /// Downloads the package and caches it in the user config cache path
+    /// Note this does not depend necessarily on it being on qpackages.com, it can be any valid QPkg
+    fn download_package(&self, qpackage_config: &QPackagesPackage) -> Result<()> {
         // Check if already cached
         // if true, don't download repo / header files
         // else cache to tmp folder in package id folder @ cache path
@@ -118,249 +118,98 @@ impl QPMRepository {
         // Download release .so and possibly debug .so to libs folder, if from github use token if available
         // Now it should be cached!
 
+        let config = &qpackage_config.config;
+
         println!(
             "Checking cache for dependency {} {}",
-            config.info.id.dependency_id_color(),
-            config.info.version.version_id_color()
+            config.id.dependency_id_color(),
+            config.version.version_id_color()
         );
-        let user_config = get_combine_config();
-        let base_path = user_config
-            .cache
-            .as_ref()
-            .unwrap()
-            .join(&config.info.id)
-            .join(config.info.version.to_string());
+        let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        let src_path = base_path.join("src");
-        let lib_path = base_path.join("lib");
-        let tmp_path = base_path.join("tmp");
+        let base_path = package_path.base_path();
 
-        let so_path = lib_path.join(config.info.get_so_name2());
-        let debug_bin_name = config.info.get_so_name2().with_extension("debug.so");
-        let debug_so_path = lib_path.join(debug_bin_name.file_name().unwrap());
-
-        let src_exists = src_path.join("qpm.shared.json").exists();
-        if src_exists {
-            // ensure is valid
-            SharedPackageConfig::read(&src_path).with_context(|| {
-                format!(
-                    "Failed to get config {}:{} in cache",
-                    config.info.id.dependency_id_color(),
-                    config.info.version.version_id_color()
-                )
-            })?;
+        let qpackages_cached = QPackagesPackage::read(&base_path);
+        if let Ok(qpackages_cached) = qpackages_cached {
+            if qpackages_cached != *qpackage_config {
+                eprintln!(
+                    "Cached QPackages {}:{} does not match the requested {}:{}",
+                    qpackages_cached.config.id.dependency_id_color(),
+                    qpackages_cached.config.version.version_id_color(),
+                    config.id.dependency_id_color(),
+                    config.version.version_id_color()
+                );
+            }
+            // already cached, no need to download again
+            return Ok(());
         }
 
-        // Downloads the repo / zip file into src folder w/ subfolder taken into account
-        if !src_path.exists() {
-            // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
-            if tmp_path.exists() {
-                fs::remove_dir_all(&tmp_path).with_context(|| {
-                    format!("Failed to remove existing tmp folder {tmp_path:?}")
-                })?;
-            }
+        let qpkg_url = &qpackage_config.qpkg_url;
+        let mut bytes = BytesMut::new().writer();
 
-            // src did not exist, this means that we need to download the repo/zip file from packageconfig.info.url
-            fs::create_dir_all(&base_path)
-                .with_context(|| format!("Failed to create lib path {base_path:?}"))?;
-            let url = config.info.url.as_ref().unwrap();
-            if url.contains("github.com") {
-                // github url!
-                git::clone(
-                    url.clone(),
-                    config.info.additional_data.branch_name.as_ref(),
-                    &tmp_path,
-                )
-                .context("Clone")?;
-            } else {
-                // not a github url, assume it's a zip
-                let mut bytes = BytesMut::new().writer();
+        println!("Downloading {}", qpkg_url.file_path_color());
+        download_file_report(qpkg_url, &mut bytes, |_, _| {})
+            .with_context(|| format!("Failed while downloading {}", qpkg_url.blue()))?;
 
-                download_file_report(url, &mut bytes, |_, _| {})
-                    .with_context(|| format!("Failed while downloading {}", url.blue()))?;
+        let cursor = std::io::Cursor::new(bytes.get_ref());
 
-                let buffer = Cursor::new(bytes.get_ref());
+        // Ensure checksum matches
+        if let Some(checksum) = &qpackage_config.qpkg_checksum {
+            let result = Sha256::digest(cursor.get_ref());
+            let hash_hex = hex::encode(result);
 
-                // Extract to tmp folder
-                ZipArchive::new(buffer)
-                    .context("Reading zip")?
-                    .extract(&tmp_path)
-                    .context("Zip extraction")?;
-            }
-            // the only way the above if else would break is if someone put a link to a zip file on github in the url slot
-            // if you are reading this and think of doing that so I have to fix this, fuck you
-
-            let sub_package_path = match &config.info.additional_data.sub_folder {
-                Some(sub_folder) => {
-                    // the package exists in a subfolder of the downloaded thing, just move the subfolder to src
-                    tmp_path.join(sub_folder)
-                }
-                _ => {
-                    // the downloaded thing IS the package, just rename the folder to src
-                    tmp_path.clone()
-                }
-            };
-
-            if sub_package_path.exists() {
-                // only log this on debug builds
-                #[cfg(debug_assertions)]
-                println!(
-                    "Moving from: {}\nto: {}",
-                    sub_package_path.display().bright_yellow(),
-                    src_path.display().bright_yellow()
-                );
-
-                if src_path.exists() {
-                    let mut line = String::new();
-                    println!(
-                        "Confirm deletion of folder {}: (y/N)",
-                        src_path.display().bright_yellow()
-                    );
-                    std::io::stdin().read_line(&mut line)?;
-                    if line.starts_with('y') || line.starts_with('Y') {
-                        fs::remove_dir_all(&src_path)
-                            .context("Failed to remove existing src folder")?;
-                    }
-                }
-                // HACK: renaming seems to work, idk if it works for actual subfolders?
-                fs::rename(&sub_package_path, &src_path)
-                    .context("Failed to move folder")
-                    .with_suggestion(|| {
-                        format!(
-                            "Check if a process is locking the folder: \n{}",
-                            sub_package_path.display().file_path_color()
-                        )
-                    })?;
-            } else {
+            if !hash_hex.eq_ignore_ascii_case(checksum) {
                 bail!(
-                    "Failed to restore folder for this dependency\nif you have a token configured check if it's still valid\nIf it is, check if you can manually reach the repo"
+                    "Checksum mismatch for {}: expected {}, got {}",
+                    qpkg_url.blue(),
+                    checksum,
+                    hash_hex
                 );
-            }
-
-            // clear up tmp folder if it still exists
-            if tmp_path.exists() {
-                std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
-            }
-            let downloaded_package = SharedPackageConfig::read(src_path);
-
-            match downloaded_package {
-                Ok(downloaded_package) =>
-                // check if downloaded config is the same version as expected, if not, panic
-                {
-                    if downloaded_package.config.info.version != config.info.version {
-                        bail!(
-                            "Downloaded package ({}) version ({}) does not match expected version ({})!",
-                            config.info.id.dependency_id_color(),
-                            downloaded_package
-                                .config
-                                .info
-                                .version
-                                .to_string()
-                                .version_id_color(),
-                            config.info.version.to_string().version_id_color(),
-                        )
-                    }
-                }
-
-                Err(e) => println!(
-                    "Unable to validate shared package of {}:{} due to: \"{}\", continuing",
-                    config.info.name.dependency_id_color(),
-                    config.info.version.dependency_version_color(),
-                    e.red()
-                ),
             }
         }
 
-        if !lib_path.exists() {
-            fs::create_dir_all(&lib_path).context("Failed to create lib path")?;
-        }
+        FileRepository::install_qpkg(cursor, false, None).with_context(|| {
+            format!(
+                "QPackages QPKG installation from {}:{}",
+                qpackage_config.config.id, qpackage_config.config.version
+            )
+        })?;
 
-        // libs didn't exist or the release object didn't exist, we need to download from packageconfig.info.additional_data.so_link and packageconfig.info.additional_data.debug_so_link
-        let download_binary = |path: &Path, url_opt: Option<&String>| -> Result<_> {
-            // only download if file doesn't exist already
-            if path.exists() {
-                #[cfg(debug_assertions)]
-                println!(
-                    "{} already exists, skipping download",
-                    path.display().bright_yellow()
-                );
-                return Ok(());
-            }
-            let Some(url) = url_opt else { return Ok(()) };
-
-            let temp_path = path.with_added_extension("temp");
-
-            if temp_path.exists() {
-                std::fs::remove_file(&temp_path)
-                    .with_context(|| format!("Failed to remove tmp file {temp_path:?}"))?;
-            }
-
-            if !temp_path.exists() || File::open(&temp_path).is_err() {
-                println!(
-                    "Downloading {} from {} to {}",
-                    path.file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .download_file_name_color(),
-                    url_opt.unwrap().version_id_color(),
-                    path.as_os_str()
-                        .to_string_lossy()
-                        .alternate_dependency_version_color()
-                );
-                // so_link existed, download
-                if url.contains("github.com") {
-                    // github url!
-                    git::get_release(url, &temp_path)?;
-                } else {
-                    let mut file = BufWriter::new(File::create(&temp_path)?);
-                    download_file_report(url, &mut file, |_, _| {})
-                        .context("Failed to write out downloaded bytes")?;
-                }
-            }
-
-            std::fs::rename(&temp_path, path)
-                .with_context(|| format!("Unable to rename {temp_path:?} to {path:?}"))?;
-
-            if path.exists() {
-                #[cfg(debug_assertions)]
-                println!("{} downloaded successfully", path.display().bright_green());
-            }
-
-            Ok(())
-        };
-
-        download_binary(&so_path, config.info.additional_data.so_link.as_ref())?;
-        download_binary(
-            &debug_so_path,
-            config.info.additional_data.debug_so_link.as_ref(),
-        )?;
-
-        if config.info.additional_data.so_link.is_none()
-            && config.info.additional_data.debug_so_link.is_none()
-            && config.info.additional_data.static_link.is_none()
-            && !config.info.additional_data.headers_only.unwrap_or(false)
-        {
-            eprintln!(
-                "No binaries are provided for {}:{} but is also not header only!",
-                config.info.id.dependency_id_color(),
-                config.info.version.version_id_color()
+        let package = PackageConfig::read(&base_path)?;
+        // assert that the package is the same as the one we downloaded
+        if package != qpackage_config.config {
+            bail!(
+                "Package config mismatch. Got {}:{}: expected {:?}, got {:?} (the changes might not be id/version, but the config itself)",
+                package.id.dependency_id_color(),
+                package.version.version_id_color(),
+                qpackage_config.config,
+                package
             );
         }
+
+        qpackage_config.write(&base_path).with_context(|| {
+            format!(
+                "Failed to write QPackages.json to {}",
+                base_path.display().file_path_color()
+            )
+        })?;
+
         Ok(())
     }
 }
 
 impl Repository for QPMRepository {
-    fn get_package_names(&self) -> Result<Vec<String>> {
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
         Self::get_packages()
     }
 
     /// Sorted descending order
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
         let versions = Self::get_versions(id)?.map(|versions| {
             versions
                 .into_iter()
-                .sorted_by(|a, b| a.version.cmp(&b.version))
+                .map(|v| v.version)
+                .sorted_by(|a, b| a.cmp(b))
                 .rev()
                 .collect_vec()
         });
@@ -368,22 +217,31 @@ impl Repository for QPMRepository {
         Ok(versions)
     }
 
-    fn get_package(&self, id: &str, version: &Version) -> Result<Option<SharedPackageConfig>> {
-        let config = Self::get_shared_package(id, version)?;
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>> {
+        let config = Self::get_qpackage(id, version)?;
 
-        Ok(config)
+        Ok(config.map(|qpackage| qpackage.config))
     }
 
-    fn add_to_db_cache(&mut self, _config: SharedPackageConfig, _permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, _config: PackageConfig, _permanent: bool) -> Result<()> {
         Ok(())
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        self.download_package(config).with_context(|| {
+        let qpackage =
+            QPMRepository::get_qpackage(&config.id, &config.version)?.with_context(|| {
+                format!(
+                    "Failed to get QPackage for {}:{}",
+                    config.id.dependency_id_color(),
+                    config.version.version_id_color()
+                )
+            })?;
+
+        self.download_package(&qpackage).with_context(|| {
             format!(
                 "QPackages {}:{}",
-                config.info.id.dependency_id_color(),
-                config.info.version.version_id_color()
+                config.id.dependency_id_color(),
+                config.version.version_id_color()
             )
         })?;
 

@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use color_eyre::Result;
 
+pub mod build;
 pub mod cache;
 pub mod clear;
 pub mod collapse;
@@ -16,6 +17,7 @@ pub mod ndk;
 pub mod package;
 pub mod publish;
 pub mod qmod;
+pub mod qpkg;
 pub mod restore;
 pub mod scripts;
 pub mod version;
@@ -88,6 +90,15 @@ pub enum MainCommand {
 
     #[command(hide = true)]
     GenSchema(genschema::GenSchemaCommand),
+
+    /// QPKG control
+    #[command(name = "qpkg", about = "QPKG control")]
+    QPkg(qpkg::QPkgCommand),
+
+    Build(build::BuildCommand),
+
+    /// Triplet commands
+    Triplet(build::BuildCommand),
 }
 
 impl Command for MainCommand {
@@ -111,6 +122,9 @@ impl Command for MainCommand {
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
             MainCommand::GenSchema(g) => g.execute(),
+            MainCommand::QPkg(q) => q.execute(),
+            MainCommand::Triplet(t) => t.execute(),
+            MainCommand::Build(build_command) => build_command.execute(),
 
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),

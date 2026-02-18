@@ -2,10 +2,14 @@ use std::process::{Stdio, exit};
 
 use clap::Args;
 
-use color_eyre::eyre::{anyhow, bail};
+use color_eyre::eyre::{ContextCompat, anyhow, bail};
 use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::{
+    package::PackageConfig,
+    shared_package::SharedPackageConfig,
+    triplet::{TripletId, base_triplet_id},
+};
 
 use crate::{models::package::PackageConfigExtensions, utils::ndk};
 
@@ -15,6 +19,10 @@ use super::Command;
 #[command(disable_help_flag = true)]
 pub struct ScriptsCommand {
     script: String,
+
+    /// Triplet to run the script for, if not specified, the restored triplet is used
+    #[clap(long, short)]
+    triplet: Option<String>,
 
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     args: Vec<String>,
@@ -28,15 +36,20 @@ impl Command for ScriptsCommand {
 
         let script = scripts.get(&self.script);
 
-        if script.is_none() {
-            bail!("Could not find script {}", self.script);
-        }
-
         let Some(script) = script else {
-            return Ok(());
+            bail!("Could not find script {}", self.script);
         };
 
-        invoke_script(script, &self.args, &package)?;
+        let triplet_id = self
+            .triplet
+            .map(TripletId)
+            .or_else(|| {
+                let shared_package = SharedPackageConfig::read(".");
+                Some(shared_package.ok()?.restored_triplet)
+            })
+            .unwrap_or(base_triplet_id());
+
+        invoke_script(script, &self.args, &package, &triplet_id)?;
 
         Ok(())
     }
@@ -46,8 +59,14 @@ pub fn invoke_script(
     script_commands: &[String],
     supplied_args: &[String],
     package: &PackageConfig,
+    triplet_id: &TripletId,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let android_ndk_home = ndk::resolve_ndk_version(package);
+    let triplet = package
+        .triplets
+        .get_merged_triplet(triplet_id)
+        .context("Failed to get triplet settings")?;
+
+    let android_ndk_home = ndk::resolve_ndk_version(&triplet);
 
     for command_str in script_commands {
         let split = command_str.split_once(' ');
@@ -87,12 +106,29 @@ pub fn invoke_script(
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
+        // Set the environment variables for the script
+        c.envs(
+            triplet
+                .env
+                .iter()
+                .map(|(k, v)| (format!("QPM_{k}"), v.as_str())),
+        );
+
+        // QPM defined environment variables
+        c.env("QPM_ACTIVE_TRIPLET", triplet_id.to_string())
+            .env(
+                "QPM_QMOD_ID",
+                triplet.qmod_id.as_deref().unwrap_or(package.id.0.as_str()),
+            )
+            .env("QPM_PACKAGE_ID", package.id.to_string())
+            .env("QPM_PACKAGE_VERSION", package.version.to_string());
+
         // Set the environment variable for Android NDK home if provided
         if let Some(path) = &android_ndk_home {
             c.env("ANDROID_NDK_HOME", path);
         }
 
-        let code = c.spawn()?.wait()?.code().unwrap_or_else(|| 1);
+        let code = c.spawn()?.wait()?.code().unwrap_or(1);
         if code != 0 {
             exit(code);
         }

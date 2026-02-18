@@ -33,6 +33,11 @@ pub trait QPMColor: OwoColorize {
     ) -> FgColorDisplay<'_, owo_colors::colors::Yellow, Self> {
         self.yellow()
     }
+
+    #[inline(always)]
+    fn triplet_id_color(&self) -> FgColorDisplay<'_, owo_colors::colors::Green, Self> {
+        self.green()
+    }
 }
 
 impl<D: OwoColorize> QPMColor for D {}

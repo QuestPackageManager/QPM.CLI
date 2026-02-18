@@ -1,9 +1,8 @@
 use color_eyre::{Result, eyre::bail};
 use itertools::Itertools;
 
-use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-};
+use qpm_package::models::package::{DependencyId, PackageConfig};
+use semver::Version;
 
 use super::Repository;
 
@@ -24,16 +23,16 @@ impl MultiDependencyRepository {
 ///
 impl Repository for MultiDependencyRepository {
     // get versions of all repositories
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
         // double flat map???? rust weird
         // TODO: Propagate error
-        let result: Vec<PackageVersion> = self
+        let result: Vec<Version> = self
             .repositories
             .iter()
             .filter_map(|r| r.get_package_versions(id).expect("Failed to get versions"))
             .flatten()
             .unique()
-            .sorted_by(|a, b| a.version.cmp(&b.version))
+            .sorted_by(|a, b| a.cmp(b))
             .rev() // highest first
             .collect();
 
@@ -62,9 +61,9 @@ impl Repository for MultiDependencyRepository {
     // get package from the first repository that has it
     fn get_package(
         &self,
-        id: &str,
+        id: &DependencyId,
         version: &semver::Version,
-    ) -> Result<Option<SharedPackageConfig>> {
+    ) -> Result<Option<PackageConfig>> {
         let opt = self
             .repositories
             .iter()
@@ -77,39 +76,38 @@ impl Repository for MultiDependencyRepository {
         }
     }
 
-    fn get_package_names(&self) -> Result<Vec<String>> {
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
         Ok(self
             .repositories
             .iter()
             .flat_map(|r| r.get_package_names().expect("Unable to get package names"))
             .unique()
-            .collect::<Vec<String>>())
+            .collect())
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        match self
-            .repositories
-            .iter_mut()
-            .filter(|r| {
-                r.get_package(&config.info.id, &config.info.version)
-                    .expect("Unable to get package")
-                    .is_some()
-            })
-            .find_map(|r| {
-                r.download_to_cache(config)
-                    .expect("Unable to download to cache")
-                    .then_some(true)
-            }) {
+        let mut found_package = self.repositories.iter_mut().filter(|r| {
+            r.get_package(&config.id, &config.version)
+                .expect("Unable to get package")
+                .is_some()
+        });
+
+        let downloaded_package = found_package.find_map(|r| {
+            r.download_to_cache(config)
+                .expect("Unable to download to cache")
+                .then_some(true)
+        });
+        match downloaded_package {
             Some(v) => Ok(v),
             None => bail!(
                 "No repository found that has package {}:{}",
-                config.info.id,
-                config.info.version
+                config.id,
+                config.version
             ),
         }
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
         if permanent {
             #[cfg(debug_assertions)]
             println!("Warning, adding to cache permanently to multiple repos!",);
