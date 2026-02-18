@@ -81,7 +81,7 @@ impl Command for DoctorCommand {
 
             match ndk_path {
                 Ok(ndk) => {
-                    println!("NDK {} found in path!", ndk);
+                    println!("NDK {ndk} found in path!");
                 }
                 Err(err) => {
                     if File::open("./ndkpath.txt").is_err() {

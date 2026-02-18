@@ -1,5 +1,10 @@
 use std::{
-    borrow::Cow, cmp::Reverse, error::Error, fmt::{Display, Formatter}, path::Path, time::Instant
+    borrow::Cow,
+    cmp::Reverse,
+    error::Error,
+    fmt::{Display, Formatter},
+    path::Path,
+    time::Instant,
 };
 
 use super::semver::{VersionWrapper, req_to_range};

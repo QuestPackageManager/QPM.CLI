@@ -6,11 +6,7 @@ use std::{
     time::Duration,
 };
 
-use color_eyre::{
-    Result,
-    eyre::{Context, ensure},
-};
-use reqwest::header::CONTENT_LENGTH;
+use color_eyre::{Result, eyre::Context};
 
 use crate::models::config::get_combine_config;
 

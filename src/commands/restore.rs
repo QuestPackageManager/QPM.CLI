@@ -57,8 +57,7 @@ pub(crate) fn is_ignored() -> bool {
 
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        let package =
-            PackageConfig::read(".").context("Reading package config for restoring")?;
+        let package = PackageConfig::read(".").context("Reading package config for restoring")?;
         // optionally does not exist
         let mut shared_package_opt = SharedPackageConfig::exists(".")
             .then(|| SharedPackageConfig::read("."))

@@ -136,22 +136,13 @@ impl Command for DependencyOperationAddArgs {
             Option::None => None,
         };
 
-        let triplet = self
-            .triplet
-            .map(TripletId)
-            .or_else(|| {
-                let shared_package = SharedPackageConfig::read(".");
-                let restored = shared_package.ok()?.restored_triplet;
-                Some(restored)
-            });
+        let triplet = self.triplet.map(TripletId).or_else(|| {
+            let shared_package = SharedPackageConfig::read(".");
+            let restored = shared_package.ok()?.restored_triplet;
+            Some(restored)
+        });
 
-        put_dependency(
-            &id,
-            triplet.as_ref(),
-            version,
-            additional_data,
-            self.sort,
-        )
+        put_dependency(&id, triplet.as_ref(), version, additional_data, self.sort)
     }
 }
 
@@ -204,20 +195,20 @@ fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<(
     let mut package = PackageConfig::read(".")?;
 
     let triplet = dependency_args
-            .triplet
-            .map(TripletId)
-            .or_else(|| {
-                let shared_package = SharedPackageConfig::read(".");
-                let restored = shared_package.ok()?.restored_triplet;
-                Some(restored)
-            })
-            .context("No triplet specified")?;
+        .triplet
+        .map(TripletId)
+        .or_else(|| {
+            let shared_package = SharedPackageConfig::read(".");
+            let restored = shared_package.ok()?.restored_triplet;
+            Some(restored)
+        })
+        .context("No triplet specified")?;
 
     let triplet = package
-            .triplets
-            .specific_triplets
-            .get_mut(&triplet)
-            .context("Triplet not found")?;
+        .triplets
+        .specific_triplets
+        .get_mut(&triplet)
+        .context("Triplet not found")?;
 
     triplet
         .dependencies

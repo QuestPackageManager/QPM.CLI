@@ -128,7 +128,7 @@ pub fn invoke_script(
             c.env("ANDROID_NDK_HOME", path);
         }
 
-        let code = c.spawn()?.wait()?.code().unwrap_or_else(|| 1);
+        let code = c.spawn()?.wait()?.code().unwrap_or(1);
         if code != 0 {
             exit(code);
         }

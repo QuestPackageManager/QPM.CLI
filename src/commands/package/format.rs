@@ -2,7 +2,9 @@ use std::fs;
 
 use clap::Args;
 use color_eyre::{Result, eyre::ContextCompat};
-use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig, triplet::base_triplet_id};
+use qpm_package::models::{
+    package::PackageConfig, shared_package::SharedPackageConfig, triplet::base_triplet_id,
+};
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
 
