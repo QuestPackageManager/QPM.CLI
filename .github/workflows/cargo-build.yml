@@ -214,7 +214,7 @@ jobs:
         if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
         with:
           name: installer-${{ matrix.suffix }}
-          path: ./installer/qpm-installer.exe
+          path: ./installer/qpm2-installer.exe
           if-no-files-found: error
 
   macos-universal:
