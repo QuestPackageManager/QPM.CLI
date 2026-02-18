@@ -190,7 +190,7 @@ jobs:
         if: matrix.suffix != ''
         uses: actions/upload-artifact@v4
         with:
-          name: qpm-${{matrix.suffix}}
+          name: qpm2-${{matrix.suffix}}
           path: target/${{ matrix.target }}/release/${{matrix.file-name}}
           if-no-files-found: error
 
@@ -225,24 +225,24 @@ jobs:
       - name: Download Intel macOS build
         uses: actions/download-artifact@v4
         with:
-          name: qpm-macos-x64
+          name: qpm2-macos-x64
           path: macos-x64
 
       - name: Download ARM macOS build
         uses: actions/download-artifact@v4
         with:
-          name: qpm-macos-arm64
+          name: qpm2-macos-arm64
           path: macos-arm64
 
       - name: Make Universal Binary
         run: |
-          lipo -create -output "qpm" "macos-x64/qpm" "macos-arm64/qpm"
-          chmod +x qpm
-          zip -j "qpm-macos-universal.zip" "qpm"
+          lipo -create -output "qpm2" "macos-x64/qpm2" "macos-arm64/qpm2"
+          chmod +x qpm2
+          zip -j "qpm2-macos-universal.zip" "qpm2"
 
       - name: Artifact Upload
         uses: actions/upload-artifact@v4
         with:
-          name: qpm-macos-universal
-          path: qpm
+          name: qpm2-macos-universal
+          path: qpm2
           if-no-files-found: error
