@@ -58,13 +58,13 @@ color-eyre = { version = "0.6", default-features = false }
 pbr = { version = "*", optional = true } #{ git = "https://github.com/a8m/pb.git" }
 
 bytes = "*"
-reqwest = { version = "0.12", features = [
+reqwest = { version = "0.13", features = [
     "blocking",
     "json",
     "gzip",
     "deflate",
     "brotli",
-    "rustls-tls",
+    "rustls",
 ], default-features = false }
 
 clap = { version = "4", features = ["derive"], optional = true }
@@ -92,7 +92,7 @@ gix = { version = "*", features = [
 ], optional = true, default-features = false }
 
 # Use PR with symlink fix for Unix systems.
-zip = { version = "6", default-features = false, features = [
+zip = { version = "8", default-features = false, features = [
     "zstd",
     "nt-time",
     "deflate",
