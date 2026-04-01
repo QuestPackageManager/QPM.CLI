@@ -53,6 +53,10 @@ pub struct ZipQmodOperationArgs {
     #[clap(short = 'f', long = "include_files")]
     pub include_files: Option<Vec<PathBuf>>,
 
+    /// Import a manifest from a different directory instead of generating one from the current package
+    #[clap(long = "import")]
+    pub import: Option<PathBuf>,
+
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
 
@@ -93,15 +97,21 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
-    let new_manifest = generate_qmod_manifest(
-        &package,
-        shared_package,
-        ManifestQmodOperationArgs {
-            exclude_libs: build_parameters.exclude_libs.clone(),
-            include_libs: build_parameters.include_libs.clone(),
-            offline: build_parameters.offline,
-        },
-    )?;
+    let new_manifest = match build_parameters.import {
+        Some(import_path) => {
+            let manifest_file = File::open(&import_path)?;
+            serde_json::from_reader(manifest_file)?
+        }
+        None => generate_qmod_manifest(
+            &package,
+            shared_package,
+            ManifestQmodOperationArgs {
+                exclude_libs: build_parameters.exclude_libs.clone(),
+                include_libs: build_parameters.include_libs.clone(),
+                offline: build_parameters.offline,
+            },
+        )?,
+    };
 
     if build_parameters.clean {
         // Run clean script
