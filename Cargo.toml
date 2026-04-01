@@ -84,6 +84,7 @@ keyring = "3"
 
 gix = { version = "*", features = [
     "command",
+    "sha1",
     "attributes",
     "progress-tree",
     "worktree-mutation",
