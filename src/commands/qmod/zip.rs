@@ -21,8 +21,6 @@ use qpm_package::models::dependency::SharedPackageConfig;
 
 use qpm_package::models::package::PackageConfig;
 
-use color_eyre::eyre::ensure;
-
 use color_eyre::Result;
 
 #[derive(Args, Debug, Clone)]
@@ -90,24 +88,24 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
 }
 
 pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs) -> Result<()> {
-    let import_path = build_parameters
-        .import
-        .clone()
-        .unwrap_or_else(|| PathBuf::from("./mod.template.json"));
-
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
-    let new_manifest = generate_qmod_manifest(
-        &package,
-        shared_package,
-        ManifestQmodOperationArgs {
-            exclude_libs: build_parameters.exclude_libs.clone(),
-            include_libs: build_parameters.include_libs.clone(),
-            offline: build_parameters.offline,
-        },
-        &import_path,
-    )?;
+    let new_manifest = match build_parameters.import {
+        Some(import_path) => {
+            let manifest_file = File::open(&import_path)?;
+            serde_json::from_reader(manifest_file)?
+        }
+        None => generate_qmod_manifest(
+            &package,
+            shared_package,
+            ManifestQmodOperationArgs {
+                exclude_libs: build_parameters.exclude_libs.clone(),
+                include_libs: build_parameters.include_libs.clone(),
+                offline: build_parameters.offline,
+            }
+        )?,
+    };
 
     if build_parameters.clean {
         // Run clean script
