@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Args;
 use qpm_package::extensions::package_metadata::PackageMetadataExtensions;
@@ -43,7 +43,7 @@ pub(crate) fn execute_qmod_manifest_operation(
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
-    let new_json = generate_qmod_manifest(&package, shared_package, build_parameters)?;
+    let new_json = generate_qmod_manifest(&package, shared_package, build_parameters, &PathBuf::from("mod.template.json"))?;
     // Write mod.json
     new_json.write(&PathBuf::from(ModJson::get_result_name()))?;
     Ok(())
@@ -53,10 +53,11 @@ pub(crate) fn generate_qmod_manifest(
     package: &PackageConfig,
     shared_package: SharedPackageConfig,
     build_parameters: ManifestQmodOperationArgs,
+    template_path: &Path
 ) -> Result<ModJson> {
     ensure!(
-        std::path::Path::new("mod.template.json").exists(),
-        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\""
+        template_path.exists(),
+        "Template file not found: {}", template_path.display()
     );
     println!("Generating mod.json file from template using qpm.shared.json...");
 
