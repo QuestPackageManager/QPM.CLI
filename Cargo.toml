@@ -77,10 +77,10 @@ semver = { version = "1.0", features = ["serde"] }
 cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser.git", features = [
     "serde",
 ] }
-pubgrub = "0.3"
+pubgrub = "0.4"
 owo-colors = "4"
 dirs = "6.0.0"
-keyring = "3"
+keyring-core = "1"
 
 gix = { version = "*", features = [
     "command",
