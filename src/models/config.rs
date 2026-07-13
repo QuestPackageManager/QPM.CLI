@@ -14,6 +14,8 @@ use crate::utils::json;
 
 use super::schemas::{SchemaLinks, WithSchema};
 
+// Cached per-process: in-process test harnesses running multiple "invocations" only
+// ever see the first one's config.
 static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
 
 pub fn get_combine_config() -> &'static UserConfig {

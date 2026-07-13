@@ -1,4 +1,4 @@
-use crate::tests::framework::common;
+use crate::common;
 use color_eyre::eyre::Result;
 use std::path::Path;
 

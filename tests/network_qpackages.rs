@@ -1,3 +1,5 @@
+#![cfg(feature = "network_test")]
+
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},

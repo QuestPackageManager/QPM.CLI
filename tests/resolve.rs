@@ -1,13 +1,14 @@
+mod mocks;
+
 use color_eyre::Result;
 use itertools::Itertools;
+use qpm_cli::{
+    models::package::SharedPackageConfigExtensions, repository::Repository, resolver::dependency,
+};
 use qpm_package::models::{package::DependencyId, shared_package::SharedPackageConfig};
 use semver::Version;
 
-use crate::{
-    models::package::SharedPackageConfigExtensions, repository::Repository, resolver::dependency,
-};
-
-use super::mocks::repo::get_mock_repository;
+use mocks::repo::get_mock_repository;
 
 #[test]
 fn get_artifact_names() -> Result<()> {

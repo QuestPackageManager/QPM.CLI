@@ -1,15 +1,13 @@
-use assert_fs::TempDir;
-use color_eyre::{Result, eyre::Context};
-use fs_extra::dir::{self, CopyOptions};
+use color_eyre::Result;
 use std::path::Path;
 
-use crate::tests::framework::common;
+use crate::common;
 
 #[test]
 fn test_download_adb() -> Result<()> {
     let adb_name = if cfg!(windows) { "adb.exe" } else { "adb" };
 
-    let temp = common::test_command_check_files(
+    common::test_command_check_files(
         &["download", "adb"],
         Path::new("test_cmd/_dumb"),
         &["platform-tools", &format!("platform-tools/{adb_name}")],

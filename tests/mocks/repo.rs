@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
+use qpm_cli::repository::local::FileRepository;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency},
     shared_package::SharedPackageConfig,
 };
 use semver::{Version, VersionReq};
-
-use crate::repository::local::FileRepository;
 
 pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
     build_artifact_and_depends(name, ver, &[])

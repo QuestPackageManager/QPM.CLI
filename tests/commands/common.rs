@@ -1,13 +1,59 @@
-use assert_cmd::Command;
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
-use color_eyre::eyre::Context;
-use color_eyre::eyre::ensure;
+use clap::Parser;
+use bstr::ByteSlice;
+use color_eyre::eyre::{Context, ensure};
 use fs_extra::dir::{self, CopyOptions};
-use gix::bstr::ByteSlice;
 use predicates::prelude::*;
+use qpm_cli::commands::{Command, Opt};
 use std::fs;
 use std::path::Path;
+use std::sync::Mutex;
+
+/// Commands mutate process-global state (current dir, env vars) that isn't safe to touch
+/// concurrently, since `cargo test` runs every test in this binary on its own thread within
+/// one process. Held for the full duration of a test, not just around command execution,
+/// since fixture copying/comparison also resolves paths relative to the process's cwd.
+///
+/// Note this does NOT cover `get_combine_config()`'s process-wide cache (see
+/// `models::config`) - only the first test in this binary to read qpm.settings.json gets
+/// its own; every later test silently reuses that same cached config.
+static PROCESS_LOCK: Mutex<()> = Mutex::new(());
+
+/// Parses `args` as a qpm2 CLI invocation and runs it in-process against `dir`.
+///
+/// Must be called while holding `PROCESS_LOCK`.
+fn run_qpm(args: &[&str], dir: &Path) -> color_eyre::Result<()> {
+    let previous_dir = std::env::current_dir().context("Failed to get current dir")?;
+    std::env::set_current_dir(dir)
+        .with_context(|| format!("Failed to set current dir to {dir:?}"))?;
+
+    // SAFETY: serialized by PROCESS_LOCK - no other thread reads/writes env vars while
+    // this guard is held.
+    unsafe {
+        std::env::set_var("QPM_DISABLE_GLOBAL_CONFIG", "1");
+    }
+
+    let result = (|| -> color_eyre::Result<()> {
+        let full_args = std::iter::once("qpm2").chain(args.iter().copied());
+        let opt = Opt::try_parse_from(full_args)
+            .with_context(|| format!("Failed to parse args {args:?}"))?;
+
+        if let Some(command) = opt.command {
+            command.execute()?;
+        }
+
+        Ok(())
+    })();
+
+    // SAFETY: see above.
+    unsafe {
+        std::env::remove_var("QPM_DISABLE_GLOBAL_CONFIG");
+    }
+    std::env::set_current_dir(previous_dir).context("Failed to restore current dir")?;
+
+    result
+}
 
 /// Single test function that uses assert_fs and fs_extra to test a command
 pub fn test_command(
@@ -15,6 +61,8 @@ pub fn test_command(
     input_dir: &Path,
     expected_dir: &Path,
 ) -> color_eyre::Result<TempDir> {
+    let _guard = PROCESS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
     // Create a temporary directory using assert_fs
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
@@ -28,14 +76,8 @@ pub fn test_command(
     dir::copy(input_dir, temp.path(), &copy_options)
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
 
-    // Run the command using assert_cmd
-    Command::cargo_bin("qpm2")
-        .wrap_err("Failed to find qpm binary")?
-        .args(args)
-        .current_dir(temp.path())
-        .env("QPM_DISABLE_GLOBAL_CONFIG", "1") // Set test environment variable to disable global config
-        .assert()
-        .success();
+    // Run the command in-process against the temp directory
+    run_qpm(args, temp.path()).wrap_err_with(|| format!("Command {args:?} failed"))?;
 
     // Check if we should update expected output
     if std::env::var_os("QPM_TEST_UPDATE").is_some_and(|v| v == "1") {
@@ -69,6 +111,8 @@ pub fn test_command_check_files(
     input_dir: &Path,
     files_to_check: &[&str],
 ) -> color_eyre::Result<TempDir> {
+    let _guard = PROCESS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
     // Create a temporary directory
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
@@ -82,14 +126,8 @@ pub fn test_command_check_files(
     dir::copy(input_dir, temp.path(), &copy_options)
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
 
-    // Run the command
-    Command::cargo_bin("qpm2")
-        .wrap_err("Failed to find qpm binary")?
-        .args(args)
-        .current_dir(temp.path())
-        .env("QPM_DISABLE_GLOBAL_CONFIG", "1") // Set test environment variable to disable global config
-        .assert()
-        .success();
+    // Run the command in-process against the temp directory
+    run_qpm(args, temp.path()).wrap_err_with(|| format!("Command {args:?} failed"))?;
 
     // Check that the specified files exist using assert_fs predicates
     for file in files_to_check {

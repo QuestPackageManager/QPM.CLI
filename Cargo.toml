@@ -34,7 +34,7 @@ vergen = { version = "8", features = [
 color-eyre = { version = "0.6", default-features = false }
 
 [dev-dependencies]
-assert_cmd = "2.0.14"
+bstr = "1.12"
 predicates = "3.1.0"
 tempfile = "3.23"
 assert_fs = "1.1.0"
