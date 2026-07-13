@@ -16,6 +16,65 @@ QPM is a package manager designed specifically for Quest/Beat Saber mods develop
 - `qpm doctor` Configuration diagnostics
 - `qpm templatr` Built-in templating
 
+## Workflow
+
+The typical order for taking a mod from a fresh checkout to a published dependency:
+
+```bash
+# 1. Resolve and pull in dependencies (headers to extern/includes, binaries to extern/libs)
+#    Also writes qpm2.shared.json (the dependency lock file) and, if configured, toolchain.json
+qpm restore
+
+# 2. Build the mod's binary using your configured build script (e.g. CMake/ninja)
+qpm build
+```
+
+At this point you have a compiled binary. What you do with it depends on whether you're shipping
+a Quest mod for end users, making the package available as a dependency for other mods, or both.
+
+### Packaging a `.qmod` (for end users / a mod loader)
+
+```bash
+# Zip the generated manifest + binaries + any include dirs/files into a sideloadable .qmod
+qpm qmod zip
+```
+
+### Publishing a `.qpkg` (for other mods to depend on)
+
+A `.qpkg` bundles a package's headers and binaries for other projects to pull in as a dependency.
+QPM doesn't host `.qpkg` files itself - you build one, host it yourself (e.g. a GitHub release
+asset), then tell the qpackages.dev registry where to find it:
+
+```bash
+# Builds by default, then zips headers + binaries + qpm2.qpkg.json into {id}.qpkg
+# Pass --no-build to skip the build step and package already-built binaries
+qpm qpkg
+
+# Upload/host the resulting .qpkg somewhere publicly accessible, then register it:
+qpm publish <url-to-the-hosted-.qpkg> --token <publish-token>
+```
+
+`qpm publish` re-downloads the `.qpkg` from the URL you give it to validate its contents match
+your local `qpm2.json` before registering it, so the URL must already be live when you run it.
+
+### Installing a `.qpkg` locally (testing before publishing)
+
+Before publishing, you can install the `.qpkg` you just built straight into your local package
+cache, so another project's `qpm dependency add`/`qpm restore` will pick it up without needing
+anything registered on qpackages.dev:
+
+```bash
+# Install a .qpkg file from disk into the local cache
+qpm install --path ./{id}.qpkg
+
+# Or install one already hosted somewhere, without registering it on qpackages.dev
+qpm install --url <url-to-a-.qpkg>
+```
+
+This is the same install step a consumer's `qpm restore` runs automatically for registry
+dependencies - `qpm install` just lets you (or someone you hand a `.qpkg` to directly) do it
+manually for a package that isn't published, or before you're ready to publish it.
+
 ## Improvements over [Qpm v1](https://github.com/RedBrumbler/QuestPackageManager-Rust)
 
 - `qpm version update` Updates qpm to a newer version
