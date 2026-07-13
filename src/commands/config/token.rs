@@ -13,10 +13,12 @@ pub struct TokenCommand {
 
 impl Command for TokenCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        if self.delete && get_keyring().get_password().is_ok() {
-            get_keyring()
-                .delete_credential()
-                .context("Removing password failed")?;
+        if self.delete && get_keyring().and_then(|e| e.get_password().ok()).is_some() {
+            if let Some(entry) = get_keyring() {
+                entry
+                    .delete_credential()
+                    .context("Removing password failed")?;
+            }
             println!("Deleted github token from config, it will no longer be used");
             return Ok(());
         } else if self.delete {
@@ -27,14 +29,18 @@ impl Command for TokenCommand {
         match self.token {
             Some(token) => {
                 // write token
-                get_keyring()
-                    .set_password(&token)
-                    .context("Storing token failed!")?;
+                if let Some(entry) = get_keyring() {
+                    entry
+                        .set_password(&token)
+                        .context("Storing token failed!")?;
+                } else {
+                    return Err(color_eyre::eyre::eyre!("Keyring unavailable"));
+                }
                 println!("Configured a github token! This will now be used in qpm restore");
             }
             None => {
                 // read token, possibly unused so prepend with _ to prevent warnings
-                if let Ok(_token) = get_keyring().get_password() {
+                if let Some(_token) = get_keyring().and_then(|e| e.get_password().ok()) {
                     #[cfg(debug_assertions)]
                     println!("Configured github token: {}", _token.bright_yellow());
                     #[cfg(not(debug_assertions))]

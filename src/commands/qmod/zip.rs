@@ -20,8 +20,6 @@ use crate::terminal::colors::QPMColor;
 
 use qpm_package::models::package::PackageConfig;
 
-use color_eyre::eyre::ensure;
-
 use color_eyre::Result;
 
 #[derive(Args, Debug, Clone, Default)]
@@ -51,6 +49,10 @@ pub struct ZipQmodOperationArgs {
     ///
     #[clap(short = 'f', long = "include_files")]
     pub include_files: Option<Vec<PathBuf>>,
+
+    /// Import a manifest from a different directory instead of generating one from the current package
+    #[clap(long = "import")]
+    pub import: Option<PathBuf>,
 
     #[clap(long, default_value = "false")]
     pub(crate) offline: bool,
@@ -84,14 +86,8 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
     Ok(relative_path)
 }
 
-pub fn execute_qmod_zip_operation(
-    build_parameters: ZipQmodOperationArgs,
-    additional_include_folders: Vec<PathBuf>,
-) -> Result<()> {
-    ensure!(
-        std::path::Path::new("mod.template.json").exists(),
-        "No mod.template.json found in the current directory, set it up please :) Hint: use \"qmod create\""
-    );
+pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs, additional_include_folders: Vec<PathBuf>,) -> Result<()> {
+    let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
     let package = PackageConfig::read(".")?;
 
@@ -102,15 +98,21 @@ pub fn execute_qmod_zip_operation(
         .expect("Triplet should exist in package")
         .into_owned();
 
-    let new_manifest = generate_qmod_manifest(
-        &package,
-        shared_package,
-        ManifestQmodOperationArgs {
-            exclude_libs: build_parameters.exclude_libs.clone(),
-            include_libs: build_parameters.include_libs.clone(),
-            offline: build_parameters.offline,
-        },
-    )?;
+    let new_manifest = match build_parameters.import {
+        Some(import_path) => {
+            let manifest_file = File::open(&import_path)?;
+            serde_json::from_reader(manifest_file)?
+        }
+        None => generate_qmod_manifest(
+            &package,
+            shared_package,
+            ManifestQmodOperationArgs {
+                exclude_libs: build_parameters.exclude_libs.clone(),
+                include_libs: build_parameters.include_libs.clone(),
+                offline: build_parameters.offline,
+            }
+        )?,
+    };
 
     if build_parameters.clean {
         // Run clean script

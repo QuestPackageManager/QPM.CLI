@@ -156,12 +156,13 @@ impl Default for UserConfig {
 }
 
 #[inline]
-pub fn get_keyring() -> keyring::Entry {
-    keyring::Entry::new("qpm", "github").unwrap()
+pub fn get_keyring() -> Option<keyring::v1::Entry> {
+    keyring::v1::Entry::new("qpm", "github").ok()
 }
+
 #[inline]
-pub fn get_publish_keyring() -> keyring::Entry {
-    keyring::Entry::new("qpm", "publish").unwrap()
+pub fn get_publish_keyring() -> Option<keyring::v1::Entry> {
+    keyring::v1::Entry::new("qpm", "publish").ok()
 }
 
 #[cfg(windows)]

@@ -13,10 +13,12 @@ pub struct KeyCommand {
 
 impl Command for KeyCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        if self.delete && get_publish_keyring().get_password().is_ok() {
-            get_publish_keyring()
-                .delete_credential()
-                .context("Removing publish key failed")?;
+        if self.delete && get_publish_keyring().and_then(|e| e.get_password().ok()).is_some() {
+            if let Some(entry) = get_publish_keyring() {
+                entry
+                    .delete_credential()
+                    .context("Removing publish key failed")?;
+            }
             println!("Deleted publish key from config, it will no longer be used");
             return Ok(());
         } else if self.delete {
@@ -26,15 +28,19 @@ impl Command for KeyCommand {
 
         if let Some(key) = self.key {
             // write key
-            get_publish_keyring()
-                .set_password(&key)
-                .context("Failed to set publish key")?;
+            if let Some(entry) = get_publish_keyring() {
+                entry
+                    .set_password(&key)
+                    .context("Failed to set publish key")?;
+            } else {
+                return Err(color_eyre::eyre::eyre!("Keyring unavailable"));
+            }
             println!(
                 "Configured a publish key! This will now be used for future qpm publish calls"
             );
         } else {
             // read token, possibly unused so prepend with _ to prevent warnings
-            if let Ok(key) = get_publish_keyring().get_password() {
+            if let Some(key) = get_publish_keyring().and_then(|e| e.get_password().ok()) {
                 #[cfg(debug_assertions)]
                 println!("Configured publish key: {}", key.bright_yellow());
                 #[cfg(not(debug_assertions))]
