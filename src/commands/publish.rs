@@ -127,11 +127,10 @@ impl PublishCommand {
             QPMRepository::publish_package(&qpackage, key)?;
         } else {
             // Empty strings are None, you shouldn't be able to publish with a None
-            let publish_key = get_publish_keyring();
+            let publish_key = get_publish_keyring().and_then(|p| p.get_password().ok());
             QPMRepository::publish_package(
                 &qpackage,
                 &publish_key
-                    .get_password()
                     .context("Unable to get stored publish key!")?,
             )?;
         }
