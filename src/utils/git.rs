@@ -51,7 +51,7 @@ pub fn check_git() -> Result<()> {
 
 pub fn get_release(url: &str, out: &std::path::Path) -> Result<bool> {
     check_git()?;
-    if let Ok(token_unwrapped) = get_keyring()?.get_password() {
+    if let Some(token_unwrapped) = get_keyring().and_then(|e| e.get_password().ok()) {
         get_release_with_token(url, out, &token_unwrapped)
     } else {
         get_release_without_token(url, out)
@@ -127,7 +127,7 @@ pub fn get_release_with_token(url: &str, out: &std::path::Path, token: &str) -> 
 
 pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
     check_git()?;
-    if let Ok(token_unwrapped) = get_keyring()?.get_password()
+    if let Some(token_unwrapped) = get_keyring().and_then(|e| e.get_password().ok())
         && let Some(gitidx) = url.find("github.com")
     {
         url.insert_str(gitidx, &format!("{token_unwrapped}@"));
@@ -168,7 +168,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
 
                 let mut error_string = std::str::from_utf8(stderr.buffer())?.to_string();
 
-                if let Ok(token_unwrapped) = get_keyring()?.get_password() {
+                if let Some(token_unwrapped) = get_keyring().and_then(|e| e.get_password().ok()) {
                     error_string = error_string.replace(&token_unwrapped, "***");
                 }
 
@@ -178,7 +178,7 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         Err(e) => {
             let mut error_string = e.to_string();
 
-            if let Ok(token_unwrapped) = get_keyring()?.get_password() {
+            if let Some(token_unwrapped) = get_keyring().and_then(|e| e.get_password().ok()) {
                 error_string = error_string.replace(&token_unwrapped, "***");
             }
 
