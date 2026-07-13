@@ -94,7 +94,7 @@ impl Command for PublishCommand {
             QPMRepository::publish_package(&shared_package, key)?;
         } else {
             // Empty strings are None, you shouldn't be able to publish with a None
-            let publish_key = get_publish_keyring();
+            let publish_key = get_publish_keyring()?;
             QPMRepository::publish_package(
                 &shared_package,
                 &publish_key

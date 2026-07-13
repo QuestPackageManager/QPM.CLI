@@ -13,8 +13,8 @@ pub struct TokenCommand {
 
 impl Command for TokenCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        if self.delete && get_keyring().get_password().is_ok() {
-            get_keyring()
+        if self.delete && get_keyring()?.get_password().is_ok() {
+            get_keyring()?
                 .delete_credential()
                 .context("Removing password failed")?;
             println!("Deleted github token from config, it will no longer be used");
@@ -27,14 +27,14 @@ impl Command for TokenCommand {
         match self.token {
             Some(token) => {
                 // write token
-                get_keyring()
+                get_keyring()?
                     .set_password(&token)
                     .context("Storing token failed!")?;
                 println!("Configured a github token! This will now be used in qpm restore");
             }
             None => {
                 // read token, possibly unused so prepend with _ to prevent warnings
-                if let Ok(_token) = get_keyring().get_password() {
+                if let Ok(_token) = get_keyring()?.get_password() {
                     #[cfg(debug_assertions)]
                     println!("Configured github token: {}", _token.bright_yellow());
                     #[cfg(not(debug_assertions))]

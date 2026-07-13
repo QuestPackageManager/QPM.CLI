@@ -156,10 +156,13 @@ impl Default for UserConfig {
 }
 
 #[inline]
-pub fn get_keyring() -> keyring_core::Entry {
-    keyring_core::Entry::new("qpm", "github").unwrap()
+pub fn get_keyring() -> Result<keyring::v1::Entry> {
+    keyring::v1::Entry::new("qpm", "github")
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to access keyring: {}", e))
 }
+
 #[inline]
-pub fn get_publish_keyring() -> keyring_core::Entry {
-    keyring_core::Entry::new("qpm", "publish").unwrap()
+pub fn get_publish_keyring() -> Result<keyring::v1::Entry> {
+    keyring::v1::Entry::new("qpm", "publish")
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to access keyring: {}", e))
 }

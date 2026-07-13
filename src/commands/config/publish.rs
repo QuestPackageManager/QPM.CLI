@@ -13,8 +13,8 @@ pub struct KeyCommand {
 
 impl Command for KeyCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        if self.delete && get_publish_keyring().get_password().is_ok() {
-            get_publish_keyring()
+        if self.delete && get_publish_keyring()?.get_password().is_ok() {
+            get_publish_keyring()?
                 .delete_credential()
                 .context("Removing publish key failed")?;
             println!("Deleted publish key from config, it will no longer be used");
@@ -26,7 +26,7 @@ impl Command for KeyCommand {
 
         if let Some(key) = self.key {
             // write key
-            get_publish_keyring()
+            get_publish_keyring()?
                 .set_password(&key)
                 .context("Failed to set publish key")?;
             println!(
@@ -34,7 +34,7 @@ impl Command for KeyCommand {
             );
         } else {
             // read token, possibly unused so prepend with _ to prevent warnings
-            if let Ok(key) = get_publish_keyring().get_password() {
+            if let Ok(key) = get_publish_keyring()?.get_password() {
                 #[cfg(debug_assertions)]
                 println!("Configured publish key: {}", key.bright_yellow());
                 #[cfg(not(debug_assertions))]
