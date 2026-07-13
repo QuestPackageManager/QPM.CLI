@@ -1,3 +1,15 @@
+//! QPKG command: Creates a distributable package containing headers and binaries.
+//!
+//! Process:
+//! 1. Build mod (unless --no-build is set)
+//! 2. Create ZIP archive containing:
+//!    - Headers from sharedDirectory
+//!    - Binaries from workspace.outBinaries
+//!    - Manifest (qpm2.qpkg.json) with package metadata
+//! 3. Output as {package-id}.qpkg ready for distribution
+//!
+//! The QPKG is used by other projects as a dependency via `qpm restore`.
+
 use std::{
     collections::HashMap,
     fs,
@@ -20,7 +32,7 @@ use crate::{
 
 use super::Command;
 
-/// Templatr rust rewrite (implementation not based on the old one)
+/// Creates a QPKG package: builds mod, zips headers + binaries + manifest
 #[derive(Args, Clone, Debug)]
 pub struct QPkgCommand {
     /// Directory storing the built binaries, as {binary_name}
@@ -52,6 +64,7 @@ pub struct QPkgCommand {
 }
 
 impl Command for QPkgCommand {
+    /// Creates a QPKG ZIP archive: build (optional) -> collect headers/binaries -> zip -> finalize
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
@@ -96,7 +109,7 @@ impl Command for QPkgCommand {
 
         let options = FileOptions::<()>::default();
 
-        // add shared directory
+        // Add headers from sharedDirectory to ZIP archive (public C++ API for dependents)
         zip.add_directory_from_path(&package.shared_directory, options)
             .context("Failed to add shared directory to QPKG zip")?;
 

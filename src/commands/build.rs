@@ -1,3 +1,12 @@
+//! Build command: Compiles a mod and copies binaries to output directory.
+//!
+//! Process:
+//! 1. Restore dependencies if qpm2.json differs from qpm2.shared.json
+//! 2. Resolve NDK if --ndk-resolve flag is set
+//! 3. Execute build script from workspace.scripts.build
+//! 4. Copy binaries from build output to workspace.outBinaries locations
+//! 5. Optionally create QMOD package if --qmod flag is set
+
 use std::path::{Path, PathBuf};
 
 use clap::Args;
@@ -22,7 +31,7 @@ use crate::{
 
 use super::Command;
 
-/// Templatr rust rewrite (implementation not based on the old one)
+/// Builds mod: restores dependencies, runs build script, copies binaries
 #[derive(Args, Clone, Debug)]
 pub struct BuildCommand {
     pub args: Option<Vec<String>>,
@@ -50,6 +59,7 @@ pub struct BuildCommand {
 }
 
 impl Command for BuildCommand {
+    /// Executes the build workflow: restore -> resolve NDK -> build -> copy binaries -> qmod (optional)
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         let mut shared_package = SharedPackageConfig::read(".")?;
@@ -119,6 +129,10 @@ impl Command for BuildCommand {
     }
 }
 
+/// Copies built binaries from their compile locations to the output directory.
+///
+/// Each binary path is relative to the project root. Only the filename is preserved
+/// in the output directory structure.
 fn copy_bins(out_dir: &Path, out_binaries: &[PathBuf]) -> color_eyre::Result<()> {
     for binary in out_binaries {
         println!(
