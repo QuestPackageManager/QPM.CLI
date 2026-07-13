@@ -23,15 +23,15 @@ use super::Command;
 /// Templatr rust rewrite (implementation not based on the old one)
 #[derive(Args, Clone, Debug)]
 pub struct QPkgCommand {
-    /// Directory storing the binaries for each triplet as {triplet}/{binary_name}
+    /// Directory storing the built binaries, as {binary_name}
     #[clap(short, long = "input-bins")]
     pub input_bin_dir: Option<String>,
 
-    /// If to build the QPKG before creating the QPKG file
-    #[clap(short, long, default_value = "false")]
-    pub build: bool,
+    /// Skip building before creating the QPKG file
+    #[clap(short = 'n', long = "no-build", default_value = "false")]
+    pub no_build: bool,
 
-    /// Whether to create a qmod file when building the QPKG. Requires `build` to be true
+    /// Whether to create a qmod file when building the QPKG. Requires building (i.e. `--no-build` not set)
     #[clap(long, default_value = "false")]
     pub qmod: bool,
 
@@ -60,7 +60,7 @@ impl Command for QPkgCommand {
             .map(PathBuf::from)
             .unwrap_or_else(|| FileRepository::build_path(&package.dependencies_directory));
 
-        if self.build {
+        if !self.no_build {
             let command = BuildCommand {
                 args: None,
                 offline: self.offline,
