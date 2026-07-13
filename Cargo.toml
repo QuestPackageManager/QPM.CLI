@@ -68,7 +68,13 @@ reqwest = { version = "0.13", features = [
 ], default-features = false }
 
 gix = { version = "*", features = [
-
+    "command",
+    "sha1",
+    "attributes",
+    "progress-tree",
+    "worktree-mutation",
+    "blocking-network-client",
+    "blocking-http-transport-reqwest-rust-tls",
 ], optional = true, default-features = false }
 
 clap = { version = "4", features = ["derive"], optional = true }
