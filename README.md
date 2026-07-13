@@ -91,19 +91,41 @@ qpm ndk resolve -d  # Auto-downloads and configures NDK
 
 ### Understanding QPKG Files
 
-A **`.qpkg`** is the distributable package format - a ZIP containing:
-- **Headers** (`sharedDirectory`) - C++ headers for dependents to compile against
-- **Binaries** (`workspace.outBinaries`) - Pre-built shared objects (.so files)
-- **Manifest** (`qpm2.qpkg.json`) - Package metadata and configuration
+A **`.qpkg`** is a ZIP archive containing pre-built binaries and headers for distribution.
 
-When another project runs `qpm restore`, it downloads and extracts your `.qpkg` into:
+**What Gets Packaged:**
+
+**Headers** - From `sharedDirectory`:
+- All C++ header files (typically `shared/include/`)
+- Public API that dependents compile against
+- Used for: `#include <mylib/api.h>` in dependent code
+
+**Binaries** - From `workspace.outBinaries`:
+- Pre-built `.so` files from your build output
+- Used for linking during dependent's compilation
+- Typically one binary per release/debug configuration
+- Only include debug binaries if they have different features
+- Example: `build/libmymod.so` (release) or `build/libmymod_debug.so` (debug, only if needed)
+
+**Manifest** - `qpm2.qpkg.json`:
+- Package metadata and dependencies
+- Compile flags and include paths
+- Verification checksums
+
+**Package Structure:**
 ```
-cache/{package-id}/{version}/
-├── src/          # Headers extracted here
-│   ├── shared/
-│   └── qpm2.qpkg.json
-└── lib/          # Binaries (.so files) extracted here
+my-mod.qpkg
+├── shared/               # Headers for inclusion
+│   └── include/mylib/api.h
+├── lib/                  # Binaries for linking
+│   └── libmymod.so
+└── qpm2.qpkg.json       # Manifest
 ```
+
+**During Installation (`qpm restore`):**
+1. Extracts to cache: `~/.qpm-cache/{id}/{version}/src/` (headers) and `lib/` (binaries)
+2. Symlinks/copies into project: `extern/includes/{id}/` and `extern/libs/`
+3. Dependent project compiles with headers, links with binaries
 
 ### Build Integration: `qpm2 build`
 
