@@ -42,7 +42,8 @@ impl Command for EditQmodJsonCommand {
         let package = PackageConfig::read(".")?;
 
         let mod_template = package
-            .qmod_template
+            .qmod
+            .template
             .as_deref()
             .unwrap_or_else(|| Path::new("mod.template.json"));
 

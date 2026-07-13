@@ -230,7 +230,7 @@ fn do_pin(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
         true => format!("={version}"),
         false => format!("^{version}"),
     };
-    package.ndk = Some(VersionReq::parse(&req)?);
+    package.workspace.ndk = Some(VersionReq::parse(&req)?);
     package.write(".")?;
 
     let ndk_path = get_combine_config()
@@ -255,7 +255,7 @@ fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<(), color_eyre::eyre::Error
         bail!("No package found in current directory")
     };
 
-    let ndk_requirement = package.ndk.clone();
+    let ndk_requirement = package.workspace.ndk.clone();
     let Some(ndk_requirement) = ndk_requirement else {
         bail!("No NDK requirement set in project")
     };

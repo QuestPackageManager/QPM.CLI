@@ -131,7 +131,7 @@ impl Command for QPkgCommand {
                 .context("Failed to write shared file to QPKG zip")?;
         }
 
-        let binaries = package.out_binaries.clone().unwrap_or_default();
+        let binaries = package.workspace.out_binaries.clone().unwrap_or_default();
 
         // src -> dst zip
         let binaries_map: HashMap<PathBuf, PathBuf> = binaries

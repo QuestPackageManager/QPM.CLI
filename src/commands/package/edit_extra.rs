@@ -26,13 +26,13 @@ impl Command for EditExtraArgs {
 
         if let Some(mod_link) = self.mod_link {
             println!("Setting mod_link: {mod_link:#?}");
-            package.qmod_url = Some(mod_link);
+            package.qmod.download_url = Some(mod_link);
             any_changed = true;
         }
 
         if let Some(qmod_id) = self.qmod_id {
             println!("Setting qmod_id: {qmod_id:#?}");
-            package.qmod_id = Some(qmod_id);
+            package.qmod.id = Some(qmod_id);
             any_changed = true;
         }
 

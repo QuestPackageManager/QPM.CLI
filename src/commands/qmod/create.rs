@@ -45,7 +45,8 @@ pub(crate) fn execute_qmod_create_operation(
     let package = PackageConfig::read(".")?;
 
     let mod_template = package
-        .qmod_template
+        .qmod
+        .template
         .as_deref()
         .unwrap_or_else(|| Path::new("mod.template.json"));
 

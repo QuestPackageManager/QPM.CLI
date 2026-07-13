@@ -170,7 +170,7 @@ fn is_modified(shared_package_opt: &Option<SharedPackageConfig>, package: &Packa
 }
 
 pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
-    let Some(ndk_req) = package.ndk.as_ref() else {
+    let Some(ndk_req) = package.workspace.ndk.as_ref() else {
         return Ok(());
     };
 

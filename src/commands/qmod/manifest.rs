@@ -53,7 +53,8 @@ pub(crate) fn generate_qmod_manifest(
     build_parameters: ManifestQmodOperationArgs,
 ) -> Result<ModJson> {
     let mod_template = package
-        .qmod_template
+        .qmod
+        .template
         .as_deref()
         .unwrap_or_else(|| Path::new("mod.template.json"));
 
@@ -74,6 +75,7 @@ pub(crate) fn generate_qmod_manifest(
     let game_id = env.get(QPM_ENV_GAME_ID);
 
     let binaries = package
+        .workspace
         .out_binaries
         .iter()
         .flatten()
@@ -81,7 +83,8 @@ pub(crate) fn generate_qmod_manifest(
         .collect();
 
     let mod_id = package
-        .qmod_id
+        .qmod
+        .id
         .as_ref()
         .unwrap_or(&shared_package.config.id.0);
 

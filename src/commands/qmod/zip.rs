@@ -128,16 +128,16 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs,
     include_dirs.extend(
         build_parameters
             .include_dirs
-            .unwrap_or(package.qmod_include_dirs.clone()),
+            .unwrap_or(package.qmod.search_dirs.clone()),
     );
 
     let include_files = build_parameters
         .include_files
-        .unwrap_or(package.qmod_include_files.clone());
+        .unwrap_or(package.qmod.include_files.clone());
 
     let qmod_out = build_parameters
         .out_target
-        .or(package.qmod_output.clone())
+        .or(package.qmod.output.clone())
         .unwrap_or(format!("./{}", new_manifest.id).into());
 
     let look_for_files = |s: &str| {

@@ -99,7 +99,7 @@ impl InstallCommand {
         println!("Publishing package to local file repository");
         let shared_package = SharedPackageConfig::read(".")?;
         let project_folder = PathBuf::from(".").canonicalize()?;
-        let binaries = shared_package.config.out_binaries.clone().unwrap_or_default();
+        let binaries = shared_package.config.workspace.out_binaries.clone().unwrap_or_default();
         if !self.no_validate {
             println!("Skipping validation of binaries");
         } else {

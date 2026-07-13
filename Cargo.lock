@@ -5632,3 +5632,7 @@ dependencies = [
  "syn 2.0.118",
  "winnow",
 ]
+
+[[patch.unused]]
+name = "qpm_package"
+version = "2.0.0"

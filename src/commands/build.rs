@@ -107,7 +107,7 @@ impl Command for BuildCommand {
         }
 
         // now copy binaries
-        copy_bins(&out_dir, &package.out_binaries.clone().unwrap_or_default())?;
+        copy_bins(&out_dir, &package.workspace.out_binaries.clone().unwrap_or_default())?;
 
         // finally qmod
         if self.qmod {

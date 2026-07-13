@@ -8,7 +8,7 @@ use crate::models::config::get_combine_config;
 
 /// Resolves the NDK version based on the package configuration.
 pub fn resolve_ndk_version(package: &PackageConfig) -> Option<PathBuf> {
-    let ndk_requirement = package.ndk.as_ref()?;
+    let ndk_requirement = package.workspace.ndk.as_ref()?;
 
     let ndk_installed_path_opt = get_combine_config()
         .get_ndk_installed()

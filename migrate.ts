@@ -60,22 +60,35 @@ type QPM1Dep = {
 };
 
 interface QPM2 {
+  configVersion: string;
   id: string;
   version: string;
-  dependenciesDirectory: string;
-  sharedDirectory: string;
-  workspace?: {
-    scripts?: Record<string, string[] | undefined>;
-  };
   additionalData?: {
     description?: string;
     author?: string;
     license?: string;
+    url?: string;
   };
-
+  workspace?: {
+    scripts?: Record<string, string[] | undefined>;
+    env?: Record<string, string>;
+    ndk?: string;
+    outBinaries?: string[];
+    toolchainOut?: string;
+    cmake?: boolean;
+  };
+  qmod?: {
+    output?: string;
+    template?: string;
+    searchDirs?: string[];
+    includeFiles?: string[];
+    downloadUrl?: string;
+    id?: string;
+  };
   dependencies: Record<string, QPM2Dep>;
   devDependencies: Record<string, QPM2Dep>;
-  env: Record<string, string>;
+  dependenciesDirectory: string;
+  sharedDirectory: string;
 
   // Additional compile options for the package
   compileOptions?: {
@@ -91,24 +104,6 @@ interface QPM2 {
     // Additional C flags to add.
     cFlags?: string[];
   };
-
-  // QMod URL for this package
-  qmodUrl?: string;
-
-  // QMod ID for this package
-  qmodId?: string;
-
-  // QMod template path for this package (e.g. mod.template.json)
-  qmodTemplate?: string;
-
-  qmodIncludeDirs?: string[];
-  qmodIncludeFiles?: string[];
-
-  // Output binaries for this package
-  outBinaries?: string[];
-
-  configVersion: string;
-  toolchainOut: string;
 }
 
 interface QPM2Dep {
@@ -147,10 +142,15 @@ const qpm2Bin =
 const outBinaries = qpm2Bin ? [qpm2Bin] : [];
 
 const qpm2: QPM2 = {
+  configVersion: "2.0.0",
   id: qpm1.info.id,
   version: qpm1.info.version,
-  dependenciesDirectory: qpm1.dependenciesDir,
-  sharedDirectory: qpm1.sharedDir,
+  additionalData: {
+    description: "",
+    author: qpm1.info.author,
+    license: "",
+    url: qpm1.info.url,
+  },
   workspace: {
     scripts: {
       build: qpm1.workspace?.scripts?.build,
@@ -158,27 +158,23 @@ const qpm2: QPM2 = {
       copy: qpm1.workspace?.scripts?.copy,
       qmod: qpm1.workspace?.scripts?.qmod,
     },
+    outBinaries,
+    toolchainOut: qpm1.info.additionalData?.toolchainOut ?? "toolchain.json",
+    cmake: qpm1.info.additionalData?.cmake,
   },
-  additionalData: {
-    description: "",
-    author: qpm1.info.author,
-    license: "",
+  qmod: {
+    id: qpm1.info.id,
+    template: "mod.template.json",
+    downloadUrl: qpm1.info.additionalData?.modLink,
+    searchDirs: qpm1.workspace?.qmodIncludeDirs,
+    includeFiles: qpm1.workspace?.qmodIncludeFiles,
   },
-
   dependencies: dependencies,
   devDependencies: devDependencies,
-  env: {},
+  dependenciesDirectory: qpm1.dependenciesDir,
+  sharedDirectory: qpm1.sharedDir,
 
   compileOptions: qpm1.info.additionalData?.compileOptions,
-  outBinaries,
-  qmodId: qpm1.info.id,
-  qmodTemplate: "mod.template.json",
-  qmodUrl: qpm1.info.additionalData?.modLink,
-  qmodIncludeDirs: qpm1.workspace?.qmodIncludeDirs,
-  qmodIncludeFiles: qpm1.workspace?.qmodIncludeFiles,
-
-  configVersion: "2.0.0",
-  toolchainOut: qpm1.info.additionalData?.toolchainOut ?? "toolchain.json",
 };
 
 Deno.writeTextFile("./qpm2.json", JSON.stringify(qpm2, undefined, 2));

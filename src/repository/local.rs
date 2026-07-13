@@ -505,7 +505,7 @@ impl FileRepository {
             );
         }
 
-        let expected_binaries = package.out_binaries.clone().unwrap_or_default();
+        let expected_binaries = package.workspace.out_binaries.clone().unwrap_or_default();
         let binaries: Vec<PathBuf> = expected_binaries
             .iter()
             .map(|b| dep_cache_path.binary_path(b))

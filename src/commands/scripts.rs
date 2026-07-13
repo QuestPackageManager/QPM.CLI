@@ -84,17 +84,18 @@ pub fn invoke_script(
             .stderr(Stdio::inherit());
 
         // Set the environment variables for the script
-        c.envs(
-            package
-                .env
-                .iter()
-                .map(|(k, v)| (format!("QPM_{k}"), v.as_str())),
-        );
+        if let Some(env_vars) = &package.workspace.env {
+            c.envs(
+                env_vars
+                    .iter()
+                    .map(|(k, v)| (format!("QPM_{k}"), v.as_str())),
+            );
+        }
 
         // QPM defined environment variables
         c.env(
             "QPM_QMOD_ID",
-            package.qmod_id.as_deref().unwrap_or(package.id.0.as_str()),
+            package.qmod.id.as_deref().unwrap_or(package.id.0.as_str()),
         )
         .env("QPM_PACKAGE_ID", package.id.to_string())
         .env("QPM_PACKAGE_VERSION", package.version.to_string());

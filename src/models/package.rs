@@ -221,11 +221,11 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         let mods: Vec<ModDependency> = direct_dependencies
             .values()
             // Removes any dependency without a qmod link
-            .filter(|result| result.restored_config.qmod_url.is_some())
+            .filter(|result| result.restored_config.qmod.download_url.is_some())
             .map(|result| ModDependency {
                 version_range: result.dependency.version_range.clone(),
                 id: result.restored_config.id.0.clone(),
-                mod_link: result.restored_config.qmod_url.clone(),
+                mod_link: result.restored_config.qmod.download_url.clone(),
                 required: result.dependency.qmod_required,
             })
             .collect();
@@ -248,7 +248,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
     }
 
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()> {
-        let Some(toolchain_path) = self.config.toolchain_out.as_ref() else {
+        let Some(toolchain_path) = self.config.workspace.toolchain_out.as_ref() else {
             return Ok(());
         };
 
