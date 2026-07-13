@@ -8,8 +8,7 @@ use qpm_package::models::{
     package::PackageConfig,
     qpackages::QPackagesPackage,
     qpkg::{QPKG_JSON, QPkg},
-    shared_package::{SharedPackageConfig, SharedTriplet},
-    triplet::TripletId,
+    shared_package::SharedPackageConfig,
 };
 use sha2::{Digest, Sha256};
 use zip::ZipArchive;
@@ -104,10 +103,7 @@ impl PublishCommand {
         let shared_package = SharedPackageConfig::read(".")?;
 
         // validate current package against shared package
-        for (triplet_id, shared_triplet) in &shared_package.locked_triplet {
-            check_triplet(&package, &qpackages, triplet_id, shared_triplet)
-                .with_context(|| format!("Triplet {triplet_id}"))?;
-        }
+        check_dependencies(&package, &qpackages, &shared_package)?;
 
         let qpkg_cursor = self
             .validate_qpkg(&package)
@@ -138,17 +134,12 @@ impl PublishCommand {
     }
 }
 
-fn check_triplet(
+fn check_dependencies(
     package: &PackageConfig,
     repo: &impl Repository,
-    triplet_id: &TripletId,
-    shared_triplet: &SharedTriplet,
+    shared_package: &SharedPackageConfig,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let triplet = package
-        .triplets
-        .get_merged_triplet(triplet_id)
-        .context("Failed to get triplet settings")?;
-    let resolved_deps = &shared_triplet.restored_dependencies;
+    let resolved_deps = &shared_package.restored_dependencies;
     for (dep_id, dep) in resolved_deps {
         if repo.get_package(dep_id, &dep.restored_version)?.is_none() {
             bail!(
@@ -157,9 +148,9 @@ fn check_triplet(
             );
         };
     }
-    for (dep_id, dependency) in &triplet.dependencies {
+    for (dep_id, dependency) in &package.dependencies {
         // if we can not find any dependency that matches ID and version satisfies given range, then we are missing a dep
-        let el = shared_triplet
+        let el = shared_package
             .restored_dependencies
             .get(dep_id)
             .context(format!(

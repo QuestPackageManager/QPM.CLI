@@ -6,13 +6,11 @@ use std::{
 use clap::{Args, Subcommand};
 use color_eyre::{
     Result, Section,
-    eyre::{Context, ContextCompat, bail, eyre},
+    eyre::{Context, bail, eyre},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use qpm_package::models::{
-    package::PackageConfig, shared_package::SharedPackageConfig, triplet::TripletId,
-};
+use qpm_package::models::package::PackageConfig;
 use semver::{Version, VersionReq};
 use std::io::Write;
 
@@ -37,10 +35,6 @@ use super::Command;
 pub struct Ndk {
     #[clap(subcommand)]
     pub op: NdkOperation,
-
-    /// The triplet to use for the operation
-    #[clap(long, short, global = true)]
-    pub triplet: Option<String>,
 
     /// If true, does not print progress
     #[clap(long, short, global = true, default_value = "false")]
@@ -138,12 +132,6 @@ fn range_match_ndk<'a>(
 
 impl Command for Ndk {
     fn execute(self) -> Result<()> {
-        let triplet_id = self.triplet.map(TripletId).unwrap_or_else(|| {
-            SharedPackageConfig::read(".")
-                .expect("Failed to read shared package config")
-                .restored_triplet
-        });
-
         match self.op {
             NdkOperation::Download(d) => {
                 let manifest = get_android_manifest()?;
@@ -203,15 +191,15 @@ impl Command for Ndk {
 
                 println!("{}", ndk_path.display());
             }
-            NdkOperation::Resolve(r) => do_resolve(r, self.quiet, &triplet_id)?,
-            NdkOperation::Pin(u) => do_pin(u, &triplet_id)?,
+            NdkOperation::Resolve(r) => do_resolve(r, self.quiet)?,
+            NdkOperation::Pin(u) => do_pin(u)?,
         }
 
         Ok(())
     }
 }
 
-fn do_pin(u: PinArgs, triplet: &TripletId) -> Result<(), color_eyre::eyre::Error> {
+fn do_pin(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
     let version = match u.online {
         false => {
             let version_req = VersionReq::parse(&u.version)?;
@@ -237,16 +225,12 @@ fn do_pin(u: PinArgs, triplet: &TripletId) -> Result<(), color_eyre::eyre::Error
         }
     };
     let mut package = PackageConfig::read(".")?;
-    let triplet = package
-        .triplets
-        .get_triplet_standalone_mut(triplet)
-        .ok_or_else(|| eyre!("Triplet {triplet} not found in package"))?;
 
     let req = match u.strict {
         true => format!("={version}"),
         false => format!("^{version}"),
     };
-    triplet.ndk = Some(VersionReq::parse(&req)?);
+    package.ndk = Some(VersionReq::parse(&req)?);
     package.write(".")?;
 
     let ndk_path = get_combine_config()
@@ -259,11 +243,7 @@ fn do_pin(u: PinArgs, triplet: &TripletId) -> Result<(), color_eyre::eyre::Error
     Ok(())
 }
 
-fn do_resolve(
-    r: ResolveArgs,
-    quiet: bool,
-    triplet_id: &TripletId,
-) -> Result<(), color_eyre::eyre::Error> {
+fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<(), color_eyre::eyre::Error> {
     let package = PackageConfig::exists(".")
         .then(|| PackageConfig::read("."))
         .transpose()?;
@@ -275,17 +255,12 @@ fn do_resolve(
         bail!("No package found in current directory")
     };
 
-    let triplet = package
-        .triplets
-        .get_merged_triplet(triplet_id)
-        .context("Failed to get triplet settings")?;
-
-    let ndk_requirement = triplet.ndk.clone();
+    let ndk_requirement = package.ndk.clone();
     let Some(ndk_requirement) = ndk_requirement else {
         bail!("No NDK requirement set in project")
     };
 
-    let ndk_installed_path_opt = ndk::resolve_ndk_version(&triplet);
+    let ndk_installed_path_opt = ndk::resolve_ndk_version(&package);
 
     let ndk_installed_path: PathBuf = match ndk_installed_path_opt {
         // NDK Found, unwrap

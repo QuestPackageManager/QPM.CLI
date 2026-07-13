@@ -5,9 +5,8 @@ use color_eyre::{
     eyre::{Context, ContextCompat, bail},
 };
 use qpm_package::models::{
-    package::{DependencyId, PackageConfig},
+    package::{DependencyId, PackageConfig, PackageDependency},
     shared_package::SharedPackageConfig,
-    triplet::{PackageTripletDependency, TripletId},
 };
 use semver::{Version, VersionReq};
 
@@ -45,10 +44,6 @@ pub struct DependencyOperationAddArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
 
-    /// Triplet to add the dependency to, if not specified, the restored triplet is used
-    #[clap(long, short)]
-    pub triplet: Option<String>,
-
     /// optional version of the dependency that you want to add
     #[clap(short, long)]
     pub version: Option<VersionReq>,
@@ -71,10 +66,6 @@ pub struct DependencyOperationDownloadArgs {
     #[clap(short, long)]
     pub version: Option<Version>,
 
-    /// Triplet to download the dependency for, if not specified, the restored triplet is used
-    #[clap(long, short)]
-    pub triplet: Option<String>,
-
     /// Resolve all dependencies of the package
     #[clap(long, default_value = "false")]
     pub recursive: bool,
@@ -84,10 +75,6 @@ pub struct DependencyOperationDownloadArgs {
 pub struct DependencyOperationRemoveArgs {
     /// Id of the dependency as listed on qpackages
     pub id: String,
-
-    /// Triplet to remove the dependency from, if not specified, the restored triplet is used
-    #[clap(long, short)]
-    pub triplet: Option<String>,
 
     /// If the dependencies should be sorted after removing
     #[clap(long, default_value = "false")]
@@ -136,21 +123,14 @@ impl Command for DependencyOperationAddArgs {
             Option::None => None,
         };
 
-        let triplet = self.triplet.map(TripletId).or_else(|| {
-            let shared_package = SharedPackageConfig::read(".");
-            let restored = shared_package.ok()?.restored_triplet;
-            Some(restored)
-        });
-
-        put_dependency(&id, triplet.as_ref(), version, additional_data, self.sort)
+        put_dependency(&id, version, additional_data, self.sort)
     }
 }
 
 fn put_dependency(
     id: &DependencyId,
-    triplet: Option<&TripletId>,
     version: VersionReq,
-    new_triplet_dep: Option<PackageTripletDependency>,
+    new_dep: Option<PackageDependency>,
     sort: bool,
 ) -> Result<()> {
     println!(
@@ -160,31 +140,21 @@ fn put_dependency(
     );
 
     let mut package = PackageConfig::read(".")?;
-    let triplet = match triplet {
-        Some(triplet) => package
-            .triplets
-            .specific_triplets
-            .get_mut(triplet)
-            .context("Triplet not found")?,
-        None => &mut package.triplets.base.get_or_insert_default(),
-    };
 
-    let existing_dep = triplet.dependencies.get(id);
+    let existing_dep = package.dependencies.get(id);
 
     if existing_dep.is_some() {
         println!("Dependency already in qpm.json, updating!");
     }
 
-    let dep = PackageTripletDependency {
+    let dep = PackageDependency {
         version_range: version,
-        ..new_triplet_dep
-            .or(existing_dep.cloned())
-            .unwrap_or_default()
+        ..new_dep.or(existing_dep.cloned()).unwrap_or_default()
     };
-    triplet.dependencies.insert(id.clone(), dep);
+    package.dependencies.insert(id.clone(), dep);
 
     // if sort {
-    //     triplet.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+    //     package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
     // }
 
     package.write(".")?;
@@ -194,28 +164,12 @@ fn put_dependency(
 fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<()> {
     let mut package = PackageConfig::read(".")?;
 
-    let triplet = dependency_args
-        .triplet
-        .map(TripletId)
-        .or_else(|| {
-            let shared_package = SharedPackageConfig::read(".");
-            let restored = shared_package.ok()?.restored_triplet;
-            Some(restored)
-        })
-        .context("No triplet specified")?;
-
-    let triplet = package
-        .triplets
-        .specific_triplets
-        .get_mut(&triplet)
-        .context("Triplet not found")?;
-
-    triplet
+    package
         .dependencies
         .retain(|p, _| p.0 != dependency_args.id);
 
     // if dependency_args.sort {
-    //     triplet.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+    //     package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
     // }
 
     package.write(".")?;
@@ -253,30 +207,23 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
 
     // if recursive is true, resolve the dependencies of the package
     if dependency_args.recursive
-        && let Ok(resolved_deps) = SharedPackageConfig::resolve_from_package(
-            package.clone(),
-            dependency_args.triplet.map(TripletId),
-            &repository,
-        )
+        && let Ok((_, resolved_deps)) =
+            SharedPackageConfig::resolve_from_package(package.clone(), &repository)
     {
-        let resolved_deps = resolved_deps.1;
-
-        for (_triplet, triplet_deps) in resolved_deps {
-            for dep in triplet_deps {
-                println!(
-                    "Pulling {}:{}",
+        for dep in resolved_deps {
+            println!(
+                "Pulling {}:{}",
+                id.dependency_id_color(),
+                version.to_string().dependency_version_color()
+            );
+            repository.download_to_cache(&dep).with_context(|| {
+                format!(
+                    "Requesting {}:{}",
                     id.dependency_id_color(),
-                    version.to_string().dependency_version_color()
-                );
-                repository.download_to_cache(&dep.0).with_context(|| {
-                    format!(
-                        "Requesting {}:{}",
-                        id.dependency_id_color(),
-                        version.version_id_color()
-                    )
-                })?;
-                repository.add_to_db_cache(dep.0, true)?;
-            }
+                    version.version_id_color()
+                )
+            })?;
+            repository.add_to_db_cache(dep, true)?;
         }
 
         repository.write_repo()?;

@@ -89,14 +89,6 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
 pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs, additional_include_folders: Vec<PathBuf>,) -> Result<()> {
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
-    let package = PackageConfig::read(".")?;
-
-    let triplet_id = shared_package.restored_triplet.clone();
-    let triplet = package
-        .triplets
-        .get_merged_triplet(&triplet_id)
-        .expect("Triplet should exist in package")
-        .into_owned();
 
     let new_manifest = match build_parameters.import {
         Some(import_path) => {
@@ -119,7 +111,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs,
         let clean_script = &package.workspace.get_clean();
         if let Some(clean_script) = clean_script {
             println!("Running clean script");
-            scripts::invoke_script(clean_script, &[], &package, &triplet_id)?;
+            scripts::invoke_script(clean_script, &[], &package)?;
         }
     }
 
@@ -129,23 +121,23 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs,
         && !build_parameters.skip_build
     {
         println!("Running build script");
-        scripts::invoke_script(build_script, &[], &package, &triplet_id)?;
+        scripts::invoke_script(build_script, &[], &package)?;
     }
 
     let mut include_dirs = additional_include_folders;
     include_dirs.extend(
         build_parameters
             .include_dirs
-            .unwrap_or(triplet.qmod_include_dirs.clone()),
+            .unwrap_or(package.qmod_include_dirs.clone()),
     );
 
     let include_files = build_parameters
         .include_files
-        .unwrap_or(triplet.qmod_include_files.clone());
+        .unwrap_or(package.qmod_include_files.clone());
 
     let qmod_out = build_parameters
         .out_target
-        .or(triplet.qmod_output)
+        .or(package.qmod_output.clone())
         .unwrap_or(format!("./{}", new_manifest.id).into());
 
     let look_for_files = |s: &str| {

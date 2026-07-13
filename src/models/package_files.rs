@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use qpm_package::models::{package::DependencyId, triplet::TripletId};
+use qpm_package::models::package::DependencyId;
 use semver::Version;
 
 use crate::models::config::UserConfig;
@@ -12,8 +12,6 @@ use crate::models::config::UserConfig;
 pub struct PackageIdPath(pub DependencyId);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageVersionPath(pub PackageIdPath, pub Version);
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PackageTripletPath(pub PackageVersionPath, pub TripletId);
 
 impl PackageIdPath {
     pub fn new(id: DependencyId) -> Self {
@@ -36,11 +34,7 @@ impl PackageVersionPath {
         Self(PackageIdPath::new(id), version)
     }
 
-    pub fn triplet(self, triplet: TripletId) -> PackageTripletPath {
-        PackageTripletPath(self, triplet)
-    }
-
-    /// Returns the base path for the package version, which includes the triplet.
+    /// Returns the base path for the package version.
     /// cache/{id}/{version}
     pub fn base_path(&self) -> PathBuf {
         self.versions_path().join(self.1.to_string())
@@ -64,23 +58,11 @@ impl PackageVersionPath {
     pub fn tmp_path(&self) -> PathBuf {
         self.base_path().join("tmp")
     }
-}
 
-impl PackageTripletPath {
-    pub fn new(id: DependencyId, version: Version, triplet: TripletId) -> Self {
-        Self(PackageVersionPath::new(id, version), triplet)
-    }
-
-    /// Returns the base path for the package triplet, which includes the triplet.
-    /// cache/{id}/{version}/{triplet}
-    pub fn triplet_path(&self) -> PathBuf {
-        self.base_path().join(self.1.to_string())
-    }
-
-    /// Returns the base path for the package triplet, which includes the triplet.
-    /// cache/{id}/{version}/{triplet}/lib
+    /// Returns the path to the binaries for the package version.
+    /// cache/{id}/{version}/lib
     pub fn binaries_path(&self) -> PathBuf {
-        self.triplet_path().join("lib")
+        self.base_path().join("lib")
     }
 
     pub fn binary_path(&self, binary: &Path) -> PathBuf {
@@ -91,14 +73,6 @@ impl PackageTripletPath {
 
 impl Deref for PackageVersionPath {
     type Target = PackageIdPath;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Deref for PackageTripletPath {
-    type Target = PackageVersionPath;
 
     fn deref(&self) -> &Self::Target {
         &self.0

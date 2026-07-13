@@ -9,8 +9,7 @@ use clap::Args;
 use color_eyre::eyre::Context;
 use qpm_package::models::{
     package::PackageConfig,
-    qpkg::{QPKG_JSON, QPkg, QPkgTripletInfo},
-    triplet::TripletId,
+    qpkg::{QPKG_JSON, QPkg},
 };
 use zip::{ZipWriter, write::FileOptions};
 
@@ -40,10 +39,6 @@ pub struct QPkgCommand {
     #[clap(long, default_value = "false")]
     pub offline: bool,
 
-    /// Triplets to QPKG. Forwarded to build
-    #[clap(short, long)]
-    pub triplets: Option<Vec<String>>,
-
     /// Verbose output
     #[clap(short, long, default_value = "false")]
     pub verbose: bool,
@@ -68,7 +63,6 @@ impl Command for QPkgCommand {
         if self.build {
             let command = BuildCommand {
                 args: None,
-                triplets: self.triplets.clone(),
                 offline: self.offline,
                 out_dir: Some(build_dir.clone()),
                 qmod: self.qmod,
@@ -137,60 +131,44 @@ impl Command for QPkgCommand {
                 .context("Failed to write shared file to QPKG zip")?;
         }
 
-        let triplets: HashMap<TripletId, QPkgTripletInfo> = package
-            .triplets
-            .iter_merged_triplets()
-            // Filter triplets based on the provided triplet IDs
-            .filter(|(triplet_id, _)| {
-                self.triplets.is_none() || self.triplets.as_ref().unwrap().contains(&triplet_id.0)
-            })
-            .filter_map(|(triplet_id, triplet)| {
-                // extern/build/{triplet_id}/
-                let triplet_dir = build_dir.join(&triplet_id.0);
+        let binaries = package.out_binaries.clone().unwrap_or_default();
 
-                let binaries = triplet.out_binaries.clone()?;
+        // src -> dst zip
+        let binaries_map: HashMap<PathBuf, PathBuf> = binaries
+            .iter()
+            .map(|binary| {
+                // extern/build/{binary}
+                let binary_name = binary.file_name().unwrap_or_default();
+                let binary_path = build_dir.join(binary_name);
 
-                // src -> dst zip
-                let binaries_map: HashMap<PathBuf, PathBuf> = binaries
-                    .iter()
-                    .map(|binary| {
-                        // extern/build/{triplet_id}/{binary}
-                        let binary_name = binary.file_name().unwrap_or_default();
-                        let binary_path = triplet_dir.join(binary_name);
+                let zip_path = Path::new("bin").join(binary_name);
 
-                        let zip_path = Path::new("bin")
-                            .join(&triplet_id.0)
-                            .join(binary_name);
-
-                        if !binary_path.exists() {
-                            panic!(
-                                "Binary {} for triplet {} does not exist (looking in {}). `qpm2 build` must be run first.",
-                                binary.display().file_path_color(),
-                                triplet_id.triplet_id_color(),
-                                binary_path.display().file_path_color()
-                            );
-                        }
-                        (binary_path, zip_path)
-                    })
-                    .collect();
-
-                for (src, dst) in &binaries_map {
-                    zip.start_file_from_path(dst, options)
-                        .expect("Failed to start file in QPKG zip");
-
-                    let bytes = std::fs::read(src).expect("Failed to read binary file");
-                    zip.write_all(&bytes)
-                        .expect("Failed to write binary file to QPKG zip");
+                if !binary_path.exists() {
+                    panic!(
+                        "Binary {} does not exist (looking in {}). `qpm2 build` must be run first.",
+                        binary.display().file_path_color(),
+                        binary_path.display().file_path_color()
+                    );
                 }
-
-                Some((triplet_id, QPkgTripletInfo { files: binaries_map.into_values().collect() }))
+                (binary_path, zip_path)
             })
             .collect();
+
+        for (src, dst) in &binaries_map {
+            zip.start_file_from_path(dst, options)
+                .expect("Failed to start file in QPKG zip");
+
+            let bytes = std::fs::read(src).expect("Failed to read binary file");
+            zip.write_all(&bytes)
+                .expect("Failed to write binary file to QPKG zip");
+        }
+
+        let files = binaries_map.into_values().collect();
 
         let qpkg = QPkg {
             shared_dir: package.shared_directory.clone(),
             config: package,
-            triplets,
+            files,
         };
 
         zip.start_file(QPKG_JSON, options)

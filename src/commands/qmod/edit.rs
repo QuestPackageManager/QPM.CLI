@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use clap::Args;
-use color_eyre::eyre::ContextCompat;
-use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
+use qpm_package::models::package::PackageConfig;
 use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
 
@@ -41,13 +40,8 @@ pub struct EditQmodJsonCommand {
 impl Command for EditQmodJsonCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let shared_package = SharedPackageConfig::read(".")?;
-        let triplet = package
-            .triplets
-            .get_merged_triplet(&shared_package.restored_triplet)
-            .context("Restored triplet not in package config")?;
 
-        let mod_template = triplet
+        let mod_template = package
             .qmod_template
             .as_deref()
             .unwrap_or_else(|| Path::new("mod.template.json"));

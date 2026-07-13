@@ -4,13 +4,12 @@ use clap::Args;
 
 use color_eyre::{
     Section,
-    eyre::{Context, ContextCompat, Result, bail, eyre},
+    eyre::{Context, Result, bail, eyre},
 };
 use itertools::Itertools;
 use qpm_package::models::{
     package::PackageConfig,
     shared_package::{QPM_SHARED_JSON, SharedPackageConfig},
-    triplet::{PackageTriplet, TripletId},
 };
 use semver::Version;
 
@@ -25,9 +24,6 @@ use super::Command;
 
 #[derive(Args, Default)]
 pub struct RestoreCommand {
-    /// The triplet to restore
-    triplet: String,
-
     #[clap(default_value = "false", long, short)]
     update: bool,
 
@@ -63,12 +59,6 @@ impl Command for RestoreCommand {
             .then(|| SharedPackageConfig::read("."))
             .transpose()?;
 
-        let triplet_id = TripletId(self.triplet);
-        let triplet = package
-            .triplets
-            .get_merged_triplet(&triplet_id)
-            .with_context(|| format!("Triplet {} not found", triplet_id.triplet_id_color()))?;
-
         let mut repo = repository::useful_default_new(self.offline)?;
 
         // only update if:
@@ -91,42 +81,34 @@ impl Command for RestoreCommand {
             );
         }
 
+        // TODO: sanity check. This used to also require the requested triplet to be
+        // present in shared_package.locked_triplet before taking the locked-resolve path;
+        // now that there's a single config, `!unlocked` (driven by is_modified) is the only
+        // gate. Confirm this still behaves correctly for a shared package restored under
+        // the old multi-triplet format or otherwise missing restored_dependencies.
         let resolved_deps = match &mut shared_package_opt {
             // locked resolve
             // only if shared_package is Some() and locked
-            Some(shared_package)
-                if !unlocked && shared_package.locked_triplet.contains_key(&triplet_id) =>
-            {
+            Some(shared_package) if !unlocked => {
                 // if the same, restore as usual
                 println!("Using lock file for restoring");
 
                 // update config
                 shared_package.config = package;
-                let shared_triplet = shared_package
-                    .locked_triplet
-                    .get(&triplet_id)
-                    .expect("Locked triplet should exist");
 
-                dependency::locked_resolve(shared_package, &repo, shared_triplet)?.collect_vec()
+                dependency::locked_resolve(shared_package, &repo)?.collect_vec()
             }
             // Unlocked resolve
             _ => {
                 println!("Resolving packages");
 
-                let (spc_result, mut restored_deps) = SharedPackageConfig::resolve_from_package(
-                    package,
-                    Some(triplet_id.clone()),
-                    &repo,
-                )?;
+                let (spc_result, resolved_deps) =
+                    SharedPackageConfig::resolve_from_package(package, &repo)?;
 
                 // update shared_package
                 shared_package_opt = Some(spc_result);
 
-                // get triplet restored dependencies
-                // transform the iterator into a vector
-                restored_deps
-                    .remove(&triplet_id)
-                    .expect("Triplet should exist in restored_deps")
+                resolved_deps
             }
         };
 
@@ -138,18 +120,12 @@ impl Command for RestoreCommand {
         shared_package.write(".")?;
 
         println!(
-            "Restored triplet {} with {} dependencies",
-            triplet_id.triplet_id_color(),
+            "Restored {} with {} dependencies",
+            shared_package.config.id.dependency_id_color(),
             resolved_deps.len()
         );
 
-        let triplet = shared_package
-            .config
-            .triplets
-            .get_merged_triplet(&triplet_id)
-            .expect("Triplet should exist in package");
-
-        validate_ndk(&triplet)?;
+        validate_ndk(&shared_package.config)?;
 
         Ok(())
     }
@@ -193,8 +169,8 @@ fn is_modified(shared_package_opt: &Option<SharedPackageConfig>, package: &Packa
     false
 }
 
-pub fn validate_ndk(triplet: &PackageTriplet) -> Result<()> {
-    let Some(ndk_req) = triplet.ndk.as_ref() else {
+pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
+    let Some(ndk_req) = package.ndk.as_ref() else {
         return Ok(());
     };
 

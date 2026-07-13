@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use clap::Args;
 use qpm_package::models::shared_package::SharedPackageConfig;
-use qpm_package::models::triplet::{QPM_ENV_GAME_ID, QPM_ENV_GAME_VERSION};
 
 use qpm_qmod::models::mod_json::ModJson;
 
@@ -10,9 +9,9 @@ use crate::models::mod_json::{ModJsonExtensions, PreProcessingData};
 use crate::models::package::{PackageConfigExtensions, SharedPackageConfigExtensions};
 use crate::repository;
 
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::package::{PackageConfig, QPM_ENV_GAME_ID, QPM_ENV_GAME_VERSION};
 
-use color_eyre::eyre::{ContextCompat, ensure};
+use color_eyre::eyre::ensure;
 
 use color_eyre::Result;
 
@@ -53,13 +52,7 @@ pub(crate) fn generate_qmod_manifest(
     shared_package: SharedPackageConfig,
     build_parameters: ManifestQmodOperationArgs,
 ) -> Result<ModJson> {
-    let shared_triplet = shared_package.get_restored_triplet();
-    let triplet = package
-        .triplets
-        .get_merged_triplet(&shared_package.restored_triplet)
-        .context("Restored triplet not in package config")?;
-
-    let mod_template = triplet
+    let mod_template = package
         .qmod_template
         .as_deref()
         .unwrap_or_else(|| Path::new("mod.template.json"));
@@ -75,19 +68,19 @@ pub(crate) fn generate_qmod_manifest(
         mod_template.display()
     );
 
-    let env = &shared_triplet.env;
+    let env = &shared_package.env;
 
     let game_version = env.get(QPM_ENV_GAME_VERSION);
     let game_id = env.get(QPM_ENV_GAME_ID);
 
-    let binaries = triplet
+    let binaries = package
         .out_binaries
         .iter()
         .flatten()
         .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
         .collect();
 
-    let mod_id = triplet
+    let mod_id = package
         .qmod_id
         .as_ref()
         .unwrap_or(&shared_package.config.id.0);

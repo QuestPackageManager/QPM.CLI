@@ -6,7 +6,7 @@ use std::{
 
 use bytes::{BufMut, BytesMut};
 use clap::Args;
-use color_eyre::eyre::{Context, ContextCompat, bail};
+use color_eyre::eyre::{Context, bail};
 use qpm_package::models::shared_package::SharedPackageConfig;
 
 use crate::{
@@ -99,14 +99,7 @@ impl InstallCommand {
         println!("Publishing package to local file repository");
         let shared_package = SharedPackageConfig::read(".")?;
         let project_folder = PathBuf::from(".").canonicalize()?;
-        let restored_triplet_id = shared_package.restored_triplet;
-        let restored_triplet = shared_package
-            .config
-            .triplets
-            .get_merged_triplet(&restored_triplet_id)
-            .context("Failed to get triplet")?
-            .into_owned();
-        let binaries = restored_triplet.out_binaries.unwrap_or_default();
+        let binaries = shared_package.config.out_binaries.clone().unwrap_or_default();
         if !self.no_validate {
             println!("Skipping validation of binaries");
         } else {
@@ -117,13 +110,7 @@ impl InstallCommand {
             }
         }
         let mut file_repo = FileRepository::read()?;
-        FileRepository::copy_to_cache(
-            &shared_package.config,
-            &restored_triplet_id,
-            project_folder,
-            binaries,
-            false,
-        )?;
+        FileRepository::copy_to_cache(&shared_package.config, project_folder, binaries, false)?;
         file_repo.add_artifact_and_cache(shared_package.config, true)?;
         file_repo.write()?;
         Ok(())

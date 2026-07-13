@@ -1,6 +1,6 @@
 use color_eyre::{
     Result,
-    eyre::{Context, ContextCompat, OptionExt, bail, ensure},
+    eyre::{Context, OptionExt, bail, ensure},
 };
 use itertools::Itertools;
 use owo_colors::OwoColorize;
@@ -8,7 +8,6 @@ use qpm_package::models::{
     package::{DependencyId, PackageConfig, QPM_JSON},
     qpkg::{QPKG_JSON, QPkg},
     shared_package::QPM_SHARED_JSON,
-    triplet::TripletId,
 };
 use schemars::JsonSchema;
 use semver::Version;
@@ -108,7 +107,6 @@ impl FileRepository {
     #[deprecated(note = "Use qpkg_install instead")]
     pub fn copy_to_cache(
         package: &PackageConfig,
-        triplet: &TripletId,
         project_folder: PathBuf,
         binaries: Vec<PathBuf>,
         validate: bool,
@@ -118,9 +116,7 @@ impl FileRepository {
             package.id.bright_red(),
             package.version.bright_green()
         );
-        let cache_path = PackageIdPath(package.id.clone())
-            .version(package.version.clone())
-            .triplet(triplet.clone());
+        let cache_path = PackageIdPath(package.id.clone()).version(package.version.clone());
 
         let tmp_path = cache_path.tmp_path();
         if tmp_path.exists() {
@@ -321,50 +317,39 @@ impl FileRepository {
         })?;
 
         // copy binaries to lib folder
-        for (triplet_id, triplet_info) in &qpkg.triplets {
-            let bin_dir = package_path
-                .clone()
-                .triplet(triplet_id.clone())
-                .binaries_path();
+        let bin_dir = package_path.binaries_path();
 
-            if !bin_dir.exists() {
-                fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
-            }
-
-            println!(
-                "Installing triplet {} with {} files",
-                triplet_id.triplet_id_color(),
-                triplet_info.files.len().file_path_color()
-            );
-            for file in &triplet_info.files {
-                let src_file = tmp_path.join(file);
-                let dst_file = bin_dir.join(file.file_name().unwrap());
-                // copy as {cache}/{id}/{version}/{triplet}/lib/{file_name}
-                fs::rename(&src_file, &dst_file).with_context(|| {
-                    format!(
-                        "Failed to copy file from {} to {}",
-                        src_file.display().file_path_color(),
-                        dst_file.display().file_path_color()
-                    )
-                })?;
-            }
+        if !bin_dir.exists() {
+            fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
         }
 
-        // assert that the triplets binaries are present
-        for (triplet_id, triplet) in qpkg.config.triplets.iter_merged_triplets() {
-            let triplet_path = package_path.clone().triplet(triplet_id.clone());
+        println!(
+            "Installing package with {} files",
+            qpkg.files.len().file_path_color()
+        );
+        for file in &qpkg.files {
+            let src_file = tmp_path.join(file);
+            let dst_file = bin_dir.join(file.file_name().unwrap());
+            // copy as {cache}/{id}/{version}/lib/{file_name}
+            fs::rename(&src_file, &dst_file).with_context(|| {
+                format!(
+                    "Failed to copy file from {} to {}",
+                    src_file.display().file_path_color(),
+                    dst_file.display().file_path_color()
+                )
+            })?;
+        }
 
-            for binary in triplet.out_binaries.iter().flatten() {
-                // {cache}/{id}/{version}/{triplet}/lib/{binary}
-                let binary_path = triplet_path.binary_path(binary);
-                if !binary_path.exists() {
-                    bail!(
-                        "Binary {} not found in triplet {} at {}",
-                        binary.display().file_path_color(),
-                        triplet_id.triplet_id_color(),
-                        binary_path.display().file_path_color()
-                    );
-                }
+        // assert that the binaries are present
+        for binary in qpkg.config.out_binaries.iter().flatten() {
+            // {cache}/{id}/{version}/lib/{binary}
+            let binary_path = package_path.binary_path(binary);
+            if !binary_path.exists() {
+                bail!(
+                    "Binary {} not found at {}",
+                    binary.display().file_path_color(),
+                    binary_path.display().file_path_color()
+                );
             }
         }
 
@@ -399,11 +384,10 @@ impl FileRepository {
 
     pub fn copy_from_cache(
         package: &PackageConfig,
-        triplet: &TripletId,
         restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<()> {
-        let files = Self::collect_deps(package, triplet, restored_deps, workspace_dir)?;
+        let files = Self::collect_deps(package, restored_deps, workspace_dir)?;
 
         let config = get_combine_config();
         let symlink = config.symlink.unwrap_or(true);
@@ -498,20 +482,11 @@ impl FileRepository {
 
     /// Collects all files of a package from the cache.
     /// Returns a `PackageFiles` struct containing the paths to the headers, release binary, and debug binary.
-    pub fn collect_files_of_package(
-        package: &PackageConfig,
-        triplet: &TripletId,
-    ) -> Result<PackageFiles> {
-        let package_triplet = package
-            .triplets
-            .get_merged_triplet(triplet)
-            .expect("Triplet settings not found");
+    pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
+        let dep_cache_path =
+            PackageIdPath::new(package.id.clone()).version(package.version.clone());
 
-        let dep_cache_path = PackageIdPath::new(package.id.clone())
-            .version(package.version.clone())
-            .triplet(triplet.clone());
-
-        if !dep_cache_path.triplet_path().exists() {
+        if !dep_cache_path.base_path().exists() {
             bail!(
                 "Missing cache for dependency {}:{}",
                 package.id.dependency_id_color(),
@@ -530,7 +505,7 @@ impl FileRepository {
             );
         }
 
-        let expected_binaries = package_triplet.out_binaries.clone().unwrap_or_default();
+        let expected_binaries = package.out_binaries.clone().unwrap_or_default();
         let binaries: Vec<PathBuf> = expected_binaries
             .iter()
             .map(|b| dep_cache_path.binary_path(b))
@@ -580,28 +555,20 @@ impl FileRepository {
     /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
         package: &PackageConfig,
-        triplet: &TripletId,
         restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
-        let triplet_config = package
-            .triplets
-            .get_merged_triplet(triplet)
-            .context("Failed to get triplet settings")?;
-
         // validate exists dependencies
         let missing_dependencies: Vec<_> = restored_deps
             .iter()
             .filter_map(|r| {
-                let package_path = PackageIdPath::new(r.0.id.clone())
-                    .version(r.0.version.clone())
-                    .triplet(r.1.clone())
-                    .triplet_path();
+                let package_path =
+                    PackageIdPath::new(r.id.clone()).version(r.version.clone()).base_path();
                 // if the package path does not exist, return the id and version
                 package_path
                     .exists()
                     .not()
-                    .then_some(format!("{}:{}/{}", r.0.id, r.0.version, r.1))
+                    .then_some(format!("{}:{}", r.id, r.version))
             })
             .collect();
 
@@ -622,8 +589,7 @@ impl FileRepository {
         let deps: Vec<_> = restored_deps
             .iter()
             .map(|resolved_dep| -> color_eyre::Result<_> {
-                let collect_files_of_package =
-                    Self::collect_files_of_package(&resolved_dep.0, &resolved_dep.1)?;
+                let collect_files_of_package = Self::collect_files_of_package(resolved_dep)?;
 
                 Ok((resolved_dep, collect_files_of_package))
             })
@@ -632,10 +598,10 @@ impl FileRepository {
         let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) =
             // partition by direct dependencies and indirect
             deps.into_iter().partition(|(unknown_dep, _)| {
-                triplet_config
+                package
                     .dependencies
                     .iter()
-                    .any(|direct_dep| *direct_dep.0 == unknown_dep.0.id)
+                    .any(|direct_dep| *direct_dep.0 == unknown_dep.id)
             });
 
         // direct dependencies copy the binaries to the extern_binaries folder
@@ -647,8 +613,8 @@ impl FileRepository {
                     bail!(
                         "Missing binary {} for dependency {}:{}",
                         binary.display().bright_yellow(),
-                        direct_dep.0.id.dependency_id_color(),
-                        direct_dep.0.version.dependency_version_color()
+                        direct_dep.id.dependency_id_color(),
+                        direct_dep.version.dependency_version_color()
                     );
                 }
 
@@ -659,15 +625,15 @@ impl FileRepository {
 
         // Get headers of all dependencies restored
         for (dep, dep_files) in direct_deps.into_iter().chain(indirect_deps.into_iter()) {
-            let project_deps_headers_target = extern_headers.join(dep.0.id.0.clone());
+            let project_deps_headers_target = extern_headers.join(dep.id.0.clone());
 
             let exposed_headers = dep_files.headers;
             if !exposed_headers.exists() {
                 bail!(
                     "Missing header files {} for {}:{}",
                     exposed_headers.display().file_path_color(),
-                    dep.0.id.dependency_id_color(),
-                    dep.0.version.dependency_version_color()
+                    dep.id.dependency_id_color(),
+                    dep.version.dependency_version_color()
                 );
             }
 

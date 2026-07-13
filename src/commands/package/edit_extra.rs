@@ -1,8 +1,5 @@
 use clap::Args;
-use color_eyre::eyre::ContextCompat;
-use qpm_package::models::{
-    package::PackageConfig, shared_package::SharedPackageConfig, triplet::TripletId,
-};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
 
@@ -17,10 +14,6 @@ pub struct EditExtraArgs {
     #[clap(long = "qmodId")]
     pub qmod_id: Option<String>,
 
-    /// The triplet to edit the extra for
-    #[clap(long, short)]
-    pub triplet: String,
-
     #[clap(long, default_value = "false")]
     offline: bool,
 }
@@ -28,22 +21,18 @@ pub struct EditExtraArgs {
 impl Command for EditExtraArgs {
     fn execute(self) -> color_eyre::Result<()> {
         let mut package = PackageConfig::read(".")?;
-        let triplet = package
-            .triplets
-            .get_triplet_standalone_mut(&TripletId(self.triplet))
-            .context("Failed to get triplet settings")?;
 
         let mut any_changed = false;
 
         if let Some(mod_link) = self.mod_link {
             println!("Setting mod_link: {mod_link:#?}");
-            triplet.qmod_url = Some(mod_link);
+            package.qmod_url = Some(mod_link);
             any_changed = true;
         }
 
         if let Some(qmod_id) = self.qmod_id {
             println!("Setting qmod_id: {qmod_id:#?}");
-            triplet.qmod_id = Some(qmod_id);
+            package.qmod_id = Some(qmod_id);
             any_changed = true;
         }
 

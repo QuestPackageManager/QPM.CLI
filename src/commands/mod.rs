@@ -96,9 +96,6 @@ pub enum MainCommand {
     QPkg(qpkg::QPkgCommand),
 
     Build(build::BuildCommand),
-
-    /// Triplet commands
-    Triplet(build::BuildCommand),
 }
 
 impl Command for MainCommand {
@@ -123,7 +120,6 @@ impl Command for MainCommand {
             MainCommand::Version(v) => v.execute(),
             MainCommand::GenSchema(g) => g.execute(),
             MainCommand::QPkg(q) => q.execute(),
-            MainCommand::Triplet(t) => t.execute(),
             MainCommand::Build(build_command) => build_command.execute(),
 
             #[cfg(feature = "templatr")]

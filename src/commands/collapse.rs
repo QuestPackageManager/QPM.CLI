@@ -1,8 +1,7 @@
 use clap::Args;
-use color_eyre::eyre::Context;
 use itertools::Itertools;
 use owo_colors::OwoColorize;
-use qpm_package::models::{package::PackageConfig, triplet::TripletId};
+use qpm_package::models::package::PackageConfig;
 
 use crate::{
     models::package::PackageConfigExtensions,
@@ -18,10 +17,6 @@ pub struct CollapseCommand {
     #[clap(long, default_value = "false")]
     offline: bool,
 
-    /// Triplet to collapse, if not specified, all triplets are collapsed
-    #[clap(long, short)]
-    pub triplet: Option<String>,
-
     #[clap(long, short)]
     pub env: bool,
 }
@@ -30,72 +25,41 @@ impl Command for CollapseCommand {
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         let repo = repository::useful_default_new(self.offline)?;
-        match self.triplet {
-            Some(triplet) => {
-                let triplet_id = TripletId(triplet);
 
-                list_triplet_dependencies(package, &repo, &triplet_id, self.env)?
-            }
-            None => {
-                println!("Listing dependencies for all triplets");
-                for triplet in package
-                    .triplets
-                    .iter_merged_triplets()
-                    .sorted_by(|a, b| a.0.cmp(&b.0))
-                {
-                    println!(
-                        "Listing dependencies for triplet {}",
-                        triplet.0.triplet_id_color()
-                    );
-                    list_triplet_dependencies(package.clone(), &repo, &triplet.0, self.env)
-                        .with_context(|| {
-                            format!(
-                                "Failed to list dependencies for triplet {}",
-                                triplet.0.triplet_id_color()
-                            )
-                        })?;
-                }
-            }
-        }
+        list_dependencies(package, &repo, self.env)?;
+
         Ok(())
     }
 }
 
-fn list_triplet_dependencies(
+fn list_dependencies(
     package: PackageConfig,
     repo: &impl repository::Repository,
-    triplet_id: &TripletId,
     print_env: bool,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let resolved = resolve(&package, repo, triplet_id)?;
-    for resolved_dep in resolved.sorted_by(|a, b| a.0.id.cmp(&b.0.id)) {
-        let package = &resolved_dep.0;
-        let triplet = &resolved_dep.1;
-
-        let triplet_config = resolved_dep.get_merged_triplet();
-
-        let sum = triplet_config.dependencies.len();
+    let resolved = resolve(&package, repo)?;
+    for resolved_dep in resolved.sorted_by(|a, b| a.id.cmp(&b.id)) {
+        let sum = resolved_dep.dependencies.len();
 
         println!(
-            "{} --> {}/{} ({} restored dependencies)",
-            package.id.dependency_id_color(),
-            package.version.version_id_color(),
-            triplet.triplet_id_color(),
+            "{} --> {} ({} restored dependencies)",
+            resolved_dep.id.dependency_id_color(),
+            resolved_dep.version.version_id_color(),
             sum.to_string().yellow()
         );
 
         if print_env {
             println!("Environment variables:");
-            for (key, value) in triplet_config.env.iter() {
+            for (key, value) in resolved_dep.env.iter() {
                 println!(" - {}: {}", key.cyan(), value.green());
             }
         }
 
-        for (dep_id, shared_dep) in triplet_config.dependencies.iter() {
+        for (dep_id, dep) in resolved_dep.dependencies.iter() {
             println!(
                 " - {}: ({})",
                 &dep_id.dependency_id_color(),
-                &shared_dep.version_range.dependency_version_color(),
+                &dep.version_range.dependency_version_color(),
             );
         }
     }

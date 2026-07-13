@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use qpm_package::models::{
-    package::{PackageConfig, DependencyId},
+    package::{DependencyId, PackageConfig, PackageDependency},
     shared_package::SharedPackageConfig,
 };
 use semver::{Version, VersionReq};
@@ -9,56 +9,46 @@ use semver::{Version, VersionReq};
 use crate::repository::local::FileRepository;
 
 pub fn build_artifact_nodeps(name: &str, ver: Version) -> SharedPackageConfig {
-    SharedPackageConfig {
-        restored_triplet: Default::default(),
-        locked_triplet: Default::default(),
-        config: PackageConfig {
-            id: DependencyId(name.to_string()),
-            version: ver,
-            shared_directory: "shared".into(),
-            dependencies_directory: "extern".into(),
-            additional_data: Default::default(),
-            triplets: Default::default(),
-            ..Default::default()
-        },
-    }
+    build_artifact_and_depends(name, ver, &[])
 }
+
 pub fn build_artifact_and_depend(
     name: &str,
     ver: Version,
     shared_dep: &SharedPackageConfig,
     range: VersionReq,
 ) -> SharedPackageConfig {
-    SharedPackageConfig {
-        restored_triplet: Default::default(),
-        locked_triplet: Default::default(),
-        config: PackageConfig {
-            id: DependencyId(name.to_string()),
-            version: ver,
-            shared_directory: "shared".into(),
-            dependencies_directory: "extern".into(),
-            additional_data: Default::default(),
-            triplets: Default::default(),
-            ..Default::default()
-        },
-    }
+    build_artifact_and_depends(name, ver, &[(shared_dep, range)])
 }
+
 pub fn build_artifact_and_depends(
     name: &str,
     ver: Version,
     deps: &[(&SharedPackageConfig, VersionReq)],
 ) -> SharedPackageConfig {
+    let dependencies = deps
+        .iter()
+        .map(|(dep, range)| {
+            (
+                dep.config.id.clone(),
+                PackageDependency {
+                    version_range: range.clone(),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
+
     SharedPackageConfig {
-        restored_triplet: Default::default(),
-        locked_triplet: Default::default(),
+        restored_dependencies: Default::default(),
+        env: Default::default(),
         config: PackageConfig {
             id: DependencyId(name.to_string()),
             version: ver,
             shared_directory: "shared".into(),
             dependencies_directory: "extern".into(),
             additional_data: Default::default(),
-            triplets: Default::default(),
-            // If you need to represent dependencies, you may need to encode them in `additional_data` or another valid field.
+            dependencies,
             ..Default::default()
         },
     }
