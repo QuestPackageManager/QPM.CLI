@@ -1,5 +1,3 @@
-#![feature(path_is_empty)]
-
 use std::io;
 
 use clap::{CommandFactory, Parser};

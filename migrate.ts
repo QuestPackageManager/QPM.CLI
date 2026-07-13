@@ -59,7 +59,20 @@ type QPM1Dep = {
   };
 };
 
-type QPM2Triplet = {
+interface QPM2 {
+  id: string;
+  version: string;
+  dependenciesDirectory: string;
+  sharedDirectory: string;
+  workspace?: {
+    scripts?: Record<string, string[] | undefined>;
+  };
+  additionalData?: {
+    description?: string;
+    author?: string;
+    license?: string;
+  };
+
   dependencies: Record<string, QPM2Dep>;
   devDependencies: Record<string, QPM2Dep>;
   env: Record<string, string>;
@@ -79,45 +92,27 @@ type QPM2Triplet = {
     cFlags?: string[];
   };
 
-  // QMod URL for this triplet
+  // QMod URL for this package
   qmodUrl?: string;
 
-  // QMod ID for this triplet
+  // QMod ID for this package
   qmodId?: string;
 
-  // QMod template path for this triplet (e.g. mod.template.json)
+  // QMod template path for this package (e.g. mod.template.json)
   qmodTemplate?: string;
 
-  // Output binaries for this triplet
-  outBinaries?: string[];
-};
+  qmodIncludeDirs?: string[];
+  qmodIncludeFiles?: string[];
 
-interface QPM2 {
-  id: string;
-  version: string;
-  dependenciesDirectory: string;
-  sharedDirectory: string;
-  workspace?: {
-    scripts?: Record<string, string[] | undefined>;
-    qmodIncludeDirs?: string[];
-    qmodIncludeFiles?: string[];
-  };
-  additionalData?: {
-    description?: string;
-    author?: string;
-    license?: string;
-  };
-  triplets: {
-    default?: string;
-    [key: string]: QPM2Triplet | string | undefined;
-  };
+  // Output binaries for this package
+  outBinaries?: string[];
+
   configVersion: string;
   toolchainOut: string;
 }
 
 interface QPM2Dep {
   versionRange: string;
-  triplet?: string | "default" | null;
   qmodExport?: boolean;
   qmodRequired?: boolean;
 }
@@ -125,7 +120,6 @@ interface QPM2Dep {
 function convertDep(dep: QPM1Dep): QPM2Dep {
   return {
     versionRange: dep.versionRange,
-    triplet: "default",
     qmodExport: dep.additionalData.includeQmod ?? false,
     qmodRequired: dep.additionalData.includeQmod ?? false,
   };
@@ -152,11 +146,6 @@ const qpm2Bin =
     (qpm1.info.additionalData?.overrideSoName ?? `lib${qpm1.info.id}.so`);
 const outBinaries = qpm2Bin ? [qpm2Bin] : [];
 
-const tripletName: string =
-    qpm1.info.additionalData?.headersOnly ? "headersOnly"
-  : qpm1.info.additionalData?.overrideSoName?.endsWith(".a") ? "static"
-  : "shared";
-
 const qpm2: QPM2 = {
   id: qpm1.info.id,
   version: qpm1.info.version,
@@ -169,28 +158,25 @@ const qpm2: QPM2 = {
       copy: qpm1.workspace?.scripts?.copy,
       qmod: qpm1.workspace?.scripts?.qmod,
     },
-    qmodIncludeDirs: qpm1.workspace?.qmodIncludeDirs,
-    qmodIncludeFiles: qpm1.workspace?.qmodIncludeFiles,
   },
   additionalData: {
     description: "",
     author: qpm1.info.author,
     license: "",
   },
-  triplets: {
-    default: tripletName,
-    [tripletName]: {
-      dependencies: dependencies,
-      devDependencies: devDependencies,
-      compileOptions: qpm1.info.additionalData?.compileOptions,
-      outBinaries,
-      qmodId: qpm1.info.id,
-      qmodTemplate: "mod.template.json",
-      qmodUrl: qpm1.info.additionalData?.modLink,
 
-      env: {},
-    },
-  },
+  dependencies: dependencies,
+  devDependencies: devDependencies,
+  env: {},
+
+  compileOptions: qpm1.info.additionalData?.compileOptions,
+  outBinaries,
+  qmodId: qpm1.info.id,
+  qmodTemplate: "mod.template.json",
+  qmodUrl: qpm1.info.additionalData?.modLink,
+  qmodIncludeDirs: qpm1.workspace?.qmodIncludeDirs,
+  qmodIncludeFiles: qpm1.workspace?.qmodIncludeFiles,
+
   configVersion: "2.0.0",
   toolchainOut: qpm1.info.additionalData?.toolchainOut ?? "toolchain.json",
 };
