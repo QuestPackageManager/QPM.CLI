@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
 use itertools::Itertools;
 use qpm_package::models::{
-    package::{DependencyId, PackageConfig, PackageDependency, QPM_JSON},
+    package::{DependencyId, PackageConfig, PackageDependency, QmodDependencyMode, QPM_JSON},
     shared_package::{QPM_SHARED_JSON, SharedDependencyInfo, SharedPackageConfig},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
@@ -220,13 +220,15 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         // Must be directly referenced in qpm.json
         let mods: Vec<ModDependency> = direct_dependencies
             .values()
+            // only on the qmod dependencies that aren't disabled
+            .filter(|t| t.dependency.qmod != Some(QmodDependencyMode::None))
             // Removes any dependency without a qmod link
             .filter(|result| result.restored_config.qmod.download_url.is_some())
             .map(|result| ModDependency {
                 version_range: result.dependency.version_range.clone(),
                 id: result.restored_config.id.0.clone(),
                 mod_link: result.restored_config.qmod.download_url.clone(),
-                required: result.dependency.qmod_required,
+                required: Some(result.dependency.qmod == Some(QmodDependencyMode::Required)),
             })
             .collect();
 
