@@ -6,7 +6,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, QPM_JSON},
-    qpkg::{QPKG_JSON, QPkg},
+    qpkg::QPkg,
     shared_package::QPM_SHARED_JSON,
 };
 use schemars::JsonSchema;
@@ -19,7 +19,6 @@ use std::{
     ops::Not,
     path::{Path, PathBuf},
 };
-use zip::ZipArchive;
 
 use crate::{
     models::{
@@ -27,6 +26,7 @@ use crate::{
         package::PackageConfigExtensions,
         package_files::PackageIdPath,
         qpkg::QPkgExtensions,
+        qpkg_file::QpkgFile,
         schemas::{SchemaLinks, WithSchema},
     },
     resolver::dependency::ResolvedDependency,
@@ -236,17 +236,11 @@ impl FileRepository {
     where
         T: Read + Seek,
     {
-        // Extract to tmp folder
-        let mut zip_archive = ZipArchive::new(buffer).context("Reading zip")?;
+        // Open and read QPKG
+        let qpkg_file = QpkgFile::open(buffer).context("Failed to read QPKG")?;
 
-        // get qpkg in memory
-        let qpkg_file = zip_archive
-            .by_name(QPKG_JSON)
-            .with_context(|| format!("Failed to find {QPKG_JSON} in zip"))?;
-
-        let mut qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
-            .with_context(|| format!("Failed to read {QPKG_JSON} from zip"))?;
-
+        // Apply version override if provided
+        let mut qpkg = qpkg_file.manifest().clone();
         if let Some(version) = version {
             qpkg.config.version = version;
         }
@@ -254,11 +248,12 @@ impl FileRepository {
         let package_path: crate::models::package_files::PackageVersionPath =
             PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
 
-        let tmp_path = package_path.tmp_path();
+        let base_path = package_path.base_path();
         let qpkg_file_dst = package_path.qpkg_json_dir();
         let headers_dst = package_path.src_path();
-        let base_path = package_path.base_path();
+        let bin_dir = package_path.binaries_path();
 
+        // Check if already exists
         if QPkg::exists(&base_path) {
             match overwrite_existing {
                 false => {
@@ -272,77 +267,34 @@ impl FileRepository {
                         "Overwriting existing QPKG {}",
                         base_path.display().file_path_color()
                     );
+                    fs::remove_dir_all(&base_path).with_context(|| {
+                        format!(
+                            "Failed to remove existing QPkg at {}",
+                            base_path.display().file_path_color()
+                        )
+                    })?;
                 }
             }
         }
 
-        // copy QPKG.qpm.json to {cache}/{id}/{version}/src/qpm2.qpkg.json
-        if base_path.exists() {
-            fs::remove_dir_all(&base_path).with_context(|| {
-                format!(
-                    "Failed to remove existing QPkg at {}",
-                    package_path.base_path().display().file_path_color()
-                )
-            })?;
-        }
+        // Create cache directories
         fs::create_dir_all(&base_path).with_context(|| {
             format!(
-                "Failed to create package path{}",
-                package_path.base_path().display().file_path_color()
+                "Failed to create package path {}",
+                base_path.display().file_path_color()
             )
         })?;
-
-        // make tmp_path
-        fs::create_dir_all(&tmp_path).with_context(|| {
-            format!(
-                "Failed to create tmp folder {}",
-                tmp_path.display().file_path_color()
-            )
-        })?;
-
-        // src did not exist, this means that we need to download the repo/zip file from packageconfig.url
-        fs::create_dir_all(&headers_dst)
-            .with_context(|| format!("Failed to create lib path {headers_dst:?}"))?;
-
-        // now extract the zip to the tmp path
-        zip_archive.extract(&tmp_path).context("Zip extraction")?;
-
-        // copy headers to src folder
-        fs::rename(tmp_path.join(&qpkg.shared_dir), &headers_dst).with_context(|| {
-            format!(
-                "Failed to copy headers from {} to {}",
-                tmp_path.display().file_path_color(),
-                headers_dst.display().file_path_color()
-            )
-        })?;
-
-        // copy binaries to lib folder
-        let bin_dir = package_path.binaries_path();
-
-        if !bin_dir.exists() {
-            fs::create_dir_all(&bin_dir).context("Failed to create lib path")?;
-        }
 
         println!(
             "Installing package with {} files",
             qpkg.files.len().file_path_color()
         );
-        for file in &qpkg.files {
-            let src_file = tmp_path.join(file);
-            let dst_file = bin_dir.join(file.file_name().unwrap());
-            // copy as {cache}/{id}/{version}/lib/{file_name}
-            fs::rename(&src_file, &dst_file).with_context(|| {
-                format!(
-                    "Failed to copy file from {} to {}",
-                    src_file.display().file_path_color(),
-                    dst_file.display().file_path_color()
-                )
-            })?;
-        }
 
-        // assert that the binaries are present
-        for binary in qpkg.config.out_binaries.iter().flatten() {
-            // {cache}/{id}/{version}/lib/{binary}
+        // Extract QPKG to cache
+        let extracted_config = qpkg_file.extract_to(&qpkg_file_dst, &headers_dst, &bin_dir).context("Failed to extract QPKG")?;
+
+        // Validate binaries exist
+        for binary in qpkg.config.workspace.out_binaries.iter().flatten() {
             let binary_path = package_path.binary_path(binary);
             if !binary_path.exists() {
                 bail!(
@@ -353,33 +305,23 @@ impl FileRepository {
             }
         }
 
-        // now write the package config to the src path
-        qpkg.config.write(&qpkg_file_dst).with_context(|| {
+        // Write package config to cache
+        let config_path = headers_dst.join(QPM_JSON);
+        let config_json = serde_json::to_string_pretty(&extracted_config)
+            .context("Failed to serialize package config")?;
+        fs::write(&config_path, config_json).with_context(|| {
             format!(
                 "Failed to write package config to {}",
-                headers_dst.display().file_path_color()
+                config_path.display().file_path_color()
             )
         })?;
 
+        // Update repository index
         let mut file_repo = FileRepository::read()?;
-
-        file_repo.add_artifact_and_cache(qpkg.config.clone(), true)?;
+        file_repo.add_artifact_and_cache(extracted_config.clone(), true)?;
         file_repo.write()?;
 
-        // write the qpkg file to the src path
-        qpkg.write(&qpkg_file_dst).with_context(|| {
-            format!(
-                "Failed to write QPkg file to {}",
-                headers_dst.display().file_path_color()
-            )
-        })?;
-
-        // clear up tmp folder if it still exists
-        if tmp_path.exists() {
-            std::fs::remove_dir_all(tmp_path).context("Failed to remove tmp folder")?;
-        }
-
-        Ok(qpkg.config)
+        Ok(extracted_config)
     }
 
     pub fn copy_from_cache(
@@ -624,7 +566,7 @@ impl FileRepository {
         }
 
         // Get headers of all dependencies restored
-        for (dep, dep_files) in direct_deps.into_iter().chain(indirect_deps.into_iter()) {
+        for (dep, dep_files) in direct_deps.into_iter().chain(indirect_deps) {
             let project_deps_headers_target = extern_headers.join(dep.id.0.clone());
 
             let exposed_headers = dep_files.headers;
