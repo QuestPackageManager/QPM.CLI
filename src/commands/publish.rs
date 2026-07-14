@@ -1,6 +1,5 @@
 use std::io::Cursor;
 
-use bytes::{BufMut, BytesMut};
 use clap::{Args, ValueEnum};
 use color_eyre::eyre::{Context, ContextCompat, bail};
 use owo_colors::OwoColorize;
@@ -13,7 +12,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     models::{config::get_publish_keyring, package::PackageConfigExtensions, qpkg_file::QpkgFile},
-    network::agent::download_file_report,
+    network::agent::download_bytes,
     repository::{Repository, qpackages::QPMRepository},
     terminal::colors::QPMColor,
 };
@@ -60,14 +59,13 @@ impl PublishCommand {
     fn validate_qpkg(
         &self,
         package: &PackageConfig,
-    ) -> Result<Cursor<BytesMut>, color_eyre::eyre::Error> {
-        let mut bytes = BytesMut::new().writer();
+    ) -> Result<Cursor<bytes::BytesMut>, color_eyre::eyre::Error> {
         // TODO: What if the URL is not accessible due to Authorization or rate limits?
-        download_file_report(&self.qpkg_url, &mut bytes, |_, _| {}).context(
+        let bytes = download_bytes(&self.qpkg_url).context(
             "Downloading qpkg file failed. QPKG URL must be accessible at time of publishing",
         )?;
 
-        let cursor = Cursor::new(bytes.into_inner());
+        let cursor = Cursor::new(bytes);
 
         // Validate config in QPKG matches
         let qpkg_file = QpkgFile::open(cursor).context("Failed to read QPKG")?;

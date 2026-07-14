@@ -1,17 +1,12 @@
-use std::{
-    fs::File,
-    io::{BufReader, Cursor},
-    path::PathBuf,
-};
+use std::{fs::File, io::BufReader, path::PathBuf};
 
-use bytes::{BufMut, BytesMut};
 use clap::Args;
 use color_eyre::eyre::{Context, bail};
 use qpm_package::models::shared_package::SharedPackageConfig;
 
 use crate::{
-    models::package::PackageConfigExtensions, network::agent::download_file_report,
-    repository::local::FileRepository, terminal::colors::QPMColor,
+    models::package::PackageConfigExtensions, repository::local::FileRepository,
+    terminal::colors::QPMColor,
 };
 
 use super::Command;
@@ -74,14 +69,8 @@ impl InstallCommand {
         } else if let Some(qpkg_url) = &self.qpkg_url {
             println!("Installing qpkg from URL: {qpkg_url}");
 
-            let mut bytes = BytesMut::new().writer();
-            download_file_report(qpkg_url, &mut bytes, |_, _| {})
-                .context("Downloading qpkg file failed")?;
-
-            let cursor = Cursor::new(bytes.get_ref());
-
-            FileRepository::install_qpkg(cursor, true, version)
-                .context("Installing qpkg zip failed")?
+            FileRepository::install_qpkg_from_url(qpkg_url, None, true, version)
+                .context("Installing qpkg from URL failed")?
         } else {
             bail!("Either --path or --url must be provided to install a qpkg");
         };

@@ -174,8 +174,14 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         let restored_dependencies = resolved_dependencies
             .iter()
             .map(|resolved_dep| {
+                let dependency = config
+                    .get_dependency(&resolved_dep.id);
+                let qpkg_url = dependency
+                    .and_then(|dep| dep.qpkg_url.clone());
+
                 let shared_dependency_info = SharedDependencyInfo {
                     restored_version: resolved_dep.version.clone(),
+                    qpkg_url,
                     restored_binaries: resolved_dep.workspace.out_binaries.clone().unwrap_or_default(),
                     restored_env: resolved_dep.workspace.env.clone().unwrap_or_default(),
                 };

@@ -20,6 +20,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use sha2::{Digest, Sha256};
+
 use crate::{
     models::{
         config::get_combine_config,
@@ -29,6 +31,7 @@ use crate::{
         qpkg_file::QpkgFile,
         schemas::{SchemaLinks, WithSchema},
     },
+    network::agent::download_bytes,
     resolver::dependency::ResolvedDependency,
     terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
@@ -322,6 +325,36 @@ impl FileRepository {
         file_repo.write()?;
 
         Ok(extracted_config)
+    }
+
+    /// Downloads a QPKG from a URL, optionally verifies its checksum, then installs it to the cache.
+    /// Centralizes the download+verify+install flow shared by qpackages restore, `qpm2 install --url`,
+    /// and dependency-level `qpkgUrl` overrides.
+    pub fn install_qpkg_from_url(
+        url: &str,
+        checksum: Option<&str>,
+        overwrite_existing: bool,
+        version: Option<Version>,
+    ) -> color_eyre::Result<PackageConfig> {
+        println!("Downloading {}", url.file_path_color());
+        let bytes = download_bytes(url)?;
+
+        if let Some(checksum) = checksum {
+            let result = Sha256::digest(&bytes);
+            let hash_hex = hex::encode(result);
+
+            if !hash_hex.eq_ignore_ascii_case(checksum) {
+                bail!(
+                    "Checksum mismatch for {}: expected {}, got {}",
+                    url.blue(),
+                    checksum,
+                    hash_hex
+                );
+            }
+        }
+
+        let cursor = std::io::Cursor::new(bytes);
+        Self::install_qpkg(cursor, overwrite_existing, version)
     }
 
     pub fn copy_from_cache(

@@ -1,13 +1,10 @@
-use bytes::{BufMut, BytesMut};
 use color_eyre::{
     Result,
     eyre::{Context, ContextCompat, OptionExt, bail},
 };
 use itertools::Itertools;
-use owo_colors::OwoColorize;
 use reqwest::StatusCode;
 use semver::Version;
-use sha2::{Digest, Sha256};
 
 use serde::Deserialize;
 
@@ -17,11 +14,8 @@ use qpm_package::models::{
 };
 
 use crate::{
-    models::{
-        package::PackageConfigExtensions, package_files::PackageIdPath,
-        qpackages::QPackageExtensions,
-    },
-    network::agent::{download_file_report, get_agent},
+    models::{package_files::PackageIdPath, qpackages::QPackageExtensions},
+    network::agent::get_agent,
     repository::local::FileRepository,
     terminal::colors::QPMColor,
 };
@@ -145,37 +139,20 @@ impl QPMRepository {
         }
 
         let qpkg_url = &qpackage_config.qpkg_url;
-        let mut bytes = BytesMut::new().writer();
 
-        println!("Downloading {}", qpkg_url.file_path_color());
-        download_file_report(qpkg_url, &mut bytes, |_, _| {})
-            .with_context(|| format!("Failed while downloading {}", qpkg_url.blue()))?;
-
-        let cursor = std::io::Cursor::new(bytes.get_ref());
-
-        // Ensure checksum matches
-        if let Some(checksum) = &qpackage_config.qpkg_checksum {
-            let result = Sha256::digest(cursor.get_ref());
-            let hash_hex = hex::encode(result);
-
-            if !hash_hex.eq_ignore_ascii_case(checksum) {
-                bail!(
-                    "Checksum mismatch for {}: expected {}, got {}",
-                    qpkg_url.blue(),
-                    checksum,
-                    hash_hex
-                );
-            }
-        }
-
-        FileRepository::install_qpkg(cursor, false, None).with_context(|| {
+        let package = FileRepository::install_qpkg_from_url(
+            qpkg_url,
+            qpackage_config.qpkg_checksum.as_deref(),
+            false,
+            None,
+        )
+        .with_context(|| {
             format!(
                 "QPackages QPKG installation from {}:{}",
                 qpackage_config.config.id, qpackage_config.config.version
             )
         })?;
 
-        let package = PackageConfig::read(&base_path)?;
         // assert that the package is the same as the one we downloaded
         if package != qpackage_config.config {
             bail!(

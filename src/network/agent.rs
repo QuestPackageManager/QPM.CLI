@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use bytes::{BufMut, BytesMut};
 use color_eyre::{Result, eyre::Context};
 
 use crate::models::config::get_combine_config;
@@ -115,4 +116,13 @@ where
     println!();
 
     result
+}
+
+/// Downloads a URL fully into memory, reporting progress along the way.
+pub fn download_bytes(url: &str) -> Result<BytesMut> {
+    let mut bytes = BytesMut::new().writer();
+    download_file_report(url, &mut bytes, |_, _| {})
+        .with_context(|| format!("Failed while downloading {url}"))?;
+
+    Ok(bytes.into_inner())
 }
