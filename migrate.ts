@@ -108,15 +108,13 @@ interface QPM2 {
 
 interface QPM2Dep {
   versionRange: string;
-  qmodExport?: boolean;
-  qmodRequired?: boolean;
+  qmod?: "none" | "required" | "optional";
 }
 
 function convertDep(dep: QPM1Dep): QPM2Dep {
   return {
     versionRange: dep.versionRange,
-    qmodExport: dep.additionalData.includeQmod ?? false,
-    qmodRequired: dep.additionalData.includeQmod ?? false,
+    qmod: dep.additionalData.includeQmod ? "required" : "none",
   };
 }
 
