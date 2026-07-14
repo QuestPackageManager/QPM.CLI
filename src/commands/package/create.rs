@@ -2,7 +2,7 @@ use std::path::Path;
 
 use clap::Args;
 use owo_colors::OwoColorize;
-use qpm_package::models::package::{self, DependencyId, PackageConfig};
+use qpm_package::models::package::{self, DependencyId, PackageConfig, WorkspaceConfig};
 use semver::Version;
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
@@ -41,8 +41,10 @@ impl Command for PackageOperationCreateArgs {
         let package = PackageConfig {
             id: DependencyId(id),
             version: self.version,
-            toolchain_out: Some(Path::new("toolchain.json").to_owned()),
-
+            workspace: WorkspaceConfig{
+                toolchain_out: Some(Path::new("toolchain.json").to_owned()),
+                ..Default::default()
+            },
             shared_directory: Path::new("shared").to_owned(),
             dependencies_directory: Path::new("extern").to_owned(),
             config_version: package::package_target_version(),

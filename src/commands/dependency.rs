@@ -131,7 +131,7 @@ fn put_dependency(
     id: &DependencyId,
     version: VersionReq,
     new_dep: Option<PackageDependency>,
-    sort: bool,
+    _sort: bool,
 ) -> Result<()> {
     println!(
         "Adding dependency with id {} and version {}",

@@ -7,18 +7,15 @@ use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::PackageConfig,
     qpackages::QPackagesPackage,
-    qpkg::{QPKG_JSON, QPkg},
     shared_package::SharedPackageConfig,
 };
 use sha2::{Digest, Sha256};
-use zip::ZipArchive;
 
 use crate::{
-    models::{config::get_publish_keyring, package::PackageConfigExtensions},
+    models::{config::get_publish_keyring, package::PackageConfigExtensions, qpkg_file::QpkgFile},
     network::agent::download_file_report,
     repository::{Repository, qpackages::QPMRepository},
     terminal::colors::QPMColor,
-    utils::json,
 };
 
 use super::Command;
@@ -70,30 +67,19 @@ impl PublishCommand {
             "Downloading qpkg file failed. QPKG URL must be accessible at time of publishing",
         )?;
 
-        let mut cursor = Cursor::new(bytes.into_inner());
+        let cursor = Cursor::new(bytes.into_inner());
 
-        // validate config in QPKG matches
-        {
-            let mut zip_archive =
-                ZipArchive::new(&mut cursor).context("Failed to read qpkg zip")?;
-            // get qpkg in memory
-            let qpkg_file = zip_archive
-                .by_name(QPKG_JSON)
-                .with_context(|| format!("Failed to find {QPKG_JSON} in zip"))?;
-
-            let qpkg: QPkg = json::json_from_reader_fast(qpkg_file)
-                .with_context(|| format!("Failed to read {QPKG_JSON} from zip"))?;
-
-            if qpkg.config != *package {
-                bail!(
-                    "QPKG config mismatch. Expected{:#?}\nGot {:#?}",
-                    package,
-                    qpkg.config
-                );
-            }
+        // Validate config in QPKG matches
+        let qpkg_file = QpkgFile::open(cursor).context("Failed to read QPKG")?;
+        if qpkg_file.manifest().config != *package {
+            bail!(
+                "QPKG config mismatch. Expected{:#?}\nGot {:#?}",
+                package,
+                qpkg_file.manifest().config
+            );
         }
 
-        Ok(cursor)
+        Ok(qpkg_file.into_inner())
     }
 
     fn qpackages_publish(self) -> Result<QPackagesPackage, color_eyre::eyre::Error> {

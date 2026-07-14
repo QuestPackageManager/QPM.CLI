@@ -50,7 +50,7 @@ fn list_dependencies(
 
         if print_env {
             println!("Environment variables:");
-            for (key, value) in resolved_dep.env.iter() {
+            for (key, value) in resolved_dep.workspace.env.iter().flatten() {
                 println!(" - {}: {}", key.cyan(), value.green());
             }
         }

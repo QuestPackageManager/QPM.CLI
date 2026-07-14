@@ -1,13 +1,12 @@
-//! Build command: Compiles a mod and copies binaries to output directory.
+//! Build command: Compiles a mod using the configured build script.
 //!
 //! Process:
 //! 1. Restore dependencies if qpm2.json differs from qpm2.shared.json
 //! 2. Resolve NDK if --ndk-resolve flag is set
 //! 3. Execute build script from workspace.scripts.build
-//! 4. Copy binaries from build output to workspace.outBinaries locations
-//! 5. Optionally create QMOD package if --qmod flag is set
+//! 4. Optionally create QMOD package if --qmod flag is set
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre::{Context, ContextCompat};
@@ -59,7 +58,7 @@ pub struct BuildCommand {
 }
 
 impl Command for BuildCommand {
-    /// Executes the build workflow: restore -> resolve NDK -> build -> copy binaries -> qmod (optional)
+    /// Executes the build workflow: restore -> resolve NDK -> build -> qmod (optional)
     fn execute(self) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         let mut shared_package = SharedPackageConfig::read(".")?;
@@ -116,9 +115,6 @@ impl Command for BuildCommand {
             scripts::invoke_script(build_script, &args, &package)?;
         }
 
-        // now copy binaries
-        copy_bins(&out_dir, &package.workspace.out_binaries.clone().unwrap_or_default())?;
-
         // finally qmod
         if self.qmod {
             zip::execute_qmod_zip_operation(Default::default(), vec![out_dir.clone()])
@@ -127,37 +123,4 @@ impl Command for BuildCommand {
 
         Ok(())
     }
-}
-
-/// Copies built binaries from their compile locations to the output directory.
-///
-/// Each binary path is relative to the project root. Only the filename is preserved
-/// in the output directory structure.
-fn copy_bins(out_dir: &Path, out_binaries: &[PathBuf]) -> color_eyre::Result<()> {
-    for binary in out_binaries {
-        println!(
-            "Copying binary {} to output directory {}",
-            binary.display().file_path_color(),
-            out_dir.display().file_path_color()
-        );
-
-        // create the output directory if it doesn't exist
-        let out_path = out_dir.join(binary.file_name().unwrap_or_default());
-
-        std::fs::create_dir_all(out_path.parent().unwrap()).with_context(|| {
-            format!(
-                "Failed to create output directory {}",
-                out_path.parent().unwrap().display()
-            )
-        })?;
-
-        std::fs::copy(binary, &out_path).with_context(|| {
-            format!(
-                "Failed to copy binary {} to output directory {}",
-                binary.display(),
-                out_dir.display()
-            )
-        })?;
-    }
-    Ok(())
 }

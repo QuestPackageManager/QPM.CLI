@@ -176,15 +176,15 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             .map(|resolved_dep| {
                 let shared_dependency_info = SharedDependencyInfo {
                     restored_version: resolved_dep.version.clone(),
-                    restored_binaries: resolved_dep.out_binaries.clone().unwrap_or_default(),
-                    restored_env: resolved_dep.env.clone(),
+                    restored_binaries: resolved_dep.workspace.out_binaries.clone().unwrap_or_default(),
+                    restored_env: resolved_dep.workspace.env.clone().unwrap_or_default(),
                 };
                 (resolved_dep.id.clone(), shared_dependency_info)
             })
             .collect();
 
         let shared_package_config = SharedPackageConfig {
-            env: config.env.clone(),
+            env: config.workspace.env.clone().unwrap_or_default(),
             config,
             restored_dependencies,
         };
