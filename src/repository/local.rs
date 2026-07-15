@@ -120,19 +120,20 @@ impl FileRepository {
             package.id.bright_red(),
             package.version.bright_green()
         );
+        let cache_root = Self::cache_root();
         let cache_path = PackageIdPath::new(package.id.clone()).version(package.version.clone());
 
-        let tmp_path = cache_path.tmp_path();
+        let tmp_path = cache_path.tmp_path(&cache_root);
         if tmp_path.exists() {
             fs::remove_dir_all(&tmp_path).context("Failed to remove existing tmp folder")?;
         }
 
-        if cache_path.src_path().exists() {
-            fs::remove_dir_all(cache_path.src_path())
+        if cache_path.src_path(&cache_root).exists() {
+            fs::remove_dir_all(cache_path.src_path(&cache_root))
                 .context("Failed to remove existing src folder")?;
         }
 
-        fs::create_dir_all(cache_path.src_path()).context("Failed to create lib path")?;
+        fs::create_dir_all(cache_path.src_path(&cache_root)).context("Failed to create lib path")?;
 
         for binary_src in binaries {
             if !binary_src.exists() {
@@ -143,7 +144,7 @@ impl FileRepository {
             }
 
             let binary_dst = cache_path
-                .binaries_path()
+                .binaries_path(&cache_root)
                 .join(binary_src.file_name().unwrap());
 
             copy_things(&binary_src, &binary_dst)?;
@@ -153,15 +154,15 @@ impl FileRepository {
 
         copy_things(
             &original_shared_path,
-            &cache_path.src_path().join(&package.shared_directory),
+            &cache_path.src_path(&cache_root).join(&package.shared_directory),
         )?;
         copy_things(
             &project_folder.join(QPM_JSON),
-            &cache_path.src_path().join(QPM_JSON),
+            &cache_path.src_path(&cache_root).join(QPM_JSON),
         )?;
         copy_things(
             &project_folder.join(QPM_SHARED_JSON),
-            &cache_path.src_path().join(QPM_SHARED_JSON),
+            &cache_path.src_path(&cache_root).join(QPM_SHARED_JSON),
         )?;
 
         // if the tmp path exists, but src doesn't, that's a failed cache, delete it and try again!
@@ -170,7 +171,7 @@ impl FileRepository {
         }
 
         if validate {
-            let package_path = cache_path.src_path();
+            let package_path = cache_path.src_path(&cache_root);
             let downloaded_package = PackageConfig::read(package_path)?;
 
             // check if downloaded config is the same version as expected, if not, panic
@@ -232,6 +233,14 @@ impl FileRepository {
         fs::remove_file(Self::global_file_repository_path())
     }
 
+    /// Returns the root cache directory packages are installed under
+    fn cache_root() -> PathBuf {
+        get_combine_config()
+            .cache
+            .clone()
+            .expect("No cache path set")
+    }
+
     pub fn install_qpkg<T>(
         mut buffer: T,
         overwrite_existing: bool,
@@ -267,10 +276,11 @@ impl FileRepository {
         let package_path: crate::models::package_files::PackageVersionPath =
             PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
 
-        let base_path = package_path.base_path();
-        let qpkg_file_dst = package_path.qpkg_json_dir();
-        let headers_dst = package_path.src_path();
-        let bin_dir = package_path.binaries_path();
+        let cache_root = Self::cache_root();
+        let base_path = package_path.base_path(&cache_root);
+        let qpkg_file_dst = package_path.qpkg_json_dir(&cache_root);
+        let headers_dst = package_path.src_path(&cache_root);
+        let bin_dir = package_path.binaries_path(&cache_root);
 
         // Check if already exists
         if QPkg::exists(&base_path) {
@@ -314,7 +324,7 @@ impl FileRepository {
 
         // Validate binaries exist
         for binary in qpkg.config.workspace.out_binaries.iter().flatten() {
-            let binary_path = package_path.binary_path(binary);
+            let binary_path = package_path.binary_path(&cache_root, binary);
             if !binary_path.exists() {
                 bail!(
                     "Binary {} not found at {}",
@@ -477,10 +487,11 @@ impl FileRepository {
     /// Collects all files of a package from the cache.
     /// Returns a `PackageFiles` struct containing the paths to the headers, release binary, and debug binary.
     pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
+        let cache_root = Self::cache_root();
         let dep_cache_path =
             PackageIdPath::new(package.id.clone()).version(package.version.clone());
 
-        if !dep_cache_path.base_path().exists() {
+        if !dep_cache_path.base_path(&cache_root).exists() {
             bail!(
                 "Missing cache for dependency {}:{}",
                 package.id.dependency_id_color(),
@@ -488,7 +499,7 @@ impl FileRepository {
             );
         }
 
-        let headers_path = dep_cache_path.src_path();
+        let headers_path = dep_cache_path.src_path(&cache_root);
 
         if !headers_path.exists() {
             bail!(
@@ -502,7 +513,7 @@ impl FileRepository {
         let expected_binaries = package.workspace.out_binaries.clone().unwrap_or_default();
         let binaries: Vec<PathBuf> = expected_binaries
             .iter()
-            .map(|b| dep_cache_path.binary_path(b))
+            .map(|b| dep_cache_path.binary_path(&cache_root, b))
             .collect();
 
         // ensure no duplicates
@@ -553,12 +564,13 @@ impl FileRepository {
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
         // validate exists dependencies
+        let cache_root = Self::cache_root();
         let missing_dependencies: Vec<_> = restored_deps
             .iter()
             .filter_map(|r| {
                 let package_path = PackageIdPath::new(r.config.id.clone())
                     .version(r.config.version.clone())
-                    .base_path();
+                    .base_path(&cache_root);
                 // if the package path does not exist, return the id and version
                 package_path
                     .exists()
@@ -654,7 +666,7 @@ impl FileRepository {
 
     pub fn remove_package_versions(&mut self, package: &DependencyId) -> Result<()> {
         self.artifacts.remove(package);
-        let packages_path = PackageIdPath::new(package.clone()).versions_path();
+        let packages_path = PackageIdPath::new(package.clone()).versions_path(&Self::cache_root());
         if !packages_path.exists() {
             return Ok(());
         }
@@ -669,7 +681,7 @@ impl FileRepository {
 
         let packages_path = PackageIdPath::new(package.clone())
             .version(version.clone())
-            .base_path();
+            .base_path(&Self::cache_root());
 
         if !packages_path.exists() {
             return Ok(());
@@ -719,10 +731,11 @@ impl Repository for FileRepository {
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
         let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
+        let cache_root = Self::cache_root();
 
-        let config = PackageConfig::read(package_path.qpm_json_dir());
+        let config = PackageConfig::read(package_path.qpm_json_dir(&cache_root));
 
-        Ok(exist_in_db && package_path.src_path().exists() && config.is_ok())
+        Ok(exist_in_db && package_path.src_path(&cache_root).exists() && config.is_ok())
     }
 
     fn write_repo(&self) -> Result<()> {

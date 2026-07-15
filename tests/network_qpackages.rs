@@ -11,7 +11,7 @@ use qpm_package::models::package::{DependencyId, PackageConfig, PackageDependenc
 use semver::{Version, VersionReq};
 
 use qpm_cli::{
-    models::package_files::PackageIdPath,
+    models::{config::get_combine_config, package_files::PackageIdPath},
     repository::{self, Repository, local::FileRepository, qpackages::QPMRepository},
     services::restore::PackageRestorer,
 };
@@ -190,7 +190,9 @@ fn resolve_redownload_cache() -> Result<()> {
     let package_path = PackageIdPath::new(package.id.clone());
     let package_version_path = package_path.version(package.version.clone());
 
-    let lib_path = package_version_path.binary_path(Path::new("libbeatsaber-hook_5_1_9.so"));
+    let cache_root = get_combine_config().cache.clone().expect("No cache path set");
+    let lib_path =
+        package_version_path.binary_path(&cache_root, Path::new("libbeatsaber-hook_5_1_9.so"));
 
     let restorer = {
         let repo = get_repo()?;

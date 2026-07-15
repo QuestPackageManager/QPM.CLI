@@ -14,7 +14,7 @@ use qpm_package::models::{
 };
 
 use crate::{
-    models::{package_files::PackageIdPath, qpackages::QPackageExtensions},
+    models::{config::get_combine_config, package_files::PackageIdPath, qpackages::QPackageExtensions},
     services::network::get_agent,
     repository::local::FileRepository,
     terminal::colors::QPMColor,
@@ -113,7 +113,11 @@ impl QPMRepository {
         );
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        let base_path = package_path.base_path();
+        let cache_root = get_combine_config()
+            .cache
+            .clone()
+            .expect("No cache path set");
+        let base_path = package_path.base_path(&cache_root);
 
         let qpackages_cached = QPackagesPackage::read(&base_path);
         if let Ok(qpackages_cached) = qpackages_cached {
