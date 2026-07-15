@@ -22,7 +22,7 @@ use crate::{
         scripts,
     },
     models::package::PackageConfigExtensions,
-    repository::{self, local::FileRepository},
+    repository::{self, file::FileRepository},
     services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };

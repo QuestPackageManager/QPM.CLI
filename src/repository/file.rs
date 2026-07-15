@@ -47,24 +47,46 @@ pub struct PackageFiles {
     // pub extras: Vec<PathBuf>,
 }
 
-// TODO: Somehow make a global singleton of sorts/cached instance to share across places
-// like resolver
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
-pub struct FileRepository {
+pub struct FileRepositoryRegistry {
     #[serde(default)]
     pub artifacts: HashMap<DependencyId, HashMap<Version, Artifact>>,
 }
 
+// TODO: Somehow make a global singleton of sorts/cached instance to share across places
+// like resolver
+#[derive(Clone, Debug, Default)]
+pub struct FileRepository {
+    root: PathBuf,
+    registry: FileRepositoryRegistry,
+}
+
 impl FileRepository {
-    pub fn get_artifacts_from_id(
-        &self,
-        id: &DependencyId,
-    ) -> Option<&HashMap<Version, Artifact>> {
-        self.artifacts.get(id)
+    /// Builds a repository instance directly from a root and registry, bypassing disk I/O.
+    /// Mainly useful for tests.
+    pub fn new(root: PathBuf, registry: FileRepositoryRegistry) -> Self {
+        Self { root, registry }
+    }
+
+    pub fn artifacts(&self) -> &HashMap<DependencyId, HashMap<Version, Artifact>> {
+        &self.registry.artifacts
+    }
+
+    pub fn artifacts_mut(&mut self) -> &mut HashMap<DependencyId, HashMap<Version, Artifact>> {
+        &mut self.registry.artifacts
+    }
+
+    /// The root cache directory this instance installs packages under and resolves paths from
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn get_artifacts_from_id(&self, id: &DependencyId) -> Option<&HashMap<Version, Artifact>> {
+        self.registry.artifacts.get(id)
     }
 
     pub fn get_artifact(&self, id: &DependencyId, version: &Version) -> Option<&Artifact> {
-        self.artifacts.get(id)?.get(version)
+        self.registry.artifacts.get(id)?.get(version)
     }
 
     /// for adding to cache from local or network
@@ -74,7 +96,11 @@ impl FileRepository {
         qpkg_checksum: Option<String>,
         overwrite_existing: bool,
     ) -> Result<()> {
-        let id_artifacts = self.artifacts.entry(package.id.clone()).or_default();
+        let id_artifacts = self
+            .registry
+            .artifacts
+            .entry(package.id.clone())
+            .or_default();
 
         let entry = id_artifacts.entry(package.version.clone());
         let artifact = Artifact {
@@ -110,6 +136,7 @@ impl FileRepository {
 
     #[deprecated(note = "Use qpkg_install instead")]
     pub fn copy_to_cache(
+        &self,
         package: &PackageConfig,
         project_folder: PathBuf,
         binaries: Vec<PathBuf>,
@@ -120,7 +147,7 @@ impl FileRepository {
             package.id.bright_red(),
             package.version.bright_green()
         );
-        let cache_root = Self::cache_root();
+        let cache_root = &self.root;
         let cache_path = PackageIdPath::new(package.id.clone()).version(package.version.clone());
 
         let tmp_path = cache_path.tmp_path(&cache_root);
@@ -133,7 +160,8 @@ impl FileRepository {
                 .context("Failed to remove existing src folder")?;
         }
 
-        fs::create_dir_all(cache_path.src_path(&cache_root)).context("Failed to create lib path")?;
+        fs::create_dir_all(cache_path.src_path(&cache_root))
+            .context("Failed to create lib path")?;
 
         for binary_src in binaries {
             if !binary_src.exists() {
@@ -154,7 +182,9 @@ impl FileRepository {
 
         copy_things(
             &original_shared_path,
-            &cache_path.src_path(&cache_root).join(&package.shared_directory),
+            &cache_path
+                .src_path(&cache_root)
+                .join(&package.shared_directory),
         )?;
         copy_things(
             &project_folder.join(QPM_JSON),
@@ -188,25 +218,33 @@ impl FileRepository {
         Ok(())
     }
 
-    /// always gets the global config
-    pub fn read() -> Result<Self> {
+    /// Reads (or defaults) the file repository registry, rooted at `root` for package path
+    /// resolution
+    pub fn read(root: PathBuf) -> Result<Self> {
         let path = Self::global_file_repository_path();
         fs::create_dir_all(Self::global_repository_dir())
             .context("Failed to make config folder")?;
 
-        if let Ok(file) = std::fs::File::open(path) {
+        let registry = if let Ok(file) = std::fs::File::open(path) {
             json::json_from_reader_fast(BufReader::new(file))
-                .context("Unable to read local repository config")
+                .context("Unable to read local repository config")?
         } else {
             // didn't exist
-            Ok(Self::default())
-        }
+            FileRepositoryRegistry::default()
+        };
+
+        Ok(Self { root, registry })
+    }
+
+    /// Reads the file repository rooted at the user's configured global cache directory
+    pub fn read_global_cache() -> Result<Self> {
+        Self::read(Self::cache_root())
     }
 
     pub fn write(&self) -> Result<()> {
         let config = serde_json::to_string_pretty(&WithSchema {
             schema: SchemaLinks::FILE_REPOSITORY,
-            value: self,
+            value: &self.registry,
         })
         .expect("Serialization failed");
         let path = Self::global_file_repository_path();
@@ -242,6 +280,7 @@ impl FileRepository {
     }
 
     pub fn install_qpkg<T>(
+        &mut self,
         mut buffer: T,
         overwrite_existing: bool,
         version: Option<Version>,
@@ -276,7 +315,7 @@ impl FileRepository {
         let package_path: crate::models::package_files::PackageVersionPath =
             PackageIdPath::new(qpkg.config.id.clone()).version(qpkg.config.version.clone());
 
-        let cache_root = Self::cache_root();
+        let cache_root = &self.root;
         let base_path = package_path.base_path(&cache_root);
         let qpkg_file_dst = package_path.qpkg_json_dir(&cache_root);
         let headers_dst = package_path.src_path(&cache_root);
@@ -320,7 +359,9 @@ impl FileRepository {
         );
 
         // Extract QPKG to cache
-        let extracted_config = qpkg_file.extract_to(&qpkg_file_dst, &headers_dst, &bin_dir).context("Failed to extract QPKG")?;
+        let extracted_config = qpkg_file
+            .extract_to(&qpkg_file_dst, &headers_dst, &bin_dir)
+            .context("Failed to extract QPKG")?;
 
         // Validate binaries exist
         for binary in qpkg.config.workspace.out_binaries.iter().flatten() {
@@ -346,9 +387,8 @@ impl FileRepository {
         })?;
 
         // Update repository index
-        let mut file_repo = FileRepository::read()?;
-        file_repo.add_artifact_and_cache(extracted_config.clone(), Some(qpkg_checksum.clone()), true)?;
-        file_repo.write()?;
+        self.add_artifact_and_cache(extracted_config.clone(), Some(qpkg_checksum.clone()), true)?;
+        self.write()?;
 
         Ok(Artifact {
             config: extracted_config,
@@ -360,6 +400,7 @@ impl FileRepository {
     /// Centralizes the download+verify+install flow shared by qpackages restore, `qpm2 install --url`,
     /// and dependency-level `qpkgUrl` overrides.
     pub fn install_qpkg_from_url(
+        &mut self,
         url: &str,
         checksum: Option<&str>,
         overwrite_existing: bool,
@@ -383,15 +424,16 @@ impl FileRepository {
         }
 
         let cursor = std::io::Cursor::new(bytes);
-        Self::install_qpkg(cursor, overwrite_existing, version)
+        self.install_qpkg(cursor, overwrite_existing, version)
     }
 
     pub fn copy_from_cache(
+        &self,
         package: &PackageConfig,
         restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<()> {
-        let files = Self::collect_deps(package, restored_deps, workspace_dir)?;
+        let files = self.collect_deps(package, restored_deps, workspace_dir)?;
 
         let config = get_combine_config();
         let symlink = config.symlink.unwrap_or(true);
@@ -486,8 +528,8 @@ impl FileRepository {
 
     /// Collects all files of a package from the cache.
     /// Returns a `PackageFiles` struct containing the paths to the headers, release binary, and debug binary.
-    pub fn collect_files_of_package(package: &PackageConfig) -> Result<PackageFiles> {
-        let cache_root = Self::cache_root();
+    pub fn collect_files_of_package(&self, package: &PackageConfig) -> Result<PackageFiles> {
+        let cache_root = &self.root;
         let dep_cache_path =
             PackageIdPath::new(package.id.clone()).version(package.version.clone());
 
@@ -559,12 +601,13 @@ impl FileRepository {
     /// Collects all dependencies of a package from the cache.
     /// Returns a map of source paths to target paths for the dependencies.
     pub fn collect_deps(
+        &self,
         package: &PackageConfig,
         restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
     ) -> Result<HashMap<PathBuf, PathBuf>> {
         // validate exists dependencies
-        let cache_root = Self::cache_root();
+        let cache_root = &self.root;
         let missing_dependencies: Vec<_> = restored_deps
             .iter()
             .filter_map(|r| {
@@ -596,7 +639,8 @@ impl FileRepository {
         let deps: Vec<_> = restored_deps
             .iter()
             .map(|resolved_dep| -> color_eyre::Result<_> {
-                let collect_files_of_package = Self::collect_files_of_package(&resolved_dep.config)?;
+                let collect_files_of_package =
+                    self.collect_files_of_package(&resolved_dep.config)?;
 
                 Ok((resolved_dep, collect_files_of_package))
             })
@@ -665,8 +709,8 @@ impl FileRepository {
     }
 
     pub fn remove_package_versions(&mut self, package: &DependencyId) -> Result<()> {
-        self.artifacts.remove(package);
-        let packages_path = PackageIdPath::new(package.clone()).versions_path(&Self::cache_root());
+        self.registry.artifacts.remove(package);
+        let packages_path = PackageIdPath::new(package.clone()).versions_path(&self.root);
         if !packages_path.exists() {
             return Ok(());
         }
@@ -674,14 +718,15 @@ impl FileRepository {
         Ok(())
     }
     pub fn remove_package(&mut self, package: &DependencyId, version: &Version) -> Result<()> {
-        self.artifacts
+        self.registry
+            .artifacts
             .get_mut(package)
             .ok_or_eyre(format!("No package found {package}/{version}"))?
             .remove(version);
 
         let packages_path = PackageIdPath::new(package.clone())
             .version(version.clone())
-            .base_path(&Self::cache_root());
+            .base_path(&self.root);
 
         if !packages_path.exists() {
             return Ok(());
@@ -709,7 +754,7 @@ impl Repository for FileRepository {
     }
 
     fn get_package_names(&self) -> Result<Vec<DependencyId>> {
-        Ok(self.artifacts.keys().cloned().collect())
+        Ok(self.registry.artifacts.keys().cloned().collect())
     }
 
     fn add_to_db_cache(
@@ -730,12 +775,19 @@ impl Repository for FileRepository {
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
         let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
+        if !exist_in_db {
+            return Ok(false);
+        }
+
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
-        let cache_root = Self::cache_root();
+        let cache_root = &self.root;
+        if !package_path.src_path(cache_root).exists() {
+            return Ok(false);
+        }
 
-        let config = PackageConfig::read(package_path.qpm_json_dir(&cache_root));
+        let config = PackageConfig::read(package_path.qpm_json_dir(cache_root));
 
-        Ok(exist_in_db && package_path.src_path(&cache_root).exists() && config.is_ok())
+        Ok(exist_in_db && package_path.src_path(cache_root).exists() && config.is_ok())
     }
 
     fn write_repo(&self) -> Result<()> {

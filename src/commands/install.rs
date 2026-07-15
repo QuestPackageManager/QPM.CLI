@@ -5,7 +5,7 @@ use color_eyre::eyre::{Context, bail};
 use qpm_package::models::shared_package::SharedPackageConfig;
 
 use crate::{
-    models::package::PackageConfigExtensions, repository::local::FileRepository,
+    models::package::PackageConfigExtensions, repository::file::FileRepository,
     terminal::colors::QPMColor,
 };
 
@@ -58,18 +58,22 @@ impl InstallCommand {
             })
             .transpose()?;
 
+        let mut file_repo = FileRepository::read_global_cache()?;
+
         let package = if let Some(qpkg_path) = &self.qpkg_path {
             println!("Installing qpkg from path: {}", qpkg_path.display());
 
             let qpkg_file = File::open(qpkg_path).context("Failed to open qpkg file")?;
             let qpkg_file = BufReader::new(qpkg_file);
 
-            FileRepository::install_qpkg(qpkg_file, true, version)
+            file_repo
+                .install_qpkg(qpkg_file, true, version)
                 .context("Installing qpkg zip failed")?
         } else if let Some(qpkg_url) = &self.qpkg_url {
             println!("Installing qpkg from URL: {qpkg_url}");
 
-            FileRepository::install_qpkg_from_url(qpkg_url, None, true, version)
+            file_repo
+                .install_qpkg_from_url(qpkg_url, None, true, version)
                 .context("Installing qpkg from URL failed")?
         } else {
             bail!("Either --path or --url must be provided to install a qpkg");
@@ -98,8 +102,8 @@ impl InstallCommand {
                 }
             }
         }
-        let mut file_repo = FileRepository::read()?;
-        FileRepository::copy_to_cache(&shared_package.config, project_folder, binaries, false)?;
+        let mut file_repo = FileRepository::read_global_cache()?;
+        file_repo.copy_to_cache(&shared_package.config, project_folder, binaries, false)?;
         // legacy install copies already-built binaries directly, there's no qpkg archive to checksum
         file_repo.add_artifact_and_cache(shared_package.config, None, true)?;
         file_repo.write()?;

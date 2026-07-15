@@ -12,7 +12,7 @@ use walkdir::WalkDir;
 
 use crate::{
     models::{config::get_combine_config, package::PackageConfigExtensions},
-    repository::local::FileRepository,
+    repository::file::FileRepository,
     terminal::colors::QPMColor,
 };
 
@@ -61,7 +61,7 @@ fn clear(clear_params: ClearCommand) -> Result<()> {
     let dep_id = clear_params.package.map(DependencyId);
     match (dep_id, clear_params.version) {
         (Some(package), None) => {
-            let mut file_repo = FileRepository::read()?;
+            let mut file_repo = FileRepository::read_global_cache()?;
             file_repo.remove_package_versions(&package)?;
             println!(
                 "Sucessfully removed all versions of {}",
@@ -71,7 +71,7 @@ fn clear(clear_params: ClearCommand) -> Result<()> {
             Ok(())
         }
         (Some(package), Some(version_str)) => {
-            let mut file_repo = FileRepository::read()?;
+            let mut file_repo = FileRepository::read_global_cache()?;
             let version = Version::parse(&version_str).context("version parse")?;
             file_repo.remove_package(&package, &version)?;
             println!(

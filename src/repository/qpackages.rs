@@ -14,9 +14,9 @@ use qpm_package::models::{
 };
 
 use crate::{
-    models::{config::get_combine_config, package_files::PackageIdPath, qpackages::QPackageExtensions},
+    models::{package_files::PackageIdPath, qpackages::QPackageExtensions},
     services::network::get_agent,
-    repository::local::FileRepository,
+    repository::file::FileRepository,
     terminal::colors::QPMColor,
 };
 
@@ -113,11 +113,8 @@ impl QPMRepository {
         );
         let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
 
-        let cache_root = get_combine_config()
-            .cache
-            .clone()
-            .expect("No cache path set");
-        let base_path = package_path.base_path(&cache_root);
+        let mut file_repo = FileRepository::read_global_cache()?;
+        let base_path = package_path.base_path(file_repo.root());
 
         let qpackages_cached = QPackagesPackage::read(&base_path);
         if let Ok(qpackages_cached) = qpackages_cached {
@@ -136,18 +133,19 @@ impl QPMRepository {
 
         let qpkg_url = &qpackage_config.qpkg_url;
 
-        let package = FileRepository::install_qpkg_from_url(
-            qpkg_url,
-            qpackage_config.qpkg_checksum.as_deref(),
-            false,
-            None,
-        )
-        .with_context(|| {
-            format!(
-                "QPackages QPKG installation from {}:{}",
-                qpackage_config.config.id, qpackage_config.config.version
+        let package = file_repo
+            .install_qpkg_from_url(
+                qpkg_url,
+                qpackage_config.qpkg_checksum.as_deref(),
+                false,
+                None,
             )
-        })?;
+            .with_context(|| {
+                format!(
+                    "QPackages QPKG installation from {}:{}",
+                    qpackage_config.config.id, qpackage_config.config.version
+                )
+            })?;
 
         // assert that the package is the same as the one we downloaded
         if package.config != qpackage_config.config {

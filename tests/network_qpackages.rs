@@ -12,7 +12,7 @@ use semver::{Version, VersionReq};
 
 use qpm_cli::{
     models::{config::get_combine_config, package_files::PackageIdPath},
-    repository::{self, Repository, local::FileRepository, qpackages::QPMRepository},
+    repository::{self, Repository, file::FileRepository, qpackages::QPMRepository},
     services::restore::PackageRestorer,
 };
 
@@ -157,9 +157,9 @@ fn resolve_redownload_cache() -> Result<()> {
         .unwrap_or(std::env::temp_dir());
 
     fn get_repo() -> Result<impl Repository> {
-        let mut file_repo = FileRepository::read()?;
+        let mut file_repo = FileRepository::read_global_cache()?;
         if let Some(bs) = file_repo
-            .artifacts
+            .artifacts_mut()
             .get_mut(&DependencyId("beatsaber-hook".to_owned()))
         {
             bs.remove(&Version::new(5, 1, 9));

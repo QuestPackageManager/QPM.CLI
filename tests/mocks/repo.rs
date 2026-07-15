@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
-use qpm_cli::repository::{Artifact, local::FileRepository};
+use qpm_cli::repository::{Artifact, file::{FileRepository, FileRepositoryRegistry}};
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency},
     shared_package::SharedPackageConfig,
@@ -80,21 +80,24 @@ pub fn get_mock_repository() -> FileRepository {
         VersionReq::parse(">=1.0.0").unwrap(),
     );
 
-    FileRepository {
-        artifacts: [artifact1, artifact2, artifact3, artifact4, artifact5]
-            .map(|a| {
-                (
-                    a.config.id.clone(),
-                    HashMap::from([(
-                        a.config.version.clone(),
-                        Artifact {
-                            config: a.config.clone(),
-                            qpkg_checksum: None,
-                        },
-                    )]),
-                )
-            })
-            .into_iter()
-            .collect(),
-    }
+    FileRepository::new(
+        PathBuf::new(),
+        FileRepositoryRegistry {
+            artifacts: [artifact1, artifact2, artifact3, artifact4, artifact5]
+                .map(|a| {
+                    (
+                        a.config.id.clone(),
+                        HashMap::from([(
+                            a.config.version.clone(),
+                            Artifact {
+                                config: a.config.clone(),
+                                qpkg_checksum: None,
+                            },
+                        )]),
+                    )
+                })
+                .into_iter()
+                .collect(),
+        },
+    )
 }

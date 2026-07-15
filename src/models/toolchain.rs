@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::repository::{Repository, local::FileRepository};
+use crate::repository::{Repository, file::FileRepository};
 
 use super::schemas::{SchemaLinks, WithSchema};
 
@@ -39,6 +39,7 @@ pub fn write_toolchain_file(
     repo: &impl Repository,
     toolchain_path: &std::path::PathBuf,
 ) -> Result<()> {
+    let file_repo = FileRepository::read_global_cache()?;
     let extern_dir = shared_config.config.dependencies_directory.clone();
     let compile_options = shared_config
         .restored_dependencies
@@ -132,8 +133,7 @@ pub fn write_toolchain_file(
                         dep_id, dep_info.restored_version
                     )
                 })?;
-            let collect_files_of_package =
-                FileRepository::collect_files_of_package(&dep_config.config)?;
+            let collect_files_of_package = file_repo.collect_files_of_package(&dep_config.config)?;
 
             let binaries = collect_files_of_package
                 .binaries

@@ -21,7 +21,7 @@ use qpm_package::models::package::PackageConfig;
 use crate::{
     commands::build::BuildCommand,
     models::{package::PackageConfigExtensions, qpkg_file::QpkgFile},
-    repository::local::FileRepository,
+    repository::file::FileRepository,
     terminal::colors::QPMColor,
 };
 

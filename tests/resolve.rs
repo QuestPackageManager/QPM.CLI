@@ -13,7 +13,7 @@ fn get_artifact_names() -> Result<()> {
     let repo = get_mock_repository();
     let names = repo.get_package_names()?;
 
-    let packages_name_mapped = repo.artifacts.keys().cloned().collect_vec();
+    let packages_name_mapped = repo.artifacts().keys().cloned().collect_vec();
 
     assert_eq!(names.len(), packages_name_mapped.len());
     assert_eq!(names, packages_name_mapped);

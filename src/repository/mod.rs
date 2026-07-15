@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 use qpm_package::models::package::{DependencyId, PackageConfig};
 
 use self::{
-    local::FileRepository, memcached::MemcachedRepository, multi::MultiDependencyRepository,
+    file::FileRepository, memcached::MemcachedRepository, multi::MultiDependencyRepository,
     qpackages::QPMRepository,
 };
 
-pub mod local;
+pub mod file;
 pub mod memcached;
 pub mod multi;
 pub mod qpackages;
@@ -58,7 +58,7 @@ pub trait Repository {
 
 pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
     // TODO: Make file repository cached
-    let file_repository = Box::new(FileRepository::read()?);
+    let file_repository = Box::new(FileRepository::read_global_cache()?);
     let qpm_repository = Box::<QPMRepository>::default();
     Ok(vec![file_repository, qpm_repository])
 }
