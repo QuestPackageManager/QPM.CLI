@@ -9,7 +9,6 @@ use commands::Command;
 pub mod commands;
 
 pub mod models;
-pub mod network;
 pub mod repository;
 pub mod services;
 pub mod terminal;

@@ -15,7 +15,7 @@ use qpm_package::models::{
 
 use crate::{
     models::{package_files::PackageIdPath, qpackages::QPackageExtensions},
-    network::agent::get_agent,
+    services::network::get_agent,
     repository::local::FileRepository,
     terminal::colors::QPMColor,
 };

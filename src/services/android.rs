@@ -9,7 +9,7 @@ use zip::ZipArchive;
 
 use crate::{
     models::android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
-    network::agent::{download_file, download_file_report, get_agent},
+    services::network::{download_file, download_file_report, get_agent},
     terminal::colors::QPMColor,
 };
 

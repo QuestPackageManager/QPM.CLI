@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 
-use super::agent::get_agent;
+use super::network::get_agent;
 
 const GITHUB_OWNER: &str = "QuestPackageManager";
 const GITHUB_REPO: &str = "QPM.CLI";
@@ -84,4 +84,15 @@ pub fn bleeding_release_github_artifact_url() -> String {
 
     #[cfg(target_os = "linux")]
     return "https://github.com/QuestPackageManager/QPM.CLI/releases/download/bleeding/qpm2-linux-x64.zip".to_string();
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GithubReleaseAsset {
+    pub url: String,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GithubReleaseData {
+    pub assets: Vec<GithubReleaseAsset>,
 }

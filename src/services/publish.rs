@@ -8,8 +8,10 @@ use qpm_package::models::{
 use sha2::{Digest, Sha256};
 
 use crate::{
-    models::qpkg_file::QpkgFile, network::agent::download_bytes, repository::Repository,
-    repository::qpackages::QPMRepository, terminal::colors::QPMColor,
+    models::qpkg_file::QpkgFile,
+    repository::{Repository, qpackages::QPMRepository},
+    services::network::download_bytes,
+    terminal::colors::QPMColor,
 };
 
 /// Validates a package + its qpkg artifact before publishing, then submits it to a backend

@@ -30,7 +30,10 @@ use crate::{
         qpkg::QPkgExtensions,
         qpkg_file::QpkgFile,
         schemas::{SchemaLinks, WithSchema},
-    }, network::agent::download_bytes, services::pubgrub::ResolvedDependency, terminal::colors::QPMColor, utils::{fs::copy_things, json},
+    },
+    services::{network::download_bytes, pubgrub::ResolvedDependency},
+    terminal::colors::QPMColor,
+    utils::{fs::copy_things, json},
 };
 
 use super::{Artifact, Repository};
