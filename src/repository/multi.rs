@@ -24,12 +24,13 @@ impl MultiDependencyRepository {
 impl Repository for MultiDependencyRepository {
     // get versions of all repositories
     fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
-        // double flat map???? rust weird
-        // TODO: Propagate error
         let result: Vec<Version> = self
             .repositories
             .iter()
-            .filter_map(|r| r.get_package_versions(id).expect("Failed to get versions"))
+            .map(|r| r.get_package_versions(id))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
             .flatten()
             .unique()
             .sorted_by(|a, b| a.cmp(b))
@@ -41,21 +42,6 @@ impl Repository for MultiDependencyRepository {
         }
 
         Ok(Some(result))
-
-        // let mut result: Vec<PackageVersion> = vec![];
-        // for repo_result in self.repositories.iter().map(|r| r.get_package_versions(id)) {
-        //     if let Some(r) = repo_result? {
-        //         result.extend_from_slice(&r)
-        //     }
-        // }
-
-        // let compute_result = result.into_iter().unique().collect_vec();
-
-        // if compute_result.is_empty() {
-        //     return Ok(None);
-        // }
-
-        // Ok(Some(compute_result))
     }
 
     // get package from the first repository that has it
@@ -64,47 +50,43 @@ impl Repository for MultiDependencyRepository {
         id: &DependencyId,
         version: &semver::Version,
     ) -> Result<Option<Artifact>> {
-        let opt = self
-            .repositories
-            .iter()
-            .map(|r| r.get_package(id, version).expect("Unable to get package"))
-            .find(|r| r.is_some());
-
-        match opt {
-            Some(o) => Ok(o),
-            _ => Ok(None),
+        for repo in &self.repositories {
+            if let Some(artifact) = repo.get_package(id, version)? {
+                return Ok(Some(artifact));
+            }
         }
+        Ok(None)
     }
 
     fn get_package_names(&self) -> Result<Vec<DependencyId>> {
-        Ok(self
+        let names = self
             .repositories
             .iter()
-            .flat_map(|r| r.get_package_names().expect("Unable to get package names"))
+            .map(|r| r.get_package_names())
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
             .unique()
-            .collect())
+            .collect();
+
+        Ok(names)
     }
 
     fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        let mut found_package = self.repositories.iter_mut().filter(|r| {
-            r.get_package(&config.id, &config.version)
-                .expect("Unable to get package")
-                .is_some()
-        });
-
-        let downloaded_package = found_package.find_map(|r| {
-            r.download_to_cache(config)
-                .expect("Unable to download to cache")
-                .then_some(true)
-        });
-        match downloaded_package {
-            Some(v) => Ok(v),
-            None => bail!(
-                "No repository found that has package {}:{}",
-                config.id,
-                config.version
-            ),
+        for repo in &mut self.repositories {
+            if repo.get_package(&config.id, &config.version)?.is_none() {
+                continue;
+            }
+            if repo.download_to_cache(config)? {
+                return Ok(true);
+            }
         }
+
+        bail!(
+            "No repository found that has package {}:{}",
+            config.id,
+            config.version
+        )
     }
 
     fn add_to_db_cache(

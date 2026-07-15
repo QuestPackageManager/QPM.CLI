@@ -1,4 +1,4 @@
-use qpm_cli::resolver::semver::{VersionWrapper, req_to_range};
+use qpm_cli::services::semver::{VersionWrapper, req_to_range};
 use semver::{Version, VersionReq};
 
 fn range_contains(req: &str, version: &str) -> bool {

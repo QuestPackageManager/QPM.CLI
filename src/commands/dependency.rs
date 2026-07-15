@@ -4,15 +4,13 @@ use color_eyre::{
     Result,
     eyre::{Context, ContextCompat, bail},
 };
-use qpm_package::models::{
-    package::{DependencyId, PackageConfig, PackageDependency},
-    shared_package::SharedPackageConfig,
-};
+use qpm_package::models::package::{DependencyId, PackageConfig, PackageDependency};
 use semver::{Version, VersionReq};
 
 use crate::{
-    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
+    models::package::PackageConfigExtensions,
     repository::{self, Repository},
+    services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
 
@@ -210,10 +208,9 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
 
     // if recursive is true, resolve the dependencies of the package
     if dependency_args.recursive
-        && let Ok((_, resolved_deps)) =
-            SharedPackageConfig::resolve_from_package(package.clone(), &repository)
+        && let Ok(restorer) = PackageRestorer::resolve(package.clone(), &repository)
     {
-        for dep in resolved_deps {
+        for dep in restorer.take_resolved_deps() {
             println!(
                 "Pulling {}:{}",
                 id.dependency_id_color(),

@@ -7,16 +7,13 @@ use std::{
 
 use color_eyre::{Report, Result};
 use itertools::Itertools;
-use qpm_package::models::{
-    package::{DependencyId, PackageConfig, PackageDependency},
-    shared_package::SharedPackageConfig,
-};
+use qpm_package::models::package::{DependencyId, PackageConfig, PackageDependency};
 use semver::{Version, VersionReq};
 
 use qpm_cli::{
     models::package_files::PackageIdPath,
     repository::{self, Repository, local::FileRepository, qpackages::QPMRepository},
-    resolver::dependency,
+    services::restore::PackageRestorer,
 };
 
 #[test]
@@ -84,7 +81,8 @@ fn resolve() -> Result<()> {
     assert_ne!(p, None);
     let unwrapped_p = p.unwrap();
 
-    let resolved = dependency::resolve(&unwrapped_p.config, &repo)?.collect_vec();
+    let restorer = PackageRestorer::resolve(unwrapped_p.config.clone(), &repo)?;
+    let resolved = restorer.resolved_deps();
 
     assert!(!resolved.is_empty());
 
@@ -143,7 +141,7 @@ fn resolve_fail() -> Result<()> {
         ..Default::default()
     };
 
-    let resolved = dependency::resolve(&p, &repo);
+    let resolved = PackageRestorer::resolve(p, &repo);
 
     assert!(resolved.is_err());
     let report: Report = resolved.err().unwrap();
@@ -189,37 +187,32 @@ fn resolve_redownload_cache() -> Result<()> {
         ..Default::default()
     };
 
-    let shared_package = SharedPackageConfig {
-        config: package.clone(),
-        restored_dependencies: Default::default(),
-        env: Default::default(),
-    };
-
     let package_path = PackageIdPath::new(package.id.clone());
     let package_version_path = package_path.version(package.version.clone());
 
     let lib_path = package_version_path.binary_path(Path::new("libbeatsaber-hook_5_1_9.so"));
 
-    let resolved = {
+    let restorer = {
+        let repo = get_repo()?;
+        PackageRestorer::resolve(package.clone(), &repo).unwrap()
+    };
+
+    {
         let mut repo = get_repo()?;
 
-        let resolved = dependency::resolve(&package, &repo).unwrap().collect_vec();
-
-        dependency::restore(&workspace_tmp_dir, &shared_package, &resolved, &mut repo)?;
+        restorer.restore(&workspace_tmp_dir, &mut repo)?;
 
         println!("Lib path: {lib_path:?}");
 
         assert!(lib_path.exists());
         std::fs::remove_file(&lib_path)?;
-
-        resolved
-    };
+    }
 
     {
         let mut repo = get_repo()?;
         assert!(!lib_path.exists());
 
-        dependency::restore(&workspace_tmp_dir, &shared_package, &resolved, &mut repo)?;
+        restorer.restore(&workspace_tmp_dir, &mut repo)?;
         assert!(lib_path.exists());
     }
 

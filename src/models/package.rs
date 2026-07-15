@@ -1,17 +1,20 @@
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
-use color_eyre::{Result, Section, eyre::Context, owo_colors::OwoColorize};
+use color_eyre::{
+    Result, Section,
+    eyre::{Context, ContextCompat},
+    owo_colors::OwoColorize,
+};
 use itertools::Itertools;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency, QmodDependencyMode, QPM_JSON},
-    shared_package::{QPM_SHARED_JSON, SharedDependencyInfo, SharedPackageConfig},
+    shared_package::{QPM_SHARED_JSON, SharedPackageConfig},
 };
 use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
 
 use crate::{
     repository::Repository,
-    resolver::dependency::{ResolvedDependency, resolve},
     utils::json,
 };
 
@@ -36,12 +39,7 @@ pub trait PackageConfigExtensions {
     fn validate(&self) -> color_eyre::Result<()>;
 }
 pub trait SharedPackageConfigExtensions: Sized {
-    fn resolve_from_package(
-        config: PackageConfig,
-        repository: &impl Repository,
-    ) -> Result<(Self, Vec<ResolvedDependency>)>;
-
-    fn to_mod_json(self, repo: &impl Repository) -> ModJson;
+    fn to_mod_json(self, repo: &impl Repository) -> Result<ModJson>;
 
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()>;
 
@@ -163,42 +161,8 @@ struct DependencyBundle<'a> {
 }
 
 impl SharedPackageConfigExtensions for SharedPackageConfig {
-    /// Resolve dependencies from the package config and repository
-    /// Returns a tuple of the SharedPackageConfig and the resolved dependencies
-    fn resolve_from_package(
-        config: PackageConfig,
-        repository: &impl Repository,
-    ) -> Result<(Self, Vec<ResolvedDependency>)> {
-        let resolved_dependencies = resolve(&config, repository)?.collect_vec();
 
-        let restored_dependencies = resolved_dependencies
-            .iter()
-            .map(|resolved_dep| {
-                let dependency = config
-                    .get_dependency(&resolved_dep.config.id);
-                let qpkg_url = dependency
-                    .and_then(|dep| dep.qpkg_url.clone());
-
-                let shared_dependency_info = SharedDependencyInfo {
-                    restored_version: resolved_dep.config.version.clone(),
-                    qpkg_url,
-                    qpkg_checksum: resolved_dep.qpkg_checksum.clone(),
-                    restored_binaries: resolved_dep.config.workspace.out_binaries.clone().unwrap_or_default(),
-                    restored_env: resolved_dep.config.workspace.env.clone().unwrap_or_default(),
-                };
-                (resolved_dep.config.id.clone(), shared_dependency_info)
-            })
-            .collect();
-
-        let shared_package_config = SharedPackageConfig {
-            env: config.workspace.env.clone().unwrap_or_default(),
-            config,
-            restored_dependencies,
-        };
-        Ok((shared_package_config, resolved_dependencies))
-    }
-
-    fn to_mod_json(self, repo: &impl Repository) -> ModJson {
+    fn to_mod_json(self, repo: &impl Repository) -> Result<ModJson> {
         // Map of directly referenced dependencies
         let direct_dependencies: HashMap<DependencyId, _> = self
             .config
@@ -207,20 +171,21 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             .filter_map(|(dep_id, dependency)| {
                 // get the restored dependency info
                 let shared_dep = self.restored_dependencies.get(dep_id)?;
-
+                Some((dep_id, dependency, shared_dep))
+            })
+            .map(|(dep_id, dependency, shared_dep)| -> Result<(DependencyId, DependencyBundle)> {
                 // get the package config for the dependency
                 let dep_package = repo
-                    .get_package(dep_id, &shared_dep.restored_version)
-                    .expect("Failed to get package")
-                    .expect("Package should exist in repository");
+                    .get_package(dep_id, &shared_dep.restored_version)?
+                    .with_context(|| format!("Package {dep_id} should exist in repository"))?;
 
                 let result = DependencyBundle {
                     dependency,
                     restored_config: dep_package.config,
                 };
-                Some((dep_id.clone(), result))
+                Ok((dep_id.clone(), result))
             })
-            .collect();
+            .collect::<Result<_>>()?;
 
         // downloadable mods links n stuff
         // mods that are header-only but provide qmods can be added as deps
@@ -239,7 +204,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             })
             .collect();
 
-        ModJson {
+        Ok(ModJson {
             name: self.config.id.0.clone(),
             id: self.config.id.0.clone(),
             porter: None,
@@ -253,7 +218,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             late_mod_files: vec![],
             library_files: vec![],
             ..Default::default()
-        }
+        })
     }
 
     fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()> {

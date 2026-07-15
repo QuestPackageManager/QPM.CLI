@@ -6,7 +6,7 @@ use qpm_package::models::package::PackageConfig;
 use crate::{
     models::package::PackageConfigExtensions,
     repository::{self},
-    resolver::dependency::resolve,
+    services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
 
@@ -37,9 +37,13 @@ fn list_dependencies(
     repo: &impl repository::Repository,
     print_env: bool,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let resolved = resolve(&package, repo)?;
-    for resolved_artifact in resolved.sorted_by(|a, b| a.config.id.cmp(&b.config.id)) {
-        let resolved_dep = resolved_artifact.config;
+    let restorer = PackageRestorer::resolve(package, repo)?;
+    let resolved = restorer
+        .resolved_deps()
+        .iter()
+        .sorted_by(|a, b| a.config.id.cmp(&b.config.id));
+    for resolved_artifact in resolved {
+        let resolved_dep = &resolved_artifact.config;
         let sum = resolved_dep.dependencies.len();
 
         println!(

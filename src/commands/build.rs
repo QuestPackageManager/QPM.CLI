@@ -10,7 +10,6 @@ use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre::{Context, ContextCompat};
-use itertools::Itertools;
 use qpm_package::{
     extensions::workspace::WorkspaceConfigExtensions,
     models::{package::PackageConfig, shared_package::SharedPackageConfig},
@@ -24,7 +23,7 @@ use crate::{
     },
     models::package::PackageConfigExtensions,
     repository::{self, local::FileRepository},
-    resolver::dependency,
+    services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
 
@@ -89,10 +88,9 @@ impl Command for BuildCommand {
         if shared_package.config != package {
             println!("Restoring dependencies");
 
-            let resolved_deps = dependency::locked_resolve(&shared_package, &repo)?.collect_vec();
-
             shared_package.config = package.clone();
-            dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
+            let restorer = PackageRestorer::locked_resolve(&shared_package, &repo)?;
+            restorer.restore(".", &mut repo)?;
             shared_package.write(".")?;
 
             if self.ndk_resolve {

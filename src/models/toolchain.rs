@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs::File, path::PathBuf};
 
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Context, ContextCompat, Result};
 use itertools::Itertools;
 use qpm_package::models::{
     extra::PackageCompileOptions, package::DependencyId, shared_package::SharedPackageConfig,
@@ -43,8 +43,11 @@ pub fn write_toolchain_file(
     let compile_options = shared_config
         .restored_dependencies
         .iter()
-        .filter_map(|(dep_id, dep_info)| {
-            let dep_config = repo.get_package(dep_id, &dep_info.restored_version).ok()??.config;
+        .map(|(dep_id, dep_info)| -> Result<Option<PackageCompileOptions>> {
+            let Some(dep_config) = repo.get_package(dep_id, &dep_info.restored_version)? else {
+                return Ok(None);
+            };
+            let dep_config = dep_config.config;
 
             let package_id = dep_config.id.clone();
             // Prepend the extern dir and package id to the include paths
@@ -57,7 +60,9 @@ pub fn write_toolchain_file(
                     .to_string()
             };
 
-            let mut compile_options = dep_config.compile_options?;
+            let Some(mut compile_options) = dep_config.compile_options else {
+                return Ok(None);
+            };
 
             // prepend path
             compile_options.include_paths = compile_options
@@ -67,8 +72,11 @@ pub fn write_toolchain_file(
                 .system_includes
                 .map(|v| v.iter().map(prepend_path).collect());
 
-            Some(compile_options)
+            Ok(Some(compile_options))
         })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
         .fold(PackageCompileOptions::default(), |acc, x| {
             let c_flags: Vec<String> = acc
                 .c_flags
@@ -109,24 +117,23 @@ pub fn write_toolchain_file(
     let linked_binaries = shared_config
         .restored_dependencies
         .iter()
-        .map(|(dep_id, dep_info)| {
+        .map(|(dep_id, dep_info)| -> Result<(DependencyId, Vec<PathBuf>)> {
             let dep_config = repo
                 .get_package(dep_id, &dep_info.restored_version)
-                .unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to get package config for package '{}' version '{}': {}",
-                        dep_id, dep_info.restored_version, e
+                .with_context(|| {
+                    format!(
+                        "Failed to get package config for package '{}' version '{}'",
+                        dep_id, dep_info.restored_version
                     )
-                })
-                .unwrap_or_else(|| {
-                    panic!(
+                })?
+                .with_context(|| {
+                    format!(
                         "Package config not found for package '{}' version '{}'",
                         dep_id, dep_info.restored_version
                     )
-                });
+                })?;
             let collect_files_of_package =
-                FileRepository::collect_files_of_package(&dep_config.config)
-                    .expect("Failed to collect files of package");
+                FileRepository::collect_files_of_package(&dep_config.config)?;
 
             let binaries = collect_files_of_package
                 .binaries
@@ -134,9 +141,9 @@ pub fn write_toolchain_file(
                 .map(|bin| extern_binaries.join(bin.file_name().unwrap()))
                 .collect_vec();
 
-            (dep_id.clone(), binaries)
+            Ok((dep_id.clone(), binaries))
         })
-        .collect();
+        .collect::<Result<_>>()?;
 
     let package_id = shared_config.config.id.clone();
     let package_version = shared_config.config.version.clone();

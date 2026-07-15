@@ -101,17 +101,9 @@ impl QPMRepository {
     /// Downloads the package and caches it in the user config cache path
     /// Note this does not depend necessarily on it being on qpackages.com, it can be any valid QPkg
     fn download_package(&self, qpackage_config: &QPackagesPackage) -> Result<()> {
-        // Check if already cached
-        // if true, don't download repo / header files
-        // else cache to tmp folder in package id folder @ cache path
-        //          git repo -> git clone w/ or without github token
-        //          not git repo (no github.com) -> assume it's a zip
-        //          !! HANDLE SUBFOLDER FROM TMP, OR IF NO SUBFOLDER JUST RENAME TMP TO SRC !!
-        //          -- now we have the header files --
-        // Check if .so files are downloaded, if not:
-        // Download release .so and possibly debug .so to libs folder, if from github use token if available
-        // Now it should be cached!
-
+        // If a `qpackages.json` marker already exists for this id:version, it's already cached
+        // and there's nothing to do. Otherwise download the QPKG from `qpkg_url`, verify its
+        // checksum, extract it into the cache, and write the marker.
         let config = &qpackage_config.config;
 
         println!(

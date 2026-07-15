@@ -6,7 +6,6 @@ use color_eyre::{
     Section,
     eyre::{Context, Result, bail, eyre},
 };
-use itertools::Itertools;
 use qpm_package::models::{
     package::PackageConfig,
     shared_package::{QPM_SHARED_JSON, SharedPackageConfig},
@@ -14,9 +13,7 @@ use qpm_package::models::{
 use semver::Version;
 
 use crate::{
-    models::package::{PackageConfigExtensions, SharedPackageConfigExtensions},
-    repository::{self},
-    resolver::dependency,
+    models::package::PackageConfigExtensions, repository::{self}, services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
 
@@ -86,7 +83,7 @@ impl Command for RestoreCommand {
         // now that there's a single config, `!unlocked` (driven by is_modified) is the only
         // gate. Confirm this still behaves correctly for a shared package restored under
         // the old multi-triplet format or otherwise missing restored_dependencies.
-        let resolved_deps = match &mut shared_package_opt {
+        let restorer = match &mut shared_package_opt {
             // locked resolve
             // only if shared_package is Some() and locked
             Some(shared_package) if !unlocked => {
@@ -96,33 +93,25 @@ impl Command for RestoreCommand {
                 // update config
                 shared_package.config = package;
 
-                dependency::locked_resolve(shared_package, &repo)?.collect_vec()
+                PackageRestorer::locked_resolve(shared_package, &repo)?
             }
             // Unlocked resolve
             _ => {
                 println!("Resolving packages");
 
-                let (spc_result, resolved_deps) =
-                    SharedPackageConfig::resolve_from_package(package, &repo)?;
-
-                // update shared_package
-                shared_package_opt = Some(spc_result);
-
-                resolved_deps
+                PackageRestorer::resolve(package, &repo)?
             }
         };
 
-        // write the ndk path to a file if available
-        let shared_package = shared_package_opt.expect("SharedPackage is None somehow!");
+        let shared_package = restorer.shared_package();
 
-        // always write to reflect config changes
-        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
+        restorer.restore(".", &mut repo)?;
         shared_package.write(".")?;
 
         println!(
             "Restored {} with {} dependencies",
             shared_package.config.id.dependency_id_color(),
-            resolved_deps.len()
+            restorer.resolved_deps().len()
         );
 
         validate_ndk(&shared_package.config)?;
