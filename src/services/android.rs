@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fs, io::Cursor, path::PathBuf};
+use std::{collections::HashMap, env, fs, io::Cursor, path::Path, path::PathBuf};
 
 use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
@@ -8,10 +8,7 @@ use semver::{BuildMetadata, Prerelease, Version};
 use zip::ZipArchive;
 
 use crate::{
-    models::{
-        android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
-        config::get_combine_config,
-    },
+    models::android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
     network::agent::{download_file, download_file_report, get_agent},
     terminal::colors::QPMColor,
 };
@@ -101,7 +98,11 @@ pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
     })
 }
 
-pub fn download_ndk_version(ndk: &RemotePackage, show_progress: bool) -> Result<PathBuf> {
+pub fn download_ndk_version(
+    ndk: &RemotePackage,
+    show_progress: bool,
+    ndk_download_path: &Path,
+) -> Result<PathBuf> {
     let archive = get_host_archive(ndk).expect("Could not find ndk for current os and arch");
 
     let archive_url = format!("{ANDROID_DL_URL}/{}", archive.complete.url);
@@ -112,10 +113,6 @@ pub fn download_ndk_version(ndk: &RemotePackage, show_progress: bool) -> Result<
         &archive_url.yellow()
     );
 
-    let dir = get_combine_config()
-        .ndk_download_path
-        .clone()
-        .expect("No NDK download path set");
     let _name = &archive.complete.url;
 
     let mut bytes = BytesMut::new().writer();
@@ -132,9 +129,9 @@ pub fn download_ndk_version(ndk: &RemotePackage, show_progress: bool) -> Result<
 
     // Extract to tmp folde
     let mut archive = ZipArchive::new(buffer)?;
-    let extract_path = dir.join(archive.by_index(0)?.name());
+    let extract_path = ndk_download_path.join(archive.by_index(0)?.name());
 
-    archive.extract(&dir)?;
+    archive.extract(&ndk_download_path)?;
 
     println!(
         "Downloaded {} to {}",
@@ -143,7 +140,7 @@ pub fn download_ndk_version(ndk: &RemotePackage, show_progress: bool) -> Result<
     );
 
     // Rename to use friendly NDK version name
-    let final_path = dir.join(get_ndk_version(ndk).to_string());
+    let final_path = ndk_download_path.join(get_ndk_version(ndk).to_string());
 
     fs::rename(&extract_path, &final_path)?;
 

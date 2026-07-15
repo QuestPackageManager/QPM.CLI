@@ -1,19 +1,11 @@
-use std::io::Cursor;
-
 use clap::{Args, ValueEnum};
-use color_eyre::eyre::{Context, ContextCompat, bail};
-use owo_colors::OwoColorize;
-use qpm_package::models::{
-    package::PackageConfig,
-    qpackages::QPackagesPackage,
-    shared_package::SharedPackageConfig,
-};
-use sha2::{Digest, Sha256};
+use color_eyre::eyre::ContextCompat;
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 
 use crate::{
-    models::{config::get_publish_keyring, package::PackageConfigExtensions, qpkg_file::QpkgFile},
-    network::agent::download_bytes,
-    repository::{Repository, qpackages::QPMRepository},
+    models::{config::get_publish_keyring, package::PackageConfigExtensions},
+    repository::qpackages::QPMRepository,
+    services::publish::PackagePublisher,
     terminal::colors::QPMColor,
 };
 
@@ -41,8 +33,27 @@ pub struct PublishCommand {
 
 impl Command for PublishCommand {
     fn execute(self) -> color_eyre::Result<()> {
+        let package = PackageConfig::read(".")?;
+        let shared_package = SharedPackageConfig::read(".")?;
+        let qpackages = QPMRepository::default();
+
+        let publisher = PackagePublisher::validate(
+            package,
+            &shared_package,
+            self.qpkg_url.clone(),
+            &qpackages,
+        )?;
+
+        let auth_token = match &self.publish_auth {
+            Some(key) => key.clone(),
+            // Empty strings are None, you shouldn't be able to publish with a None
+            None => get_publish_keyring()
+                .and_then(|p| p.get_password().ok())
+                .context("Unable to get stored publish key!")?,
+        };
+
         let published = match self.backend {
-            Backend::QPackages => self.qpackages_publish()?,
+            Backend::QPackages => publisher.publish_to_qpackages(&auth_token)?,
         };
 
         println!(
@@ -53,107 +64,4 @@ impl Command for PublishCommand {
 
         Ok(())
     }
-}
-
-impl PublishCommand {
-    fn validate_qpkg(
-        &self,
-        package: &PackageConfig,
-    ) -> Result<Cursor<bytes::BytesMut>, color_eyre::eyre::Error> {
-        // TODO: What if the URL is not accessible due to Authorization or rate limits?
-        let bytes = download_bytes(&self.qpkg_url).context(
-            "Downloading qpkg file failed. QPKG URL must be accessible at time of publishing",
-        )?;
-
-        let cursor = Cursor::new(bytes);
-
-        // Validate config in QPKG matches
-        let qpkg_file = QpkgFile::open(cursor).context("Failed to read QPKG")?;
-        if qpkg_file.manifest().config != *package {
-            bail!(
-                "QPKG config mismatch. Expected{:#?}\nGot {:#?}",
-                package,
-                qpkg_file.manifest().config
-            );
-        }
-
-        Ok(qpkg_file.into_inner())
-    }
-
-    fn qpackages_publish(self) -> Result<QPackagesPackage, color_eyre::eyre::Error> {
-        let package = PackageConfig::read(".")?;
-        let qpackages = QPMRepository::default();
-
-        let shared_package = SharedPackageConfig::read(".")?;
-
-        // validate current package against shared package
-        check_dependencies(&package, &qpackages, &shared_package)?;
-
-        let qpkg_cursor = self
-            .validate_qpkg(&package)
-            .with_context(|| "Validating QPKG failed")?;
-
-        // checksum verify
-        let result = Sha256::digest(qpkg_cursor.get_ref());
-        let checksum = hex::encode(result);
-
-        let qpackage = QPackagesPackage {
-            config: package,
-            qpkg_checksum: Some(checksum),
-            qpkg_url: self.qpkg_url,
-        };
-
-        if let Some(key) = &self.publish_auth {
-            QPMRepository::publish_package(&qpackage, key)?;
-        } else {
-            // Empty strings are None, you shouldn't be able to publish with a None
-            let publish_key = get_publish_keyring().and_then(|p| p.get_password().ok());
-            QPMRepository::publish_package(
-                &qpackage,
-                &publish_key
-                    .context("Unable to get stored publish key!")?,
-            )?;
-        }
-        Ok(qpackage)
-    }
-}
-
-fn check_dependencies(
-    package: &PackageConfig,
-    repo: &impl Repository,
-    shared_package: &SharedPackageConfig,
-) -> Result<(), color_eyre::eyre::Error> {
-    let resolved_deps = &shared_package.restored_dependencies;
-    for (dep_id, dep) in resolved_deps {
-        if repo.get_package(dep_id, &dep.restored_version)?.is_none() {
-            bail!(
-                "dependency {} was not available on qpackages in the given version range",
-                &dep_id.dependency_id_color()
-            );
-        };
-    }
-    for (dep_id, dependency) in &package.dependencies {
-        // if we can not find any dependency that matches ID and version satisfies given range, then we are missing a dep
-        let el = shared_package
-            .restored_dependencies
-            .get(dep_id)
-            .context(format!(
-                "Dependency {} not found in restored dependencies",
-                dep_id.dependency_id_color()
-            ))?;
-
-        // if version doesn't match range, panic
-        if !dependency.version_range.matches(&el.restored_version) {
-            bail!(
-                "Restored dependency {} version ({}) does not satisfy stated range ({})",
-                dep_id.dependency_id_color(),
-                el.restored_version.red(),
-                dependency.version_range.green()
-            );
-        }
-    }
-
-    // check if url is set to download headers
-
-    Ok(())
 }

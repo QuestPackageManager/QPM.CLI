@@ -7,7 +7,10 @@ use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
 use qpm_package::models::package::PackageConfig;
 
-use crate::{models::package::PackageConfigExtensions, utils::ndk};
+use crate::{
+    models::{config::get_combine_config, package::PackageConfigExtensions},
+    services::ndk,
+};
 
 use super::Command;
 
@@ -43,7 +46,11 @@ pub fn invoke_script(
     supplied_args: &[String],
     package: &PackageConfig,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let android_ndk_home = ndk::resolve_ndk_version(package);
+    let ndk_download_path = get_combine_config()
+        .ndk_download_path
+        .as_ref()
+        .expect("No NDK download path set");
+    let android_ndk_home = ndk::resolve_ndk_version(package, ndk_download_path);
 
     for command_str in script_commands {
         let split = command_str.split_once(' ');
