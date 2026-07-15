@@ -1,6 +1,8 @@
 use color_eyre::Result;
 use itertools::Itertools;
+use schemars::JsonSchema;
 use semver::Version;
+use serde::{Deserialize, Serialize};
 
 use qpm_package::models::package::{DependencyId, PackageConfig};
 
@@ -14,6 +16,15 @@ pub mod memcached;
 pub mod multi;
 pub mod qpackages;
 
+/// A package as returned by a repository lookup: its config, plus the sha256 checksum of the
+/// QPKG archive it came from, when the repository is able to determine one.
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, PartialEq, Eq)]
+pub struct Artifact {
+    pub config: PackageConfig,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub qpkg_checksum: Option<String>,
+}
+
 pub trait Repository {
     fn get_package_names(&self) -> Result<Vec<DependencyId>>;
 
@@ -22,10 +33,16 @@ pub trait Repository {
     /// Ordered by version descending
     fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>>;
 
-    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>>;
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<Artifact>>;
     // add to the db cache
     // this just stores the shared config itself, not the package
-    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()>;
+    // qpkg_checksum is the sha256 checksum of the source QPKG archive, if known
+    fn add_to_db_cache(
+        &mut self,
+        config: PackageConfig,
+        qpkg_checksum: Option<String>,
+        permanent: bool,
+    ) -> Result<()>;
 
     /// Returns true if the repository uses a network connection to retrieve data
     fn is_online(&self) -> bool;

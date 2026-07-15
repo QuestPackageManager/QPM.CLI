@@ -37,7 +37,7 @@ use crate::{
     utils::{fs::copy_things, json},
 };
 
-use super::Repository;
+use super::{Artifact, Repository};
 
 // All files must exist
 pub struct PackageFiles {
@@ -53,18 +53,18 @@ pub struct PackageFiles {
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Default)]
 pub struct FileRepository {
     #[serde(default)]
-    pub artifacts: HashMap<DependencyId, HashMap<Version, PackageConfig>>,
+    pub artifacts: HashMap<DependencyId, HashMap<Version, Artifact>>,
 }
 
 impl FileRepository {
     pub fn get_artifacts_from_id(
         &self,
         id: &DependencyId,
-    ) -> Option<&HashMap<Version, PackageConfig>> {
+    ) -> Option<&HashMap<Version, Artifact>> {
         self.artifacts.get(id)
     }
 
-    pub fn get_artifact(&self, id: &DependencyId, version: &Version) -> Option<&PackageConfig> {
+    pub fn get_artifact(&self, id: &DependencyId, version: &Version) -> Option<&Artifact> {
         self.artifacts.get(id)?.get(version)
     }
 
@@ -72,24 +72,25 @@ impl FileRepository {
     pub fn add_artifact_to_map(
         &mut self,
         package: PackageConfig,
+        qpkg_checksum: Option<String>,
         overwrite_existing: bool,
     ) -> Result<()> {
-        if !self.artifacts.contains_key(&package.id) {
-            self.artifacts.insert(package.id.clone(), HashMap::new());
-        }
-
-        let id_artifacts = self.artifacts.get_mut(&package.id).unwrap();
+        let id_artifacts = self.artifacts.entry(package.id.clone()).or_default();
 
         let entry = id_artifacts.entry(package.version.clone());
+        let artifact = Artifact {
+            config: package,
+            qpkg_checksum,
+        };
 
         match entry {
             Entry::Occupied(mut e) => {
                 if overwrite_existing {
-                    e.insert(package);
+                    e.insert(artifact);
                 }
             }
-            Entry::Vacant(_) => {
-                entry.insert_entry(package);
+            Entry::Vacant(e) => {
+                e.insert(artifact);
             }
         };
 
@@ -100,9 +101,10 @@ impl FileRepository {
     pub fn add_artifact_and_cache(
         &mut self,
         package: PackageConfig,
+        qpkg_checksum: Option<String>,
         overwrite_existing: bool,
     ) -> Result<()> {
-        self.add_artifact_to_map(package, overwrite_existing)?;
+        self.add_artifact_to_map(package, qpkg_checksum, overwrite_existing)?;
 
         Ok(())
     }
@@ -119,7 +121,7 @@ impl FileRepository {
             package.id.bright_red(),
             package.version.bright_green()
         );
-        let cache_path = PackageIdPath(package.id.clone()).version(package.version.clone());
+        let cache_path = PackageIdPath::new(package.id.clone()).version(package.version.clone());
 
         let tmp_path = cache_path.tmp_path();
         if tmp_path.exists() {
@@ -232,13 +234,28 @@ impl FileRepository {
     }
 
     pub fn install_qpkg<T>(
-        buffer: T,
+        mut buffer: T,
         overwrite_existing: bool,
         version: Option<Version>,
-    ) -> color_eyre::Result<PackageConfig>
+    ) -> color_eyre::Result<Artifact>
     where
         T: Read + Seek,
     {
+        // Hash the raw archive before extracting it, so the checksum reflects exactly what was
+        // installed. Streamed directly into the hasher instead of buffering into a Vec first -
+        // zip's central directory lives at the end of the file, so the archive still needs a
+        // separate (seekable) pass for parsing, but this pass itself needs no extra allocation.
+        buffer
+            .seek(std::io::SeekFrom::Start(0))
+            .context("Failed to seek in buffer")?;
+        let mut hasher = Sha256::new();
+        std::io::copy(&mut buffer, &mut hasher).context("Failed to hash QPKG contents")?;
+        let qpkg_checksum = hex::encode(hasher.finalize());
+
+        buffer
+            .seek(std::io::SeekFrom::Start(0))
+            .context("Failed to seek in buffer")?;
+
         // Open and read QPKG
         let qpkg_file = QpkgFile::open(buffer).context("Failed to read QPKG")?;
 
@@ -321,10 +338,13 @@ impl FileRepository {
 
         // Update repository index
         let mut file_repo = FileRepository::read()?;
-        file_repo.add_artifact_and_cache(extracted_config.clone(), true)?;
+        file_repo.add_artifact_and_cache(extracted_config.clone(), Some(qpkg_checksum.clone()), true)?;
         file_repo.write()?;
 
-        Ok(extracted_config)
+        Ok(Artifact {
+            config: extracted_config,
+            qpkg_checksum: Some(qpkg_checksum),
+        })
     }
 
     /// Downloads a QPKG from a URL, optionally verifies its checksum, then installs it to the cache.
@@ -335,7 +355,7 @@ impl FileRepository {
         checksum: Option<&str>,
         overwrite_existing: bool,
         version: Option<Version>,
-    ) -> color_eyre::Result<PackageConfig> {
+    ) -> color_eyre::Result<Artifact> {
         println!("Downloading {}", url.file_path_color());
         let bytes = download_bytes(url)?;
 
@@ -537,13 +557,14 @@ impl FileRepository {
         let missing_dependencies: Vec<_> = restored_deps
             .iter()
             .filter_map(|r| {
-                let package_path =
-                    PackageIdPath::new(r.id.clone()).version(r.version.clone()).base_path();
+                let package_path = PackageIdPath::new(r.config.id.clone())
+                    .version(r.config.version.clone())
+                    .base_path();
                 // if the package path does not exist, return the id and version
                 package_path
                     .exists()
                     .not()
-                    .then_some(format!("{}:{}", r.id, r.version))
+                    .then_some(format!("{}:{}", r.config.id, r.config.version))
             })
             .collect();
 
@@ -564,7 +585,7 @@ impl FileRepository {
         let deps: Vec<_> = restored_deps
             .iter()
             .map(|resolved_dep| -> color_eyre::Result<_> {
-                let collect_files_of_package = Self::collect_files_of_package(resolved_dep)?;
+                let collect_files_of_package = Self::collect_files_of_package(&resolved_dep.config)?;
 
                 Ok((resolved_dep, collect_files_of_package))
             })
@@ -576,7 +597,7 @@ impl FileRepository {
                 package
                     .dependencies
                     .iter()
-                    .any(|direct_dep| *direct_dep.0 == unknown_dep.id)
+                    .any(|direct_dep| *direct_dep.0 == unknown_dep.config.id)
             });
 
         // direct dependencies copy the binaries to the extern_binaries folder
@@ -588,8 +609,8 @@ impl FileRepository {
                     bail!(
                         "Missing binary {} for dependency {}:{}",
                         binary.display().bright_yellow(),
-                        direct_dep.id.dependency_id_color(),
-                        direct_dep.version.dependency_version_color()
+                        direct_dep.config.id.dependency_id_color(),
+                        direct_dep.config.version.dependency_version_color()
                     );
                 }
 
@@ -600,15 +621,15 @@ impl FileRepository {
 
         // Get headers of all dependencies restored
         for (dep, dep_files) in direct_deps.into_iter().chain(indirect_deps) {
-            let project_deps_headers_target = extern_headers.join(dep.id.0.clone());
+            let project_deps_headers_target = extern_headers.join(dep.config.id.0.clone());
 
             let exposed_headers = dep_files.headers;
             if !exposed_headers.exists() {
                 bail!(
                     "Missing header files {} for {}:{}",
                     exposed_headers.display().file_path_color(),
-                    dep.id.dependency_id_color(),
-                    dep.version.dependency_version_color()
+                    dep.config.id.dependency_id_color(),
+                    dep.config.version.dependency_version_color()
                 );
             }
 
@@ -672,7 +693,7 @@ impl Repository for FileRepository {
         }))
     }
 
-    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>> {
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<Artifact>> {
         Ok(self.get_artifact(id, version).cloned())
     }
 
@@ -680,14 +701,19 @@ impl Repository for FileRepository {
         Ok(self.artifacts.keys().cloned().collect())
     }
 
-    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(
+        &mut self,
+        config: PackageConfig,
+        qpkg_checksum: Option<String>,
+        permanent: bool,
+    ) -> Result<()> {
         if !permanent {
             return Ok(());
         }
 
         // don't copy files to cache
         // don't overwrite cache with backend
-        self.add_artifact_to_map(config, false)?;
+        self.add_artifact_to_map(config, qpkg_checksum, false)?;
         Ok(())
     }
 

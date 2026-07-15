@@ -44,7 +44,7 @@ pub fn write_toolchain_file(
         .restored_dependencies
         .iter()
         .filter_map(|(dep_id, dep_info)| {
-            let dep_config = repo.get_package(dep_id, &dep_info.restored_version).ok()??;
+            let dep_config = repo.get_package(dep_id, &dep_info.restored_version).ok()??.config;
 
             let package_id = dep_config.id.clone();
             // Prepend the extern dir and package id to the include paths
@@ -124,8 +124,9 @@ pub fn write_toolchain_file(
                         dep_id, dep_info.restored_version
                     )
                 });
-            let collect_files_of_package = FileRepository::collect_files_of_package(&dep_config)
-                .expect("Failed to collect files of package");
+            let collect_files_of_package =
+                FileRepository::collect_files_of_package(&dep_config.config)
+                    .expect("Failed to collect files of package");
 
             let binaries = collect_files_of_package
                 .binaries

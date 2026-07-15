@@ -31,8 +31,8 @@ fn get_artifact() -> Result<()> {
     assert!(p.is_some());
     let unwrapped_p = p.unwrap();
 
-    assert_eq!(unwrapped_p.id, id);
-    assert_eq!(unwrapped_p.version, Version::new(0, 1, 0));
+    assert_eq!(unwrapped_p.config.id, id);
+    assert_eq!(unwrapped_p.config.version, Version::new(0, 1, 0));
     Ok(())
 }
 
@@ -47,11 +47,11 @@ fn resolve() -> Result<()> {
     assert!(p.is_some());
     let unwrapped_p = p.unwrap();
 
-    let resolved = dependency::resolve(&unwrapped_p, &repo)?.collect_vec();
+    let resolved = dependency::resolve(&unwrapped_p.config, &repo)?.collect_vec();
 
     println!(
         "Resolved deps: {:?}",
-        resolved.iter().map(|s| s.id.clone()).collect_vec()
+        resolved.iter().map(|s| s.config.id.clone()).collect_vec()
     );
     assert_eq!(resolved.len(), 3);
 
@@ -67,13 +67,14 @@ fn resolve_locked() -> Result<()> {
     assert!(p.is_some());
     let unwrapped_p = p.unwrap();
 
-    let (shared_package, _) = SharedPackageConfig::resolve_from_package(unwrapped_p, &repo)?;
+    let (shared_package, _) =
+        SharedPackageConfig::resolve_from_package(unwrapped_p.config, &repo)?;
 
     let resolved = dependency::locked_resolve(&shared_package, &repo)?.collect_vec();
 
     println!(
         "Resolved deps: {:?}",
-        resolved.iter().map(|s| s.id.clone()).collect_vec()
+        resolved.iter().map(|s| s.config.id.clone()).collect_vec()
     );
     assert_eq!(resolved.len(), 3);
 
@@ -89,7 +90,7 @@ fn resolve_fail() -> Result<()> {
     assert!(p.is_some());
     let unwrapped_p = p.unwrap();
 
-    let resolved = dependency::resolve(&unwrapped_p, &repo);
+    let resolved = dependency::resolve(&unwrapped_p.config, &repo);
 
     assert!(resolved.is_err());
 

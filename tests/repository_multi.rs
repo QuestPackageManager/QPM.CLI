@@ -77,7 +77,7 @@ fn get_package_returns_from_first_repo_that_has_it() {
     let multi = MultiDependencyRepository::new(vec![Box::new(first), Box::new(second)]);
 
     let result = multi.get_package(&id, &version).unwrap().unwrap();
-    assert_eq!(result.shared_directory, Path::new("from-first-repo"));
+    assert_eq!(result.config.shared_directory, Path::new("from-first-repo"));
 }
 
 /// Package names should be deduplicated across repositories that share a package.
@@ -169,7 +169,7 @@ fn add_to_db_cache_forwards_to_every_repo() {
     let id = DependencyId("pkg".to_string());
     let version = Version::new(1, 0, 0);
     multi
-        .add_to_db_cache(pkg("pkg", version.clone()), true)
+        .add_to_db_cache(pkg("pkg", version.clone()), None, true)
         .unwrap();
 
     assert!(a_handle.get_package(&id, &version).unwrap().is_some());

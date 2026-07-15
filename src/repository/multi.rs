@@ -4,7 +4,7 @@ use itertools::Itertools;
 use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 
-use super::Repository;
+use super::{Artifact, Repository};
 
 pub struct MultiDependencyRepository {
     repositories: Vec<Box<dyn Repository>>,
@@ -63,7 +63,7 @@ impl Repository for MultiDependencyRepository {
         &self,
         id: &DependencyId,
         version: &semver::Version,
-    ) -> Result<Option<PackageConfig>> {
+    ) -> Result<Option<Artifact>> {
         let opt = self
             .repositories
             .iter()
@@ -107,14 +107,19 @@ impl Repository for MultiDependencyRepository {
         }
     }
 
-    fn add_to_db_cache(&mut self, config: PackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(
+        &mut self,
+        config: PackageConfig,
+        qpkg_checksum: Option<String>,
+        permanent: bool,
+    ) -> Result<()> {
         if permanent {
             #[cfg(debug_assertions)]
             println!("Warning, adding to cache permanently to multiple repos!",);
         }
-        self.repositories
-            .iter_mut()
-            .try_for_each(|r| r.add_to_db_cache(config.clone(), permanent))?;
+        self.repositories.iter_mut().try_for_each(|r| {
+            r.add_to_db_cache(config.clone(), qpkg_checksum.clone(), permanent)
+        })?;
         Ok(())
     }
 

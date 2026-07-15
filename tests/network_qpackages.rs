@@ -67,8 +67,11 @@ fn get_artifact() -> Result<()> {
     assert_ne!(p, None);
     let unwrapped_p = p.unwrap();
 
-    assert_eq!(unwrapped_p.id, DependencyId("beatsaber-hook".to_string()));
-    assert_eq!(unwrapped_p.version, version);
+    assert_eq!(
+        unwrapped_p.config.id,
+        DependencyId("beatsaber-hook".to_string())
+    );
+    assert_eq!(unwrapped_p.config.version, version);
     Ok(())
 }
 
@@ -81,17 +84,18 @@ fn resolve() -> Result<()> {
     assert_ne!(p, None);
     let unwrapped_p = p.unwrap();
 
-    let resolved = dependency::resolve(&unwrapped_p, &repo)?.collect_vec();
+    let resolved = dependency::resolve(&unwrapped_p.config, &repo)?.collect_vec();
 
     assert!(!resolved.is_empty());
 
     let paper_dep = unwrapped_p
+        .config
         .dependencies
         .iter()
         .find(|(_, dep)| dep.version_range.to_string().contains("paper"));
     assert!(paper_dep.is_some());
 
-    let paper = resolved.iter().find(|rd| rd.id.0.contains("paper"));
+    let paper = resolved.iter().find(|rd| rd.config.id.0.contains("paper"));
 
     assert!(paper.is_some());
 
@@ -100,12 +104,12 @@ fn resolve() -> Result<()> {
             .unwrap()
             .1
             .version_range
-            .matches(&paper.unwrap().version)
+            .matches(&paper.unwrap().config.version)
     );
 
     println!(
         "Resolved deps: {:?}",
-        resolved.iter().map(|s| s.id.clone()).collect_vec()
+        resolved.iter().map(|s| s.config.id.clone()).collect_vec()
     );
 
     Ok(())

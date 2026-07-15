@@ -3,7 +3,7 @@ use std::{cmp::Reverse, error::Error, fmt::{Display, Formatter}, path::Path, tim
 use super::semver::{VersionWrapper, req_to_range};
 use crate::{
     models::package::SharedPackageConfigExtensions,
-    repository::{Repository, local::FileRepository},
+    repository::{Artifact, Repository, local::FileRepository},
     terminal::colors::QPMColor,
 };
 use color_eyre::{
@@ -20,8 +20,9 @@ use qpm_package::models::{
     shared_package::SharedPackageConfig,
 };
 
-/// A dependency resolved by pubgrub: the concrete package config chosen for a version.
-pub type ResolvedDependency = PackageConfig;
+/// A dependency resolved by pubgrub: the concrete package config chosen for a version, plus
+/// the sha256 checksum of the QPKG archive it came from, when the repository knows one.
+pub type ResolvedDependency = Artifact;
 
 pub struct PackageDependencyResolver<'a, 'b, R>
 where
@@ -72,7 +73,8 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
         let target_pkg = self
             .repo
             .get_package(package, &version.clone().into())?
-            .with_context(|| format!("Could not find package {package} with version {version}"))?;
+            .with_context(|| format!("Could not find package {package} with version {version}"))?
+            .config;
 
         let deps = target_pkg
             .dependencies
@@ -205,17 +207,17 @@ pub fn restore<P: AsRef<Path>>(
     for dep in resolved_deps {
         println!(
             "Pulling {}:{}",
-            dep.id.0.dependency_id_color(),
-            dep.version.to_string().dependency_version_color(),
+            dep.config.id.0.dependency_id_color(),
+            dep.config.version.to_string().dependency_version_color(),
         );
-        repository.download_to_cache(dep).with_context(|| {
+        repository.download_to_cache(&dep.config).with_context(|| {
             format!(
                 "Requesting {}:{}",
-                dep.id.0.dependency_id_color(),
-                dep.version.version_id_color()
+                dep.config.id.0.dependency_id_color(),
+                dep.config.version.version_id_color()
             )
         })?;
-        repository.add_to_db_cache(dep.clone(), true)?;
+        repository.add_to_db_cache(dep.config.clone(), dep.qpkg_checksum.clone(), true)?;
     }
 
     repository.write_repo()?;

@@ -20,7 +20,7 @@ use crate::{
     terminal::colors::QPMColor,
 };
 
-use super::Repository;
+use super::{Artifact, Repository};
 
 const API_URL: &str = "https://new.qpackages.com";
 
@@ -154,13 +154,13 @@ impl QPMRepository {
         })?;
 
         // assert that the package is the same as the one we downloaded
-        if package != qpackage_config.config {
+        if package.config != qpackage_config.config {
             bail!(
                 "Package config mismatch. Got {}:{}: expected {:?}, got {:?} (the changes might not be id/version, but the config itself)",
-                package.id.dependency_id_color(),
-                package.version.version_id_color(),
+                package.config.id.dependency_id_color(),
+                package.config.version.version_id_color(),
                 qpackage_config.config,
-                package
+                package.config
             );
         }
 
@@ -194,13 +194,21 @@ impl Repository for QPMRepository {
         Ok(versions)
     }
 
-    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<PackageConfig>> {
+    fn get_package(&self, id: &DependencyId, version: &Version) -> Result<Option<Artifact>> {
         let config = Self::get_qpackage(id, version)?;
 
-        Ok(config.map(|qpackage| qpackage.config))
+        Ok(config.map(|qpackage| Artifact {
+            config: qpackage.config,
+            qpkg_checksum: qpackage.qpkg_checksum,
+        }))
     }
 
-    fn add_to_db_cache(&mut self, _config: PackageConfig, _permanent: bool) -> Result<()> {
+    fn add_to_db_cache(
+        &mut self,
+        _config: PackageConfig,
+        _qpkg_checksum: Option<String>,
+        _permanent: bool,
+    ) -> Result<()> {
         Ok(())
     }
 

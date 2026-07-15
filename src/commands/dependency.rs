@@ -195,13 +195,16 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
         }
     };
 
-    let package = repository.get_package(&id, &version)?.with_context(|| {
-        format!(
-            "Failed to resolve package {}:{}",
-            id.dependency_id_color(),
-            version.dependency_version_color()
-        )
-    })?;
+    let package = repository
+        .get_package(&id, &version)?
+        .with_context(|| {
+            format!(
+                "Failed to resolve package {}:{}",
+                id.dependency_id_color(),
+                version.dependency_version_color()
+            )
+        })?
+        .config;
 
     let version = package.version.clone();
 
@@ -216,14 +219,14 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
                 id.dependency_id_color(),
                 version.to_string().dependency_version_color()
             );
-            repository.download_to_cache(&dep).with_context(|| {
+            repository.download_to_cache(&dep.config).with_context(|| {
                 format!(
                     "Requesting {}:{}",
                     id.dependency_id_color(),
                     version.version_id_color()
                 )
             })?;
-            repository.add_to_db_cache(dep, true)?;
+            repository.add_to_db_cache(dep.config, dep.qpkg_checksum, true)?;
         }
 
         repository.write_repo()?;
@@ -241,7 +244,10 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
             version.version_id_color()
         )
     })?;
-    repository.add_to_db_cache(package, true)?;
+    let qpkg_checksum = repository
+        .get_package(&package.id, &package.version)?
+        .and_then(|a| a.qpkg_checksum);
+    repository.add_to_db_cache(package, qpkg_checksum, true)?;
 
     repository.write_repo()?;
 

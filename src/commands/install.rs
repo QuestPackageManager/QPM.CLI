@@ -77,8 +77,8 @@ impl InstallCommand {
 
         println!(
             "Successfully installed qpkg: {}:{}",
-            package.id.dependency_id_color(),
-            package.version.version_id_color()
+            package.config.id.dependency_id_color(),
+            package.config.version.version_id_color()
         );
 
         Ok(())
@@ -100,7 +100,8 @@ impl InstallCommand {
         }
         let mut file_repo = FileRepository::read()?;
         FileRepository::copy_to_cache(&shared_package.config, project_folder, binaries, false)?;
-        file_repo.add_artifact_and_cache(shared_package.config, true)?;
+        // legacy install copies already-built binaries directly, there's no qpkg archive to checksum
+        file_repo.add_artifact_and_cache(shared_package.config, None, true)?;
         file_repo.write()?;
         Ok(())
     }

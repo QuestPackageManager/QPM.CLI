@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use qpm_cli::repository::Repository;
+use qpm_cli::repository::{Artifact, Repository};
 use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 
@@ -74,17 +74,26 @@ impl Repository for MockRepository {
         &self,
         id: &DependencyId,
         version: &Version,
-    ) -> color_eyre::Result<Option<PackageConfig>> {
+    ) -> color_eyre::Result<Option<Artifact>> {
         Ok(self
             .0
             .borrow()
             .packages
             .get(id)
             .and_then(|m| m.get(version))
-            .cloned())
+            .cloned()
+            .map(|config| Artifact {
+                config,
+                qpkg_checksum: None,
+            }))
     }
 
-    fn add_to_db_cache(&mut self, config: PackageConfig, _permanent: bool) -> color_eyre::Result<()> {
+    fn add_to_db_cache(
+        &mut self,
+        config: PackageConfig,
+        _qpkg_checksum: Option<String>,
+        _permanent: bool,
+    ) -> color_eyre::Result<()> {
         self.insert(config);
         Ok(())
     }

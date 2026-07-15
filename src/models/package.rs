@@ -175,17 +175,18 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
             .iter()
             .map(|resolved_dep| {
                 let dependency = config
-                    .get_dependency(&resolved_dep.id);
+                    .get_dependency(&resolved_dep.config.id);
                 let qpkg_url = dependency
                     .and_then(|dep| dep.qpkg_url.clone());
 
                 let shared_dependency_info = SharedDependencyInfo {
-                    restored_version: resolved_dep.version.clone(),
+                    restored_version: resolved_dep.config.version.clone(),
                     qpkg_url,
-                    restored_binaries: resolved_dep.workspace.out_binaries.clone().unwrap_or_default(),
-                    restored_env: resolved_dep.workspace.env.clone().unwrap_or_default(),
+                    qpkg_checksum: resolved_dep.qpkg_checksum.clone(),
+                    restored_binaries: resolved_dep.config.workspace.out_binaries.clone().unwrap_or_default(),
+                    restored_env: resolved_dep.config.workspace.env.clone().unwrap_or_default(),
                 };
-                (resolved_dep.id.clone(), shared_dependency_info)
+                (resolved_dep.config.id.clone(), shared_dependency_info)
             })
             .collect();
 
@@ -215,7 +216,7 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
 
                 let result = DependencyBundle {
                     dependency,
-                    restored_config: dep_package,
+                    restored_config: dep_package.config,
                 };
                 Some((dep_id.clone(), result))
             })

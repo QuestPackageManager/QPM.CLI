@@ -38,7 +38,8 @@ fn list_dependencies(
     print_env: bool,
 ) -> Result<(), color_eyre::eyre::Error> {
     let resolved = resolve(&package, repo)?;
-    for resolved_dep in resolved.sorted_by(|a, b| a.id.cmp(&b.id)) {
+    for resolved_artifact in resolved.sorted_by(|a, b| a.config.id.cmp(&b.config.id)) {
+        let resolved_dep = resolved_artifact.config;
         let sum = resolved_dep.dependencies.len();
 
         println!(

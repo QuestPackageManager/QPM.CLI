@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use qpm_cli::repository::local::FileRepository;
+use qpm_cli::repository::{Artifact, local::FileRepository};
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency},
     shared_package::SharedPackageConfig,
@@ -85,7 +85,13 @@ pub fn get_mock_repository() -> FileRepository {
             .map(|a| {
                 (
                     a.config.id.clone(),
-                    HashMap::from([(a.config.version.clone(), a.config.clone())]),
+                    HashMap::from([(
+                        a.config.version.clone(),
+                        Artifact {
+                            config: a.config.clone(),
+                            qpkg_checksum: None,
+                        },
+                    )]),
                 )
             })
             .into_iter()
