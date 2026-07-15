@@ -14,7 +14,7 @@ use qpm_qmod::models::mod_json::{ModDependency, ModJson};
 use semver::VersionReq;
 
 use crate::{
-    repository::Repository,
+    repository::{Repository, file::FileRepository},
     utils::json,
 };
 
@@ -41,7 +41,7 @@ pub trait PackageConfigExtensions {
 pub trait SharedPackageConfigExtensions: Sized {
     fn to_mod_json(self, repo: &impl Repository) -> Result<ModJson>;
 
-    fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()>;
+    fn try_write_toolchain(&self, repo: &impl Repository, file_repo: &FileRepository) -> Result<()>;
 
     fn get_env(&self) -> HashMap<String, String>;
 }
@@ -221,12 +221,12 @@ impl SharedPackageConfigExtensions for SharedPackageConfig {
         })
     }
 
-    fn try_write_toolchain(&self, repo: &impl Repository) -> Result<()> {
+    fn try_write_toolchain(&self, repo: &impl Repository, file_repo: &FileRepository) -> Result<()> {
         let Some(toolchain_path) = self.config.workspace.toolchain_out.as_ref() else {
             return Ok(());
         };
 
-        toolchain::write_toolchain_file(self, repo, toolchain_path)?;
+        toolchain::write_toolchain_file(self, repo, toolchain_path, file_repo)?;
 
         Ok(())
     }

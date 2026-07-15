@@ -13,7 +13,9 @@ use qpm_package::models::{
 use semver::Version;
 
 use crate::{
-    models::package::PackageConfigExtensions, repository::{self}, services::restore::PackageRestorer,
+    models::{config::get_combine_config, package::PackageConfigExtensions},
+    repository::{self, file::FileRepository},
+    services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
 
@@ -105,7 +107,12 @@ impl Command for RestoreCommand {
 
         let shared_package = restorer.shared_package();
 
-        restorer.restore(".", &mut repo)?;
+        let cache_root = get_combine_config()
+            .cache
+            .clone()
+            .expect("No cache path set");
+        let file_repo = FileRepository::read(cache_root)?;
+        restorer.restore(".", &mut repo, &file_repo)?;
         shared_package.write(".")?;
 
         println!(

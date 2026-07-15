@@ -63,6 +63,9 @@ fn main() -> Result<()> {
             "/issues/new"
         ))
         .install()?;
+
+    services::network::init_agent(models::config::get_combine_config().timeout.unwrap_or(5000));
+
     let command_result = commands::Opt::parse();
 
     if let Some(generator) = command_result.generator {

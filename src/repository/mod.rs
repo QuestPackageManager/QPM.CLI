@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use color_eyre::Result;
 use itertools::Itertools;
 use schemars::JsonSchema;
@@ -5,6 +7,8 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use qpm_package::models::package::{DependencyId, PackageConfig};
+
+use crate::models::config::get_combine_config;
 
 use self::{
     file::FileRepository, memcached::MemcachedRepository, multi::MultiDependencyRepository,
@@ -56,25 +60,47 @@ pub trait Repository {
     fn write_repo(&self) -> Result<()>;
 }
 
-pub fn default_repositories() -> Result<Vec<Box<dyn Repository>>> {
+pub fn default_repositories(cache_root: PathBuf) -> Result<Vec<Box<dyn Repository>>> {
     // TODO: Make file repository cached
-    let file_repository = Box::new(FileRepository::read_global_cache()?);
+    let file_repository = Box::new(FileRepository::read(cache_root)?);
     let qpm_repository = Box::<QPMRepository>::default();
     Ok(vec![file_repository, qpm_repository])
 }
 
-pub fn useful_default_new(offline: bool) -> Result<MemcachedRepository<MultiDependencyRepository>> {
+fn build_default_repos(
+    offline: bool,
+    cache_root: PathBuf,
+) -> Result<MemcachedRepository<MultiDependencyRepository>> {
     let repos: Vec<Box<dyn Repository>> = match offline {
         // offline
-        true => default_repositories()?
+        true => default_repositories(cache_root)?
             .into_iter()
             .filter(|r| !r.is_online())
             .collect_vec(),
         // online
-        false => default_repositories()?,
+        false => default_repositories(cache_root)?,
     };
 
     let multi_dependency_repository = MultiDependencyRepository::new(repos);
     let memcached = MemcachedRepository::new(multi_dependency_repository);
     Ok(memcached)
+}
+
+/// Builds the standard repository stack (local cache + remote, or local-only when offline)
+/// rooted at the user's configured global cache directory
+pub fn useful_default_new(offline: bool) -> Result<MemcachedRepository<MultiDependencyRepository>> {
+    let cache_root = get_combine_config()
+        .cache
+        .clone()
+        .expect("No cache path set");
+    build_default_repos(offline, cache_root)
+}
+
+/// Builds the standard repository stack rooted at an explicit cache directory, bypassing
+/// `UserConfig`. Mainly useful for tests that want an isolated tmp-dir cache.
+pub fn useful_default_new_at(
+    offline: bool,
+    cache_root: PathBuf,
+) -> Result<MemcachedRepository<MultiDependencyRepository>> {
+    build_default_repos(offline, cache_root)
 }

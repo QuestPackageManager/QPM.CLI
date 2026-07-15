@@ -146,6 +146,7 @@ impl<'a> PackageRestorer<'a> {
         &self,
         workspace: P,
         repository: &mut impl Repository,
+        file_repo: &FileRepository,
     ) -> color_eyre::Result<()> {
         for dep in &self.resolved_deps {
             println!(
@@ -168,14 +169,13 @@ impl<'a> PackageRestorer<'a> {
 
         repository.write_repo()?;
 
-        let file_repo = FileRepository::read_global_cache()?;
         file_repo.copy_from_cache(
             &self.shared_package.config,
             &self.resolved_deps,
             workspace.as_ref(),
         )?;
 
-        self.shared_package.try_write_toolchain(repository)?;
+        self.shared_package.try_write_toolchain(repository, file_repo)?;
 
         Ok(())
     }

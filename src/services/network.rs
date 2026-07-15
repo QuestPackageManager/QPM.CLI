@@ -9,23 +9,31 @@ use std::{
 use bytes::{BufMut, BytesMut};
 use color_eyre::{Result, eyre::Context};
 
-use crate::models::config::get_combine_config;
-
 static AGENT: sync::OnceLock<reqwest::blocking::Client> = sync::OnceLock::new();
 
-pub fn get_agent() -> &'static reqwest::blocking::Client {
-    let timeout = get_combine_config().timeout.unwrap_or(5000);
+const DEFAULT_TIMEOUT_MS: u32 = 5000;
 
-    AGENT.get_or_init(|| {
-        reqwest::blocking::ClientBuilder::new()
-            .connect_timeout(Duration::from_millis(timeout.into()))
-            .tcp_keepalive(Duration::from_secs(5))
-            .tcp_nodelay(false)
-            .https_only(true)
-            .user_agent(format!("questpackagemanager-rs3/{}", env!("CARGO_PKG_VERSION")).as_str())
-            .build()
-            .expect("Client agent was not buildable")
-    })
+fn build_agent(timeout_ms: u32) -> reqwest::blocking::Client {
+    reqwest::blocking::ClientBuilder::new()
+        .connect_timeout(Duration::from_millis(timeout_ms.into()))
+        .tcp_keepalive(Duration::from_secs(5))
+        .tcp_nodelay(false)
+        .https_only(true)
+        .user_agent(format!("questpackagemanager-rs3/{}", env!("CARGO_PKG_VERSION")).as_str())
+        .build()
+        .expect("Client agent was not buildable")
+}
+
+/// Initializes the shared HTTP agent with an explicit connect timeout. Only the first call
+/// across `init_agent`/`get_agent` has any effect - once the underlying client is built it
+/// can't be reconfigured. Call this once at startup with the user's configured timeout before
+/// any network-touching command runs; `get_agent()` alone falls back to `DEFAULT_TIMEOUT_MS`.
+pub fn init_agent(timeout_ms: u32) -> &'static reqwest::blocking::Client {
+    AGENT.get_or_init(|| build_agent(timeout_ms))
+}
+
+pub fn get_agent() -> &'static reqwest::blocking::Client {
+    AGENT.get_or_init(|| build_agent(DEFAULT_TIMEOUT_MS))
 }
 
 pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>

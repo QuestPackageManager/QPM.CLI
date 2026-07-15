@@ -10,8 +10,6 @@ use color_eyre::{
 };
 use owo_colors::OwoColorize;
 
-use crate::models::config::get_keyring;
-
 pub fn check_git() -> color_eyre::Result<()> {
     let mut git = std::process::Command::new("git");
     git.arg("--version");
@@ -42,12 +40,14 @@ pub fn check_git() -> color_eyre::Result<()> {
     }
 }
 
-pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<bool> {
+/// Clones `url` (optionally at `branch`) into `out`. If `auth_token` is given, it's inserted
+/// into the URL for github.com clones and scrubbed from any error output.
+pub fn clone(mut url: String, branch: Option<&String>, out: &Path, auth_token: Option<&str>) -> Result<bool> {
     check_git()?;
-    if let Some(token_unwrapped) = get_keyring().and_then(|e| e.get_password().ok())
+    if let Some(token) = auth_token
         && let Some(gitidx) = url.find("github.com")
     {
-        url.insert_str(gitidx, &format!("{token_unwrapped}@"));
+        url.insert_str(gitidx, &format!("{token}@"));
     }
 
     if url.ends_with('/') {
@@ -85,8 +85,8 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
 
                 let mut error_string = std::str::from_utf8(stderr.buffer())?.to_string();
 
-                if let Some(token_unwrapped) = get_keyring().and_then(|e| e.get_password().ok()) {
-                    error_string = error_string.replace(&token_unwrapped, "***");
+                if let Some(token) = auth_token {
+                    error_string = error_string.replace(token, "***");
                 }
 
                 bail!("Exit code {}: {}", e, error_string);
@@ -95,8 +95,8 @@ pub fn clone(mut url: String, branch: Option<&String>, out: &Path) -> Result<boo
         Err(e) => {
             let mut error_string = e.to_string();
 
-            if let Some(token_unwrapped) = get_keyring().and_then(|e| e.get_password().ok()) {
-                error_string = error_string.replace(&token_unwrapped, "***");
+            if let Some(token) = auth_token {
+                error_string = error_string.replace(token, "***");
             }
 
             bail!("{}", error_string);

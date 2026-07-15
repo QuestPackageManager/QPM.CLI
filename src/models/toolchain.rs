@@ -38,8 +38,8 @@ pub fn write_toolchain_file(
     shared_config: &SharedPackageConfig,
     repo: &impl Repository,
     toolchain_path: &std::path::PathBuf,
+    file_repo: &FileRepository,
 ) -> Result<()> {
-    let file_repo = FileRepository::read_global_cache()?;
     let extern_dir = shared_config.config.dependencies_directory.clone();
     let compile_options = shared_config
         .restored_dependencies

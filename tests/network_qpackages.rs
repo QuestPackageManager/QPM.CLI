@@ -11,7 +11,7 @@ use qpm_package::models::package::{DependencyId, PackageConfig, PackageDependenc
 use semver::{Version, VersionReq};
 
 use qpm_cli::{
-    models::{config::get_combine_config, package_files::PackageIdPath},
+    models::package_files::PackageIdPath,
     repository::{self, Repository, file::FileRepository, qpackages::QPMRepository},
     services::restore::PackageRestorer,
 };
@@ -155,9 +155,10 @@ fn resolve_redownload_cache() -> Result<()> {
     let workspace_tmp_dir = option_env!("CARGO_TARGET_TMPDIR")
         .map(PathBuf::from)
         .unwrap_or(std::env::temp_dir());
+    let cache_root = workspace_tmp_dir.join("cache");
 
-    fn get_repo() -> Result<impl Repository> {
-        let mut file_repo = FileRepository::read_global_cache()?;
+    fn get_repo(cache_root: &Path) -> Result<impl Repository> {
+        let mut file_repo = FileRepository::read(cache_root.to_path_buf())?;
         if let Some(bs) = file_repo
             .artifacts_mut()
             .get_mut(&DependencyId("beatsaber-hook".to_owned()))
@@ -166,7 +167,7 @@ fn resolve_redownload_cache() -> Result<()> {
         }
         file_repo.write()?;
 
-        let repo = repository::useful_default_new(false)?;
+        let repo = repository::useful_default_new_at(false, cache_root.to_path_buf())?;
 
         Ok(repo)
     }
@@ -190,19 +191,19 @@ fn resolve_redownload_cache() -> Result<()> {
     let package_path = PackageIdPath::new(package.id.clone());
     let package_version_path = package_path.version(package.version.clone());
 
-    let cache_root = get_combine_config().cache.clone().expect("No cache path set");
     let lib_path =
         package_version_path.binary_path(&cache_root, Path::new("libbeatsaber-hook_5_1_9.so"));
 
     let restorer = {
-        let repo = get_repo()?;
+        let repo = get_repo(&cache_root)?;
         PackageRestorer::resolve(package.clone(), &repo).unwrap()
     };
 
     {
-        let mut repo = get_repo()?;
+        let mut repo = get_repo(&cache_root)?;
+        let file_repo = FileRepository::read(cache_root.clone())?;
 
-        restorer.restore(&workspace_tmp_dir, &mut repo)?;
+        restorer.restore(&workspace_tmp_dir, &mut repo, &file_repo)?;
 
         println!("Lib path: {lib_path:?}");
 
@@ -211,10 +212,11 @@ fn resolve_redownload_cache() -> Result<()> {
     }
 
     {
-        let mut repo = get_repo()?;
+        let mut repo = get_repo(&cache_root)?;
+        let file_repo = FileRepository::read(cache_root.clone())?;
         assert!(!lib_path.exists());
 
-        restorer.restore(&workspace_tmp_dir, &mut repo)?;
+        restorer.restore(&workspace_tmp_dir, &mut repo, &file_repo)?;
         assert!(lib_path.exists());
     }
 

@@ -58,6 +58,7 @@ pub struct FileRepositoryRegistry {
 #[derive(Clone, Debug, Default)]
 pub struct FileRepository {
     root: PathBuf,
+    registry_path: PathBuf,
     registry: FileRepositoryRegistry,
 }
 
@@ -65,7 +66,12 @@ impl FileRepository {
     /// Builds a repository instance directly from a root and registry, bypassing disk I/O.
     /// Mainly useful for tests.
     pub fn new(root: PathBuf, registry: FileRepositoryRegistry) -> Self {
-        Self { root, registry }
+        let registry_path = root.join("qpm.repository.json");
+        Self {
+            root,
+            registry_path,
+            registry,
+        }
     }
 
     pub fn artifacts(&self) -> &HashMap<DependencyId, HashMap<Version, Artifact>> {
@@ -218,14 +224,25 @@ impl FileRepository {
         Ok(())
     }
 
-    /// Reads (or defaults) the file repository registry, rooted at `root` for package path
-    /// resolution
+    /// Reads (or defaults) the file repository registry, self-contained under `root`: package
+    /// paths resolve under `root`, and the registry index itself lives at
+    /// `root/qpm.repository.json`.
     pub fn read(root: PathBuf) -> Result<Self> {
-        let path = Self::global_file_repository_path();
-        fs::create_dir_all(Self::global_repository_dir())
+        let registry_path = root.join("qpm.repository.json");
+        Self::read_at(root, registry_path)
+    }
+
+    /// Reads the file repository rooted at the user's configured global cache directory, with
+    /// its registry index at the OS config directory (the real, on-disk layout used by `qpm2`)
+    pub fn read_global_cache() -> Result<Self> {
+        Self::read_at(Self::cache_root(), Self::global_file_repository_path())
+    }
+
+    fn read_at(root: PathBuf, registry_path: PathBuf) -> Result<Self> {
+        fs::create_dir_all(registry_path.parent().unwrap())
             .context("Failed to make config folder")?;
 
-        let registry = if let Ok(file) = std::fs::File::open(path) {
+        let registry = if let Ok(file) = std::fs::File::open(&registry_path) {
             json::json_from_reader_fast(BufReader::new(file))
                 .context("Unable to read local repository config")?
         } else {
@@ -233,12 +250,11 @@ impl FileRepository {
             FileRepositoryRegistry::default()
         };
 
-        Ok(Self { root, registry })
-    }
-
-    /// Reads the file repository rooted at the user's configured global cache directory
-    pub fn read_global_cache() -> Result<Self> {
-        Self::read(Self::cache_root())
+        Ok(Self {
+            root,
+            registry_path,
+            registry,
+        })
     }
 
     pub fn write(&self) -> Result<()> {
@@ -247,11 +263,10 @@ impl FileRepository {
             value: &self.registry,
         })
         .expect("Serialization failed");
-        let path = Self::global_file_repository_path();
 
-        std::fs::create_dir_all(Self::global_repository_dir())
+        std::fs::create_dir_all(self.registry_path.parent().unwrap())
             .context("Failed to make config folder")?;
-        let mut file = std::fs::File::create(path)?;
+        let mut file = std::fs::File::create(&self.registry_path)?;
         file.write_all(config.as_bytes())?;
         println!("Saved local repository Config!");
         Ok(())
