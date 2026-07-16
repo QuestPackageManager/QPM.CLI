@@ -37,7 +37,7 @@ impl QPMRepository {
         let response = get_agent()
             .get(&url)
             .send()
-            .with_context(|| format!("Unable to make request to qpackages.com {url}"))?;
+            .with_context(|| format!("Unable to make request to {API_URL}: {url}"))?;
 
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
@@ -70,7 +70,7 @@ impl QPMRepository {
 
     pub fn get_packages() -> Result<Vec<DependencyId>> {
         let vec = Self::run_request("")
-            .context("qpackages.com packages list failed")?
+            .with_context(|| format!("{API_URL} packages list failed"))?
             .ok_or_eyre("No packages found?")?;
         Ok(vec)
     }
@@ -99,7 +99,7 @@ impl QPMRepository {
     }
 
     /// Downloads the package and caches it in the user config cache path
-    /// Note this does not depend necessarily on it being on qpackages.com, it can be any valid QPkg
+    /// Note this does not depend necessarily on it being hosted at `API_URL`, it can be any valid QPkg
     fn download_package(&self, qpackage_config: &QPackagesPackage) -> Result<()> {
         // If a `qpackages.json` marker already exists for this id:version, it's already cached
         // and there's nothing to do. Otherwise download the QPKG from `qpkg_url`, verify its
