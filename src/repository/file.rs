@@ -390,8 +390,9 @@ impl FileRepository {
             }
         }
 
-        // Write package config to cache
-        let config_path = headers_dst.join(QPM_JSON);
+        // Write package config to cache, alongside the qpkg manifest (base_path itself -
+        // matches PackageVersionPath::qpm_json_dir, which is what download_to_cache reads back).
+        let config_path = base_path.join(QPM_JSON);
         let config_json = serde_json::to_string_pretty(&extracted_config)
             .context("Failed to serialize package config")?;
         fs::write(&config_path, config_json).with_context(|| {

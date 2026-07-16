@@ -15,6 +15,7 @@ use crate::{
 };
 
 /// Validates a package + its qpkg artifact before publishing, then submits it to a backend
+#[derive(Debug)]
 pub struct PackagePublisher {
     package: PackageConfig,
     qpkg_url: String,
