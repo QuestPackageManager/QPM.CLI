@@ -22,7 +22,7 @@ templatr = ["dep:templatr"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:indicatif"]
 quest_emu = ["dep:quest_emu"]
 network_test = []
-gitoxide = ["dep:gix"]
+gitoxide = []
 
 [build-dependencies]
 vergen = { version = "8", features = [
@@ -129,5 +129,5 @@ strip = "symbols"
 [profile.dev.package.backtrace]
 opt-level = 3
 
-[patch."https://github.com/QuestPackageManager/QPM.Package.git"]
-qpm_package = { path = "../QPM.Package" }
+# [patch."https://github.com/QuestPackageManager/QPM.Package.git"]
+# qpm_package = { path = "../QPM.Package" }
