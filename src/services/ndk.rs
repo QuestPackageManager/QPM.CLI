@@ -15,7 +15,9 @@ use walkdir::WalkDir;
 
 use crate::{
     models::android_repo::{AndroidRepositoryManifest, RemotePackage},
-    services::android::{download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str},
+    services::android::{
+        download_ndk_version, get_android_manifest, get_ndk_str_versions, get_ndk_str_versions_str,
+    },
 };
 
 /// Resolves the installed NDK path satisfying the package's NDK requirement, if any.
@@ -72,14 +74,18 @@ pub fn range_match_ndk<'a>(
         )),
         None => {
             bail!("Could not find any ndk version matching requirement {fuzzy_version_range}");
-        },
+        }
     }
 }
 
 /// Determines which NDK version to pin: the highest installed version satisfying `version`
 /// (parsed as a requirement) when `online` is false, or a fuzzy manifest match when `online`
 /// is true (allowing versions that aren't installed yet).
-pub fn resolve_pin_version(version: &str, online: bool, installed_ndks: &[PathBuf]) -> Result<String> {
+pub fn resolve_pin_version(
+    version: &str,
+    online: bool,
+    installed_ndks: &[PathBuf],
+) -> Result<String> {
     if online {
         let manifest = get_android_manifest()?;
         return Ok(fuzzy_match_ndk(&manifest, version)?.0);
@@ -96,7 +102,12 @@ pub fn resolve_pin_version(version: &str, online: bool, installed_ndks: &[PathBu
         })
         .ok_or_else(|| eyre!("No NDK version installed that satisfies {version_req}"))?;
 
-    Ok(ndk_installed_path.file_name().unwrap().to_str().unwrap().to_string())
+    Ok(ndk_installed_path
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string())
 }
 
 /// Resolves the on-disk path of an NDK satisfying `package`'s requirement, downloading a
@@ -129,8 +140,9 @@ pub fn resolve_ndk_for_package(
 
     // look up a version suitable to work with, allowing this to work offline
     let manifest = get_android_manifest().ok();
-    let suggested_version =
-        manifest.as_ref().and_then(|manifest| range_match_ndk(manifest, &ndk_requirement).ok());
+    let suggested_version = manifest
+        .as_ref()
+        .and_then(|manifest| range_match_ndk(manifest, &ndk_requirement).ok());
 
     if let Some((suggested_version, _)) = &suggested_version {
         report = report.suggestion(format!("qpm ndk download {suggested_version}"));

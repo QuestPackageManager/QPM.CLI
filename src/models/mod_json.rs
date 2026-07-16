@@ -76,7 +76,8 @@ impl ModJsonExtensions for ModJson {
 
         // Get data
         let mut json = String::with_capacity(file.metadata()?.len() as usize);
-        file.read_to_string(&mut json).context("Reading data failed")?;
+        file.read_to_string(&mut json)
+            .context("Reading data failed")?;
 
         // Pre process
         let processsed = preprocess_data.preprocess(json);

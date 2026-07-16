@@ -45,7 +45,10 @@ fn install_qpkg_then_read_back_from_a_fresh_file_repository() {
     let qpkg = build_qpkg(config.clone());
 
     let cache_dir = tempdir().unwrap();
-    let mut file_repo = FileRepository::new(cache_dir.path().to_path_buf(), FileRepositoryRegistry::default());
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
 
     let artifact = file_repo
         .install_qpkg(qpkg, false, None)
@@ -99,7 +102,10 @@ fn install_qpkg_refuses_to_overwrite_by_default() {
     let config = sample_qpkg_config();
 
     let cache_dir = tempdir().unwrap();
-    let mut file_repo = FileRepository::new(cache_dir.path().to_path_buf(), FileRepositoryRegistry::default());
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
 
     file_repo
         .install_qpkg(build_qpkg(config.clone()), false, None)
@@ -120,7 +126,10 @@ fn install_qpkg_overwrites_when_requested() {
     let config = sample_qpkg_config();
 
     let cache_dir = tempdir().unwrap();
-    let mut file_repo = FileRepository::new(cache_dir.path().to_path_buf(), FileRepositoryRegistry::default());
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
 
     file_repo
         .install_qpkg(build_qpkg(config.clone()), false, None)

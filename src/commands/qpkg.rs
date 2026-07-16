@@ -88,7 +88,11 @@ impl Command for QPkgCommand {
             .with_extension("qpkg");
 
         if self.verbose {
-            println!("Creating QPKG from {} and {}", package.shared_directory.display(), build_dir.display());
+            println!(
+                "Creating QPKG from {} and {}",
+                package.shared_directory.display(),
+                build_dir.display()
+            );
         }
 
         let tmp = package.dependencies_directory.join("tmp");
@@ -102,12 +106,18 @@ impl Command for QPkgCommand {
 
         let tmp_out = tmp.join(&out);
 
-        let file = std::fs::File::create(&tmp_out).context("Failed to create temporary QPKG file")?;
+        let file =
+            std::fs::File::create(&tmp_out).context("Failed to create temporary QPKG file")?;
         let buffer = BufWriter::new(file);
 
         // Create QPKG using QpkgFile from header and binary directories
-        QpkgFile::create_from_paths(buffer, package.clone(), &package.shared_directory, &build_dir)
-            .context("Failed to create QPKG")?;
+        QpkgFile::create_from_paths(
+            buffer,
+            package.clone(),
+            &package.shared_directory,
+            &build_dir,
+        )
+        .context("Failed to create QPKG")?;
 
         // Move the temporary file to the final output location
         std::fs::rename(tmp_out, &out).with_context(|| {

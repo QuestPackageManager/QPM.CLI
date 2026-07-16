@@ -96,7 +96,8 @@ fn validate_fails_when_a_declared_dependency_was_never_restored() {
 
     let err = result.expect_err("validate should fail when a dependency was never restored");
     assert!(
-        err.to_string().contains("not found in restored dependencies"),
+        err.to_string()
+            .contains("not found in restored dependencies"),
         "unexpected error: {err}"
     );
 }
@@ -141,8 +142,8 @@ fn validate_fails_when_restored_version_does_not_satisfy_declared_range() {
         &repo,
     );
 
-    let err =
-        result.expect_err("validate should fail when the restored version doesn't satisfy the range");
+    let err = result
+        .expect_err("validate should fail when the restored version doesn't satisfy the range");
     assert!(
         err.to_string().contains("does not satisfy stated range"),
         "unexpected error: {err}"

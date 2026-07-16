@@ -1,9 +1,11 @@
 use std::{fs, path::PathBuf};
 
 use qpm_cli::models::android_repo::{
-    Archive, ArchivesType, AndroidRepositoryManifest, CompleteType, RemotePackage, RevisionType,
+    AndroidRepositoryManifest, Archive, ArchivesType, CompleteType, RemotePackage, RevisionType,
 };
-use qpm_cli::services::ndk::{fuzzy_match_ndk, range_match_ndk, resolve_ndk_version, resolve_pin_version};
+use qpm_cli::services::ndk::{
+    fuzzy_match_ndk, range_match_ndk, resolve_ndk_version, resolve_pin_version,
+};
 use qpm_package::models::package::PackageConfig;
 use semver::VersionReq;
 
@@ -19,7 +21,13 @@ fn host_os_name() -> &'static str {
     }
 }
 
-fn ndk_package(path: &str, major: u64, minor: u64, micro: u64, with_host_archive: bool) -> RemotePackage {
+fn ndk_package(
+    path: &str,
+    major: u64,
+    minor: u64,
+    micro: u64,
+    with_host_archive: bool,
+) -> RemotePackage {
     let archive = Archive {
         host_os: Some(host_os_name().to_string()),
         host_arch: None,
@@ -33,7 +41,11 @@ fn ndk_package(path: &str, major: u64, minor: u64, micro: u64, with_host_archive
     RemotePackage {
         path: path.to_string(),
         archives: ArchivesType {
-            archive: if with_host_archive { vec![archive] } else { vec![] },
+            archive: if with_host_archive {
+                vec![archive]
+            } else {
+                vec![]
+            },
         },
         revision: RevisionType {
             major: Some(major),

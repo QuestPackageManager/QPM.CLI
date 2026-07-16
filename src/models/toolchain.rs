@@ -44,37 +44,39 @@ pub fn write_toolchain_file(
     let compile_options = shared_config
         .restored_dependencies
         .iter()
-        .map(|(dep_id, dep_info)| -> Result<Option<PackageCompileOptions>> {
-            let Some(dep_config) = repo.get_package(dep_id, &dep_info.restored_version)? else {
-                return Ok(None);
-            };
-            let dep_config = dep_config.config;
+        .map(
+            |(dep_id, dep_info)| -> Result<Option<PackageCompileOptions>> {
+                let Some(dep_config) = repo.get_package(dep_id, &dep_info.restored_version)? else {
+                    return Ok(None);
+                };
+                let dep_config = dep_config.config;
 
-            let package_id = dep_config.id.clone();
-            // Prepend the extern dir and package id to the include paths
-            let prepend_path = |dir: &String| {
-                extern_dir
-                    .join("includes")
-                    .join(&package_id.0)
-                    .join(dir)
-                    .to_string_lossy()
-                    .to_string()
-            };
+                let package_id = dep_config.id.clone();
+                // Prepend the extern dir and package id to the include paths
+                let prepend_path = |dir: &String| {
+                    extern_dir
+                        .join("includes")
+                        .join(&package_id.0)
+                        .join(dir)
+                        .to_string_lossy()
+                        .to_string()
+                };
 
-            let Some(mut compile_options) = dep_config.compile_options else {
-                return Ok(None);
-            };
+                let Some(mut compile_options) = dep_config.compile_options else {
+                    return Ok(None);
+                };
 
-            // prepend path
-            compile_options.include_paths = compile_options
-                .include_paths
-                .map(|v| v.iter().map(prepend_path).collect());
-            compile_options.system_includes = compile_options
-                .system_includes
-                .map(|v| v.iter().map(prepend_path).collect());
+                // prepend path
+                compile_options.include_paths = compile_options
+                    .include_paths
+                    .map(|v| v.iter().map(prepend_path).collect());
+                compile_options.system_includes = compile_options
+                    .system_includes
+                    .map(|v| v.iter().map(prepend_path).collect());
 
-            Ok(Some(compile_options))
-        })
+                Ok(Some(compile_options))
+            },
+        )
         .collect::<Result<Vec<_>>>()?
         .into_iter()
         .flatten()
@@ -118,31 +120,34 @@ pub fn write_toolchain_file(
     let linked_binaries = shared_config
         .restored_dependencies
         .iter()
-        .map(|(dep_id, dep_info)| -> Result<(DependencyId, Vec<PathBuf>)> {
-            let dep_config = repo
-                .get_package(dep_id, &dep_info.restored_version)
-                .with_context(|| {
-                    format!(
-                        "Failed to get package config for package '{}' version '{}'",
-                        dep_id, dep_info.restored_version
-                    )
-                })?
-                .with_context(|| {
-                    format!(
-                        "Package config not found for package '{}' version '{}'",
-                        dep_id, dep_info.restored_version
-                    )
-                })?;
-            let collect_files_of_package = file_repo.collect_files_of_package(&dep_config.config)?;
+        .map(
+            |(dep_id, dep_info)| -> Result<(DependencyId, Vec<PathBuf>)> {
+                let dep_config = repo
+                    .get_package(dep_id, &dep_info.restored_version)
+                    .with_context(|| {
+                        format!(
+                            "Failed to get package config for package '{}' version '{}'",
+                            dep_id, dep_info.restored_version
+                        )
+                    })?
+                    .with_context(|| {
+                        format!(
+                            "Package config not found for package '{}' version '{}'",
+                            dep_id, dep_info.restored_version
+                        )
+                    })?;
+                let collect_files_of_package =
+                    file_repo.collect_files_of_package(&dep_config.config)?;
 
-            let binaries = collect_files_of_package
-                .binaries
-                .into_iter()
-                .map(|bin| extern_binaries.join(bin.file_name().unwrap()))
-                .collect_vec();
+                let binaries = collect_files_of_package
+                    .binaries
+                    .into_iter()
+                    .map(|bin| extern_binaries.join(bin.file_name().unwrap()))
+                    .collect_vec();
 
-            Ok((dep_id.clone(), binaries))
-        })
+                Ok((dep_id.clone(), binaries))
+            },
+        )
         .collect::<Result<_>>()?;
 
     let package_id = shared_config.config.id.clone();

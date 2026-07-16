@@ -17,7 +17,11 @@ const ANDROID_REPO_MANIFEST: &str = "https://dl.google.com/android/repository/re
 const ANDROID_DL_URL: &str = "https://dl.google.com/android/repository";
 
 pub fn get_android_manifest() -> Result<AndroidRepositoryManifest> {
-    let response = get_agent().get(ANDROID_REPO_MANIFEST).call()?.into_body().into_reader();
+    let response = get_agent()
+        .get(ANDROID_REPO_MANIFEST)
+        .call()?
+        .into_body()
+        .into_reader();
 
     Ok(serde_xml_rs::from_reader(response)?)
 }
@@ -131,7 +135,7 @@ pub fn download_ndk_version(
     let mut archive = ZipArchive::new(buffer)?;
     let extract_path = ndk_download_path.join(archive.by_index(0)?.name());
 
-    archive.extract(&ndk_download_path)?;
+    archive.extract(ndk_download_path)?;
 
     println!(
         "Downloaded {} to {}",

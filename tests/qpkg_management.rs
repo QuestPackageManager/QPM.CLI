@@ -1,6 +1,6 @@
-use std::io::Cursor;
-use qpm_package::models::package::{PackageConfig, DependencyId};
 use qpm_cli::models::qpkg_file::QpkgFile;
+use qpm_package::models::package::{DependencyId, PackageConfig};
+use std::io::Cursor;
 
 /// Test QPKG creation and reading: create QPKG from config and verify it can be opened
 #[test]
@@ -23,7 +23,11 @@ fn test_qpkg_create_and_read() {
 
     // Verify headers exist
     let header_list = qpkg_file.list_headers().unwrap();
-    assert!(header_list.iter().any(|h| h.to_string_lossy().contains("api.h")));
+    assert!(
+        header_list
+            .iter()
+            .any(|h| h.to_string_lossy().contains("api.h"))
+    );
 }
 
 /// Test QPKG with multiple components: verify headers, binaries, and manifest coexist
@@ -50,14 +54,26 @@ fn test_qpkg_complete_package() {
 
     // Verify binaries are tracked in files (headers are in shared_dir, not files)
     assert_eq!(qpkg_file.files().len(), 2);
-    let file_paths: Vec<_> = qpkg_file.files().iter().map(|p| p.to_string_lossy().to_string()).collect();
+    let file_paths: Vec<_> = qpkg_file
+        .files()
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect();
     assert!(file_paths.contains(&"bin/libmain.so".to_string()));
     assert!(file_paths.contains(&"bin/libutil.so".to_string()));
 
     // Verify headers exist
     let headers_list = qpkg_file.list_headers().unwrap();
-    assert!(headers_list.iter().any(|h| h.to_string_lossy().contains("api.h")));
-    assert!(headers_list.iter().any(|h| h.to_string_lossy().contains("impl.h")));
+    assert!(
+        headers_list
+            .iter()
+            .any(|h| h.to_string_lossy().contains("api.h"))
+    );
+    assert!(
+        headers_list
+            .iter()
+            .any(|h| h.to_string_lossy().contains("impl.h"))
+    );
 }
 
 /// Test QPKG manifest preservation: verify config fields survive round-trip
@@ -75,7 +91,8 @@ fn test_qpkg_manifest_round_trip() {
     let binaries = vec![("lib.so", b"binary" as &[u8])];
 
     let buffer = Cursor::new(Vec::new());
-    let qpkg_file = QpkgFile::create(buffer, config, Vec::<(&str, &[u8])>::new(), binaries).unwrap();
+    let qpkg_file =
+        QpkgFile::create(buffer, config, Vec::<(&str, &[u8])>::new(), binaries).unwrap();
 
     let restored = &qpkg_file.manifest().config;
     assert_eq!(restored.id.0, "roundtrip-lib");
@@ -99,7 +116,11 @@ fn test_qpkg_extract_files() {
     let qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
 
     // Verify binaries are in manifest (headers tracked separately in shared_dir)
-    let file_paths: Vec<_> = qpkg_file.files().iter().map(|p| p.to_string_lossy().to_string()).collect();
+    let file_paths: Vec<_> = qpkg_file
+        .files()
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect();
     assert!(file_paths.contains(&"bin/libtest.so".to_string()));
 }
 
@@ -119,7 +140,11 @@ fn test_qpkg_list_files() {
     let buffer = Cursor::new(Vec::new());
     let qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
 
-    let file_paths: Vec<_> = qpkg_file.files().iter().map(|p| p.to_string_lossy().to_string()).collect();
+    let file_paths: Vec<_> = qpkg_file
+        .files()
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect();
     assert!(file_paths.contains(&"bin/lib1.so".to_string()));
     assert!(file_paths.contains(&"bin/lib2.so".to_string()));
 }
@@ -158,7 +183,13 @@ fn test_qpkg_manifest_only() {
     };
 
     let buffer = Cursor::new(Vec::new());
-    let qpkg_file = QpkgFile::create(buffer, config, Vec::<(&str, &[u8])>::new(), Vec::<(&str, &[u8])>::new()).unwrap();
+    let qpkg_file = QpkgFile::create(
+        buffer,
+        config,
+        Vec::<(&str, &[u8])>::new(),
+        Vec::<(&str, &[u8])>::new(),
+    )
+    .unwrap();
 
     assert!(qpkg_file.files().is_empty());
     assert_eq!(qpkg_file.manifest().config.id.0, "manifest-only");
@@ -216,15 +247,23 @@ fn test_qpkg_buffer_round_trip() {
 
     // Verify headers survived round-trip
     let headers_list = read_back.list_headers().unwrap();
-    assert!(headers_list.iter().any(|h| h.to_string_lossy().contains("api.h")));
-    assert!(headers_list.iter().any(|h| h.to_string_lossy().contains("types.h")));
+    assert!(
+        headers_list
+            .iter()
+            .any(|h| h.to_string_lossy().contains("api.h"))
+    );
+    assert!(
+        headers_list
+            .iter()
+            .any(|h| h.to_string_lossy().contains("types.h"))
+    );
 }
 
 /// Test QPKG extraction: verify extract_to() places files correctly
 #[test]
 fn test_qpkg_extract_to_directories() {
-    use std::path::PathBuf;
     use std::fs;
+    use std::path::PathBuf;
 
     let temp_root = std::env::temp_dir().join("qpkg_test_extract");
     let _ = fs::remove_dir_all(&temp_root);
@@ -255,7 +294,9 @@ fn test_qpkg_extract_to_directories() {
     let headers_out = temp_root.join("headers");
     let binaries_out = temp_root.join("binaries");
 
-    let extracted_config = created.extract_to(&manifest_out, &headers_out, &binaries_out).unwrap();
+    let extracted_config = created
+        .extract_to(&manifest_out, &headers_out, &binaries_out)
+        .unwrap();
 
     // Verify manifest was written
     assert!(manifest_out.join("qpm2.qpkg.json").exists());
@@ -290,10 +331,7 @@ fn test_qpkg_open_and_verify_manifest() {
         ("include/core.h", b"core" as &[u8]),
         ("include/v2/api.h", b"v2_api" as &[u8]),
     ];
-    let binaries = vec![
-        ("lib1.so", b"bin1" as &[u8]),
-        ("lib2.so", b"bin2" as &[u8]),
-    ];
+    let binaries = vec![("lib1.so", b"bin1" as &[u8]), ("lib2.so", b"bin2" as &[u8])];
 
     // Create QPKG
     let buffer = Cursor::new(Vec::new());
@@ -322,15 +360,23 @@ fn test_qpkg_open_and_verify_manifest() {
 
     // Verify headers exist
     let headers_list = opened.list_headers().unwrap();
-    assert!(headers_list.iter().any(|h| h.to_string_lossy().contains("core.h")));
-    assert!(headers_list.iter().any(|h| h.to_string_lossy().contains("api.h")));
+    assert!(
+        headers_list
+            .iter()
+            .any(|h| h.to_string_lossy().contains("core.h"))
+    );
+    assert!(
+        headers_list
+            .iter()
+            .any(|h| h.to_string_lossy().contains("api.h"))
+    );
 }
 
 /// Test QPKG with workspace binaries: verify binary validation during extraction
 #[test]
 fn test_qpkg_extraction_validates_binaries() {
-    use std::path::PathBuf;
     use std::fs;
+    use std::path::PathBuf;
 
     let temp_root = std::env::temp_dir().join("qpkg_test_validate");
     let _ = fs::remove_dir_all(&temp_root);
@@ -366,7 +412,9 @@ fn test_qpkg_extraction_validates_binaries() {
     let headers_out = temp_root.join("headers");
     let binaries_out = temp_root.join("binaries");
 
-    let extracted_config = created.extract_to(&manifest_out, &headers_out, &binaries_out).unwrap();
+    let extracted_config = created
+        .extract_to(&manifest_out, &headers_out, &binaries_out)
+        .unwrap();
 
     // Verify both expected binaries exist
     assert!(binaries_out.join("libmain.so").exists());

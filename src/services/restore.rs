@@ -36,10 +36,7 @@ impl<'a> PackageRestorer<'a> {
     /// Resolve dependencies for a package using pubgrub
     /// This will return an iterator of resolved dependencies
     /// The iterator will return every dependency required by the package
-    pub fn resolve(
-        config: PackageConfig,
-        repository: &impl Repository,
-    ) -> Result<Self> {
+    pub fn resolve(config: PackageConfig, repository: &impl Repository) -> Result<Self> {
         let resolver = PackageDependencyResolver {
             root: &config,
             repo: repository,
@@ -154,17 +151,14 @@ impl<'a> PackageRestorer<'a> {
                 dep.config.id.0.dependency_id_color(),
                 dep.config.version.to_string().dependency_version_color(),
             );
-            repository
-                .download_to_cache(&dep.config)
-                .with_context(|| {
-                    format!(
-                        "Requesting {}:{}",
-                        dep.config.id.0.dependency_id_color(),
-                        dep.config.version.version_id_color()
-                    )
-                })?;
-            repository
-                .add_to_db_cache(dep.config.clone(), dep.qpkg_checksum.clone(), true)?;
+            repository.download_to_cache(&dep.config).with_context(|| {
+                format!(
+                    "Requesting {}:{}",
+                    dep.config.id.0.dependency_id_color(),
+                    dep.config.version.version_id_color()
+                )
+            })?;
+            repository.add_to_db_cache(dep.config.clone(), dep.qpkg_checksum.clone(), true)?;
         }
 
         repository.write_repo()?;
@@ -175,7 +169,8 @@ impl<'a> PackageRestorer<'a> {
             workspace.as_ref(),
         )?;
 
-        self.shared_package.try_write_toolchain(repository, file_repo)?;
+        self.shared_package
+            .try_write_toolchain(repository, file_repo)?;
 
         Ok(())
     }

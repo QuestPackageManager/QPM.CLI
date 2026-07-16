@@ -1,14 +1,15 @@
-use std::{cmp::Reverse, error::Error, fmt::{Display, Formatter}};
+use std::{
+    cmp::Reverse,
+    error::Error,
+    fmt::{Display, Formatter},
+};
 
 use super::semver::{VersionWrapper, req_to_range};
 use crate::{
     repository::{Artifact, Repository},
     terminal::colors::QPMColor,
 };
-use color_eyre::{
-    Result,
-    eyre::{ContextCompat},
-};
+use color_eyre::{Result, eyre::ContextCompat};
 use owo_colors::OwoColorize;
 use pubgrub::{Dependencies, DependencyProvider, PackageResolutionStatistics};
 use qpm_package::models::package::{DependencyId, PackageConfig};

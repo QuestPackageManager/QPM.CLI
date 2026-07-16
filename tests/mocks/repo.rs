@@ -1,6 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use qpm_cli::repository::{Artifact, file::{FileRepository, FileRepositoryRegistry}};
+use qpm_cli::repository::{
+    Artifact,
+    file::{FileRepository, FileRepositoryRegistry},
+};
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency},
     shared_package::SharedPackageConfig,

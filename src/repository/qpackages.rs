@@ -3,7 +3,6 @@ use color_eyre::{
     eyre::{Context, ContextCompat, OptionExt, bail},
 };
 use itertools::Itertools;
-use owo_colors::OwoColorize;
 use semver::Version;
 
 use serde::Deserialize;
@@ -16,8 +15,8 @@ use ureq::http::StatusCode;
 
 use crate::{
     models::{package_files::PackageIdPath, qpackages::QPackageExtensions},
-    services::network::get_agent,
     repository::file::FileRepository,
+    services::network::get_agent,
     terminal::colors::QPMColor,
 };
 
@@ -99,11 +98,7 @@ impl QPMRepository {
             );
         }
         if !resp.status().is_success() {
-            bail!(
-                "Could not publish to {}: HTTP {}",
-                API_URL,
-                resp.status()
-            );
+            bail!("Could not publish to {}: HTTP {}", API_URL, resp.status());
         }
 
         Ok(())

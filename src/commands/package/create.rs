@@ -41,7 +41,7 @@ impl Command for PackageOperationCreateArgs {
         let package = PackageConfig {
             id: DependencyId(id),
             version: self.version,
-            workspace: WorkspaceConfig{
+            workspace: WorkspaceConfig {
                 toolchain_out: Some(Path::new("toolchain.json").to_owned()),
                 ..Default::default()
             },

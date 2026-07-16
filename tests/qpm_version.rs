@@ -13,7 +13,8 @@ fn current_version_reports_nonempty_branch_and_commit() {
 /// to the same URL `bleeding_release_github_artifact_url` produces directly.
 #[test]
 fn resolve_update_url_without_branch_points_at_bleeding_release() {
-    let target = resolve_update_url(None).expect("no network call needed for the bleeding release path");
+    let target =
+        resolve_update_url(None).expect("no network call needed for the bleeding release path");
 
     match target {
         UpdateTarget::DownloadUrl(url) => assert_eq!(url, bleeding_release_github_artifact_url()),

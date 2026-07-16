@@ -86,7 +86,10 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
     Ok(relative_path)
 }
 
-pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs, additional_include_folders: Vec<PathBuf>,) -> Result<()> {
+pub(crate) fn execute_qmod_zip_operation(
+    build_parameters: ZipQmodOperationArgs,
+    additional_include_folders: Vec<PathBuf>,
+) -> Result<()> {
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
@@ -102,7 +105,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs,
                 exclude_libs: build_parameters.exclude_libs.clone(),
                 include_libs: build_parameters.include_libs.clone(),
                 offline: build_parameters.offline,
-            }
+            },
         )?,
     };
 

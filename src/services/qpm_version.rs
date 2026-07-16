@@ -10,7 +10,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
-use crate::services::{network::download_file_report, github};
+use crate::services::{github, network::download_file_report};
 
 /// The branch and commit qpm2 was built from
 pub struct CurrentVersion {

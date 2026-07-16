@@ -1,5 +1,5 @@
 use qpm_cli::models::android_repo::{
-    Archive, ArchivesType, CompleteType, AndroidRepositoryManifest, RemotePackage, RevisionType,
+    AndroidRepositoryManifest, Archive, ArchivesType, CompleteType, RemotePackage, RevisionType,
 };
 use qpm_cli::services::android::{
     get_host_archive, get_ndk_packages, get_ndk_str_versions, get_ndk_str_versions_str,
@@ -19,7 +19,13 @@ fn archive_for(os: &str, arch: Option<&str>) -> Archive {
     }
 }
 
-fn ndk_package(path: &str, major: u64, minor: u64, micro: u64, archives: Vec<Archive>) -> RemotePackage {
+fn ndk_package(
+    path: &str,
+    major: u64,
+    minor: u64,
+    micro: u64,
+    archives: Vec<Archive>,
+) -> RemotePackage {
     RemotePackage {
         path: path.to_string(),
         archives: ArchivesType { archive: archives },
@@ -52,7 +58,13 @@ fn get_ndk_packages_filters_to_ndk_paths_only() {
     let manifest = AndroidRepositoryManifest {
         license: vec![],
         remote_package: vec![
-            ndk_package("ndk;25.1.0", 25, 1, 0, vec![archive_for(host_os_name(), None)]),
+            ndk_package(
+                "ndk;25.1.0",
+                25,
+                1,
+                0,
+                vec![archive_for(host_os_name(), None)],
+            ),
             ndk_package("platforms;android-30", 30, 0, 0, vec![]),
         ],
     };
@@ -78,7 +90,10 @@ fn get_host_archive_matches_current_os() {
         25,
         1,
         0,
-        vec![archive_for("bogus-os", None), archive_for(host_os_name(), None)],
+        vec![
+            archive_for("bogus-os", None),
+            archive_for(host_os_name(), None),
+        ],
     );
 
     let archive = get_host_archive(&pkg);

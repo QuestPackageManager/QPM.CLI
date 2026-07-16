@@ -42,7 +42,12 @@ pub fn check_git() -> color_eyre::Result<()> {
 
 /// Clones `url` (optionally at `branch`) into `out`. If `auth_token` is given, it's inserted
 /// into the URL for github.com clones and scrubbed from any error output.
-pub fn clone(mut url: String, branch: Option<&String>, out: &Path, auth_token: Option<&str>) -> Result<bool> {
+pub fn clone(
+    mut url: String,
+    branch: Option<&String>,
+    out: &Path,
+    auth_token: Option<&str>,
+) -> Result<bool> {
     check_git()?;
     if let Some(token) = auth_token
         && let Some(gitidx) = url.find("github.com")
