@@ -34,14 +34,9 @@ interface QPM1 {
     };
   };
   workspace?: {
-    scripts?:
-      | {
-          build?: string[];
-          debug?: string[];
-          copy?: string[];
-          qmod?: string[];
-        }
-      | Record<string, string[]>;
+    // qpm1's scripts map is a plain BTreeMap<String, Vec<String>> - any key allowed
+    scripts?: Record<string, string[]>;
+    ndk?: string;
     qmodIncludeDirs?: string[];
     qmodIncludeFiles?: string[];
     qmodOutput?: string;
@@ -109,12 +104,24 @@ interface QPM2 {
 interface QPM2Dep {
   versionRange: string;
   qmod?: "none" | "required" | "optional";
+  qpkgUrl?: string;
 }
 
 function convertDep(dep: QPM1Dep): QPM2Dep {
+  // Both default to true when omitted (see QPM.Package's PackageDependencyModifier).
+  const includeQmod = dep.additionalData.includeQmod ?? true;
+  const required = dep.additionalData.required ?? true;
+
+  let qmod: QPM2Dep["qmod"] = "required";
+  if (!includeQmod) {
+    qmod = "none";
+  } else if (!required) {
+    qmod = "optional";
+  }
+
   return {
     versionRange: dep.versionRange,
-    qmod: dep.additionalData.includeQmod ? "required" : "none",
+    qmod,
   };
 }
 
@@ -150,12 +157,9 @@ const qpm2: QPM2 = {
     url: qpm1.info.url,
   },
   workspace: {
-    scripts: {
-      build: qpm1.workspace?.scripts?.build,
-      debug: qpm1.workspace?.scripts?.debug,
-      copy: qpm1.workspace?.scripts?.copy,
-      qmod: qpm1.workspace?.scripts?.qmod,
-    },
+    // qpm1's scripts map allows arbitrary keys, not just build/debug/copy/qmod
+    scripts: qpm1.workspace?.scripts,
+    ndk: qpm1.workspace?.ndk,
     outBinaries,
     toolchainOut: qpm1.info.additionalData?.toolchainOut ?? "toolchain.json",
     cmake: qpm1.info.additionalData?.cmake,
@@ -163,6 +167,7 @@ const qpm2: QPM2 = {
   qmod: {
     id: qpm1.info.id,
     template: "mod.template.json",
+    output: qpm1.workspace?.qmodOutput,
     downloadUrl: qpm1.info.additionalData?.modLink,
     searchDirs: qpm1.workspace?.qmodIncludeDirs,
     includeFiles: qpm1.workspace?.qmodIncludeFiles,
