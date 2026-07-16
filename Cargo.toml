@@ -18,11 +18,11 @@ required-features = []
 
 [features]
 default = ["templatr", "network_test", "cli", "gitoxide", "quest_emu"]
-templatr = ["dep:templatr"]
+templatr = ["dep:templatr","gitoxide"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:indicatif"]
 quest_emu = ["dep:quest_emu"]
 network_test = []
-gitoxide = []
+gitoxide = ["dep:gix"]
 
 [build-dependencies]
 vergen = { version = "8", features = [
@@ -103,6 +103,7 @@ fs_extra = "1.2"
 itertools = "0.15"
 schemars = { version = "0.8", features = ["semver"] }
 sha2 = "0.11"
+digest-io = { version = "*" }
 hex = "0.4.3"
 indicatif = { version = "0.18", optional = true }
 

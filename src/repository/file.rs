@@ -20,6 +20,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use digest_io::IoWrapper;
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -310,9 +311,9 @@ impl FileRepository {
         buffer
             .seek(std::io::SeekFrom::Start(0))
             .context("Failed to seek in buffer")?;
-        let mut hasher = Sha256::new();
+        let mut hasher = IoWrapper(Sha256::new());
         std::io::copy(&mut buffer, &mut hasher).context("Failed to hash QPKG contents")?;
-        let qpkg_checksum = hex::encode(hasher.finalize());
+        let qpkg_checksum = hex::encode(hasher.0.finalize());
 
         buffer
             .seek(std::io::SeekFrom::Start(0))
