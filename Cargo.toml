@@ -17,12 +17,13 @@ required-features = []
 
 
 [features]
-default = ["templatr", "network_test", "cli", "gitoxide", "quest_emu"]
-templatr = ["dep:templatr","gitoxide"]
+default = ["templatr", "network_test", "cli", "quest_emu"]
+templatr = ["dep:templatr"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:indicatif"]
 quest_emu = ["dep:quest_emu"]
 network_test = []
-gitoxide = ["dep:gix"]
+gitoxide = []
+# gitoxide = ["dep:gix"]
 
 [build-dependencies]
 vergen = { version = "8", features = [
@@ -45,7 +46,7 @@ color-eyre = "0.6"
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "qpm2" }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
-templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
+templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true, default-features = false, features = ["git_cli", "serde", "cli"]}
 quest_emu = { git = "https://github.com/Fernthedev/quest_emu_setup.git", optional = true }
 
 pathdiff = "0.2"
@@ -60,15 +61,15 @@ ureq = { version = "3", features = [
     "gzip",
 ], default-features = false }
 
-gix = { version = "*", features = [
-    "command",
-    "sha1",
-    "attributes",
-    "progress-tree",
-    "worktree-mutation",
-    "blocking-network-client",
-    "blocking-http-transport-reqwest-rust-tls",
-], optional = true, default-features = false }
+# gix = { version = "*", features = [
+#     "command",
+#     "sha1",
+#     "attributes",
+#     "progress-tree",
+#     "worktree-mutation",
+#     "blocking-network-client",
+#     "blocking-http-transport-reqwest-rust-tls",
+# ], optional = true, default-features = false }
 
 clap = { version = "4", features = ["derive"], optional = true }
 clap_complete = { version = "4", optional = true }
