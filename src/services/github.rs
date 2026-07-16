@@ -46,24 +46,26 @@ pub struct GithubCommitDiffCommitDataResponse {
     pub message: String,
 }
 
-pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, reqwest::Error> {
+pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, ureq::Error> {
     get_agent()
         .get(format!(
             "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/branches/{branch}"
         ))
-        .send()?
-        .json()
+        .call()?
+        .into_body()
+        .read_json()
 }
 pub fn get_github_commit_diff(
     old: &str,
     new: &str,
-) -> Result<GithubCommitDiffResponse, reqwest::Error> {
+) -> Result<GithubCommitDiffResponse, ureq::Error> {
     get_agent()
         .get(format!(
             "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/compare/{old}...{new}"
         ))
-        .send()?
-        .json()
+        .call()?
+        .into_body()
+        .read_json()
 }
 
 pub fn download_github_artifact_url(sha: &str) -> String {

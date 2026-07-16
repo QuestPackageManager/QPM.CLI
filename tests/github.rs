@@ -35,7 +35,7 @@ fn download_github_artifact_url_for_latest_main_commit_does_not_404() {
 
     let status = get_agent()
         .head(&url)
-        .send()
+        .call()
         .expect("request should complete")
         .status();
 
@@ -51,7 +51,7 @@ fn bleeding_release_github_artifact_url_does_not_404() {
 
     let status = get_agent()
         .head(&url)
-        .send()
+        .call()
         .expect("request should complete")
         .status();
 

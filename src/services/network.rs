@@ -9,71 +9,69 @@ use std::{
 use bytes::{BufMut, BytesMut};
 use color_eyre::{Result, eyre::Context};
 
-static AGENT: sync::OnceLock<reqwest::blocking::Client> = sync::OnceLock::new();
+static AGENT: sync::OnceLock<ureq::Agent> = sync::OnceLock::new();
 
 const DEFAULT_TIMEOUT_MS: u32 = 5000;
 
-fn build_agent(timeout_ms: u32) -> reqwest::blocking::Client {
-    reqwest::blocking::ClientBuilder::new()
-        .connect_timeout(Duration::from_millis(timeout_ms.into()))
-        .tcp_keepalive(Duration::from_secs(5))
-        .tcp_nodelay(false)
+fn build_agent(timeout_ms: u32) -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_connect(Some(Duration::from_millis(timeout_ms.into())))
+        .no_delay(false)
         .https_only(true)
         .user_agent(format!("questpackagemanager-rs3/{}", env!("CARGO_PKG_VERSION")).as_str())
         .build()
-        .expect("Client agent was not buildable")
+        .new_agent()
 }
 
 /// Initializes the shared HTTP agent with an explicit connect timeout. Only the first call
 /// across `init_agent`/`get_agent` has any effect - once the underlying client is built it
 /// can't be reconfigured. Call this once at startup with the user's configured timeout before
 /// any network-touching command runs; `get_agent()` alone falls back to `DEFAULT_TIMEOUT_MS`.
-pub fn init_agent(timeout_ms: u32) -> &'static reqwest::blocking::Client {
+pub fn init_agent(timeout_ms: u32) -> &'static ureq::Agent {
     AGENT.get_or_init(|| build_agent(timeout_ms))
 }
 
-pub fn get_agent() -> &'static reqwest::blocking::Client {
+pub fn get_agent() -> &'static ureq::Agent {
     AGENT.get_or_init(|| build_agent(DEFAULT_TIMEOUT_MS))
 }
-
 pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
-    let mut request = get_agent().get(url).build()?;
+    // Perform the request with ureq
+    let response = get_agent()
+        .get(url)
+        .call()
+        .with_context(|| format!("Unable to download file {url}"))?;
+    let mut body = response.into_body();
 
-    request.timeout_mut().take(); // Set to none
+    // Read content-length header if present
+    let expected_amount = body.content_length().map(|s| s as usize).unwrap_or(0);
 
-    let mut response = get_agent()
-        .execute(request)
-        .with_context(|| format!("Unable to download file {url}"))?
-        .error_for_status()?;
-
-    let expected_amount = response.content_length().unwrap_or(0) as usize;
+    let mut reader = body.as_reader();
 
     if expected_amount == 0 {
         println!("Unable to determine content length for download from {url}");
     }
 
     let mut written: usize = 0;
-
     let mut temp_buf = vec![0u8; 1024];
 
     loop {
-        let read = response.read(&mut temp_buf);
-
-        match read {
+        match reader.read(&mut temp_buf) {
             // EOF
             Ok(0) => break,
 
             Ok(amount) => {
                 written += amount;
-                buffer.write_all(&temp_buf[0..amount])?;
+                buffer.write_all(&temp_buf[..amount])?;
                 callback(written, expected_amount);
             }
+
             Err(e) if e.kind() == ErrorKind::Interrupted => {
                 sleep(Duration::from_millis(1));
             }
+
             Err(e) => {
                 return Err(e)
                     .with_context(|| format!("Failed to continue reading bytes from {url}"));
@@ -104,23 +102,35 @@ pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback:
 where
     F: FnMut(usize, usize),
 {
-    use pbr::ProgressBar;
+    use indicatif::{ProgressBar, ProgressDrawTarget, ProgressState};
 
-    let mut progress_bar = ProgressBar::new(0);
-    progress_bar.set_units(pbr::Units::Bytes);
+    let progress_bar = ProgressBar::no_length().with_style(
+        indicatif::ProgressStyle::with_template(
+            "[{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+        )?
+        .with_key(
+            "eta",
+            |state: &ProgressState, w: &mut dyn std::fmt::Write| {
+                write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+            },
+        )
+        .progress_chars("=>-"),
+    );
+
+    progress_bar.enable_steady_tick(Duration::from_millis(100));
 
     if env::var("CI") == Ok("true".to_string()) {
-        progress_bar.set_max_refresh_rate(Some(Duration::from_millis(500)));
+        progress_bar.set_draw_target(ProgressDrawTarget::stderr_with_hz(2));
     }
 
     let result = download_file(url, buffer, |current, expected| {
-        progress_bar.total = expected as u64;
-        progress_bar.set(current as u64);
+        progress_bar.set_length(expected as u64);
+        progress_bar.set_position(current as u64);
 
         callback(current, expected)
     });
 
-    progress_bar.finish_println("Finished download!");
+    progress_bar.finish_with_message("Finished download!");
     println!();
 
     result

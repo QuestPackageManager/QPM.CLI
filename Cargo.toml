@@ -19,7 +19,7 @@ required-features = []
 [features]
 default = ["templatr", "network_test", "cli", "gitoxide", "quest_emu"]
 templatr = ["dep:templatr"]
-cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:pbr"]
+cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:indicatif"]
 quest_emu = ["dep:quest_emu"]
 network_test = []
 gitoxide = ["dep:gix"]
@@ -52,17 +52,12 @@ pathdiff = "0.2"
 
 # No need for tracing support
 color-eyre = { version = "0.6", default-features = false }
-# progress bar
-pbr = { version = "*", optional = true } #{ git = "https://github.com/a8m/pb.git" }
 
 bytes = "*"
-reqwest = { version = "0.13", features = [
-    "blocking",
+ureq = { version = "3", features = [
+    "rustls",
     "json",
     "gzip",
-    "deflate",
-    "brotli",
-    "rustls",
 ], default-features = false }
 
 gix = { version = "*", features = [
@@ -109,6 +104,7 @@ itertools = "0.14"
 schemars = { version = "0.8", features = ["semver"] }
 sha2 = "0.10.9"
 hex = "0.4.3"
+indicatif = { version = "0.18", optional = true }
 
 # [target.aarch64-apple-darwin.dependencies]
 # # Allow cross compiles
