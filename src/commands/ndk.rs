@@ -186,7 +186,7 @@ fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<()> {
         if r.ignore_missing {
             return Ok(());
         }
-        bail!("No package found in current directory")
+        bail!("No package found in current directory");
     };
 
     let ndk_download_path = get_combine_config()

@@ -97,7 +97,7 @@ impl Command for DoctorCommand {
         if cmake && adb && qpm && ninja {
             println!("{}", "Everything looks good!".green());
         } else {
-            bail!("Some functionality is missing")
+            bail!("Some functionality is missing");
         }
         Ok(())
     }

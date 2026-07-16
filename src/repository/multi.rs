@@ -86,7 +86,7 @@ impl Repository for MultiDependencyRepository {
             "No repository found that has package {}:{}",
             config.id,
             config.version
-        )
+        );
     }
 
     fn add_to_db_cache(

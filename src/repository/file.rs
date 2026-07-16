@@ -218,7 +218,7 @@ impl FileRepository {
                     package.id.dependency_id_color(),
                     downloaded_package.version.red(),
                     package.version.green(),
-                )
+                );
             }
         }
 
