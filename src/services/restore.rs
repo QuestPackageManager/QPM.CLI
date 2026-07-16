@@ -58,7 +58,7 @@ impl<'a> PackageRestorer<'a> {
 
             Err(PubGrubError::NoSolution(tree)) => {
                 let report = DefaultStringReporter::report(&tree);
-                bail!("failed to resolve dependencies: \n{}", report)
+                bail!("failed to resolve dependencies: \n{}", report);
             }
             Err(err) => {
                 bail!("pubgrub: {err}\n{err:?}");

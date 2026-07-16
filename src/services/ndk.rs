@@ -70,7 +70,9 @@ pub fn range_match_ndk<'a>(
             matching_version.to_string(),
             ndks.get(matching_version).unwrap(),
         )),
-        None => bail!("Could not find any ndk version matching requirement {fuzzy_version_range}"),
+        None => {
+            bail!("Could not find any ndk version matching requirement {fuzzy_version_range}");
+        },
     }
 }
 

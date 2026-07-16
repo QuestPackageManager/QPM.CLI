@@ -49,7 +49,7 @@ pub fn check_version(branch: &str) -> Result<VersionCheck> {
     let diff = github::get_github_commit_diff(current.commit, branch)?;
 
     if diff.behind_by > 0 {
-        bail!("Selected an older branch")
+        bail!("Selected an older branch");
     }
 
     Ok(VersionCheck {
