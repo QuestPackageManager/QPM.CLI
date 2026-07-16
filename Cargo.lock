@@ -1687,15 +1687,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lzma-rust2"
-version = "0.16.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca93e534d1142d1d0dcca6d25fe302508a5dfb40b302802904577725ea0b695b"
-dependencies = [
- "sha2 0.11.0",
-]
-
-[[package]]
 name = "mbf-axml"
 version = "0.1.0"
 source = "git+https://github.com/Lauriethefish/ModsBeforeFriday.git?branch=main#b16beadf8320ca48d374b7e6f3efec298474c4cc"
@@ -3793,7 +3784,7 @@ dependencies = [
  "deflate64",
  "flate2",
  "indexmap",
- "lzma-rust2 0.13.0",
+ "lzma-rust2",
  "memchr",
  "nt-time 0.10.6",
  "zopfli",
@@ -3806,17 +3797,12 @@ version = "8.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
 dependencies = [
- "bzip2",
  "crc32fast",
- "deflate64",
  "flate2",
  "indexmap",
- "lzma-rust2 0.16.5",
  "memchr",
  "nt-time 0.13.2",
  "typed-path",
- "zopfli",
- "zstd",
 ]
 
 [[package]]

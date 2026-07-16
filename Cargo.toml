@@ -39,7 +39,7 @@ bstr = "1.12"
 predicates = "3.1.0"
 tempfile = "3.23"
 assert_fs = "1.1.0"
-color-eyre = "0.6"
+color-eyre = { version = "0.6", default-features = false }
 
 [dependencies]
 #qpm
@@ -84,18 +84,15 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
 pubgrub = "0.4"
 owo-colors = "4"
 dirs = "6.0.0"
-keyring = {version = "4", features = ["v1"]}
+keyring = "4"
 
 # Use PR with symlink fix for Unix systems.
+# Only Deflate is ever written (see qpkg_file.rs / qmod/zip.rs), so the write
+# path doesn't need zstd/lzma/bzip2/deflate64, and compression_level(9) never
+# crosses flate2's max level so zopfli never triggers either.
 zip = { version = "8", default-features = false, features = [
-    "zstd",
     "nt-time",
-    "deflate",
-    "deflate-flate2",
-    "deflate-zopfli",
-    "deflate64",
-    "lzma",
-    "bzip2",
+    "deflate-flate2-zlib-rs",
 ] }
 
 walkdir = "2"
