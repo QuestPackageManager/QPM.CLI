@@ -13,6 +13,8 @@ pub mod download;
 pub mod genschema;
 pub mod install;
 pub mod list;
+#[cfg(feature = "migrate")]
+pub mod migrate;
 pub mod ndk;
 pub mod package;
 pub mod publish;
@@ -70,6 +72,10 @@ pub enum MainCommand {
     Download(download::Download),
     Ndk(ndk::Ndk),
 
+    /// Migrate a legacy qpm.json (QPM v1) into a qpm2.json (QPM v2) package config
+    #[cfg(feature = "migrate")]
+    Migrate(migrate::MigrateCommand),
+
     #[command(about = "Shorthand for qpm dependency add")]
     Add(dependency::DependencyOperationAddArgs),
 
@@ -115,6 +121,9 @@ impl Command for MainCommand {
             MainCommand::Doctor(c) => c.execute(),
             MainCommand::Download(c) => c.execute(),
             MainCommand::Ndk(n) => n.execute(),
+
+            #[cfg(feature = "migrate")]
+            MainCommand::Migrate(c) => c.execute(),
             MainCommand::Add(add) => add.execute(),
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),

@@ -17,10 +17,11 @@ required-features = []
 
 
 [features]
-default = ["templatr", "network_test", "cli", "quest_emu"]
+default = ["templatr", "network_test", "cli", "quest_emu", "migrate"]
 templatr = ["dep:templatr"]
 cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:indicatif"]
 quest_emu = ["dep:quest_emu"]
+migrate = ["dep:qpm_package_v1"]
 network_test = []
 gitoxide = []
 # gitoxide = ["dep:gix"]
@@ -44,6 +45,7 @@ color-eyre = { version = "0.6", default-features = false }
 [dependencies]
 #qpm
 qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "qpm2" }
+qpm_package_v1 = { package = "qpm_package", git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "v1", optional = true }
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true, default-features = false, features = ["git_cli", "serde", "cli"]}
