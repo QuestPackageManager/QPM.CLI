@@ -1,5 +1,3 @@
-#![feature(path_is_empty)]
-
 use std::io;
 
 use clap::{CommandFactory, Parser};
@@ -11,17 +9,13 @@ use commands::Command;
 pub mod commands;
 
 pub mod models;
-pub mod network;
 pub mod repository;
-pub mod resolver;
+pub mod services;
 pub mod terminal;
 pub mod utils;
 
 #[cfg(test)]
 mod benchmark;
-
-#[cfg(test)]
-mod tests;
 
 fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
     generate(
@@ -37,7 +31,7 @@ fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
 fn suggest_completion_location(shell: Shell) {
     eprintln!("To add this to your shell, you may use the following command:");
 
-    let file_name = shell.file_name("qpm");
+    let file_name = shell.file_name("qpm2");
 
     // powershell is unique so
     // we make it its own suggestion
@@ -69,6 +63,9 @@ fn main() -> Result<()> {
             "/issues/new"
         ))
         .install()?;
+
+    services::network::init_agent(models::config::get_combine_config().timeout.unwrap_or(5000));
+
     let command_result = commands::Opt::parse();
 
     if let Some(generator) = command_result.generator {

@@ -1,8 +1,14 @@
+use std::path::Path;
+
 use clap::Args;
+use qpm_package::models::package::PackageConfig;
 use qpm_qmod::models::mod_json::ModJson;
 use semver::Version;
 
-use crate::{commands::Command, models::mod_json::ModJsonExtensions};
+use crate::{
+    commands::Command,
+    models::{mod_json::ModJsonExtensions, package::PackageConfigExtensions},
+};
 
 /// Some properties are not editable through the qmod edit command, these properties are either editable through the package, or not at all
 #[derive(Args, Debug, Clone)]
@@ -33,7 +39,15 @@ pub struct EditQmodJsonCommand {
 
 impl Command for EditQmodJsonCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        let mut json = ModJson::read(&ModJson::get_template_path())?;
+        let package = PackageConfig::read(".")?;
+
+        let mod_template = package
+            .qmod
+            .template
+            .as_deref()
+            .unwrap_or_else(|| Path::new("mod.template.json"));
+
+        let mut json = ModJson::read(mod_template)?;
 
         if let Some(schema_version) = self.schema_version {
             json.schema_version = schema_version;
@@ -69,7 +83,7 @@ impl Command for EditQmodJsonCommand {
             }
         }
 
-        json.write(&ModJson::get_template_path())?;
+        json.write(mod_template)?;
         Ok(())
     }
 }

@@ -6,14 +6,14 @@
       "request": "launch",
       "name": "Debug executable 'qpm_cli'",
       "cargo": {
-        "args": ["build", "--bin=qpm", "--package=qpm_cli"],
+        "args": ["build", "--bin=qpm2", "--package=qpm_cli"],
         "filter": {
-          "name": "qpm",
+          "name": "qpm2",
           "kind": "bin"
         }
       },
-      "args": ["download", "adb"],
-      "cwd": "${workspaceFolder}"
+      "args": ["restore","default"],
+      "cwd": "${workspaceFolder}/test_package"
     },
     {
       "type": "lldb",
@@ -22,7 +22,7 @@
       "cargo": {
         "args": ["test", "--no-run", "--bin=qpm", "--package=qpm_cli"],
         "filter": {
-          "name": "qpm",
+          "name": "qpm2",
           "kind": "bin"
         }
       },

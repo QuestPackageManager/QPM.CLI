@@ -1,0 +1,17 @@
+{
+    // qpkg information about the distributed package
+    // per triplet
+    "android/arm64/shared": {
+        // path to the shared binary
+        "files": [
+            "android/arm64/shared/libfoo.so",
+            "android/arm64/shared/libfoo_dependency.so"
+        ]
+    },
+    "android/arm64/static": {
+        // path to the static binary
+        "files": [
+            "libfoo.a"
+        ]
+    },
+}

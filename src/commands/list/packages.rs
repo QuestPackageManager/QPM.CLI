@@ -19,7 +19,7 @@ impl Command for PackageListCommand {
         let ids = repository::useful_default_new(self.offline)?
             .get_package_names()?
             .into_iter()
-            .sorted()
+            .sorted_by(|a, b| a.0.cmp(&b.0))
             .collect_vec();
         if !ids.is_empty() {
             println!(

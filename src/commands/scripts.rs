@@ -7,7 +7,10 @@ use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
 use qpm_package::models::package::PackageConfig;
 
-use crate::{models::package::PackageConfigExtensions, utils::ndk};
+use crate::{
+    models::{config::get_combine_config, package::PackageConfigExtensions},
+    services::ndk,
+};
 
 use super::Command;
 
@@ -28,12 +31,8 @@ impl Command for ScriptsCommand {
 
         let script = scripts.get(&self.script);
 
-        if script.is_none() {
-            bail!("Could not find script {}", self.script);
-        }
-
         let Some(script) = script else {
-            return Ok(());
+            bail!("Could not find script {}", self.script);
         };
 
         invoke_script(script, &self.args, &package)?;
@@ -47,7 +46,11 @@ pub fn invoke_script(
     supplied_args: &[String],
     package: &PackageConfig,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let android_ndk_home = ndk::resolve_ndk_version(package);
+    let ndk_download_path = get_combine_config()
+        .ndk_download_path
+        .as_ref()
+        .expect("No NDK download path set");
+    let android_ndk_home = ndk::resolve_ndk_version(package, ndk_download_path);
 
     for command_str in script_commands {
         let split = command_str.split_once(' ');
@@ -87,12 +90,29 @@ pub fn invoke_script(
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
+        // Set the environment variables for the script
+        if let Some(env_vars) = &package.workspace.env {
+            c.envs(
+                env_vars
+                    .iter()
+                    .map(|(k, v)| (format!("QPM_{k}"), v.as_str())),
+            );
+        }
+
+        // QPM defined environment variables
+        c.env(
+            "QPM_QMOD_ID",
+            package.qmod.id.as_deref().unwrap_or(package.id.0.as_str()),
+        )
+        .env("QPM_PACKAGE_ID", package.id.to_string())
+        .env("QPM_PACKAGE_VERSION", package.version.to_string());
+
         // Set the environment variable for Android NDK home if provided
         if let Some(path) = &android_ndk_home {
             c.env("ANDROID_NDK_HOME", path);
         }
 
-        let code = c.spawn()?.wait()?.code().unwrap_or_else(|| 1);
+        let code = c.spawn()?.wait()?.code().unwrap_or(1);
         if code != 0 {
             exit(code);
         }

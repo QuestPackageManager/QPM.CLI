@@ -4,21 +4,18 @@ use clap::Args;
 
 use color_eyre::{
     Section,
-    eyre::{ContextCompat, Result, bail, eyre},
+    eyre::{Context, Result, bail, eyre},
 };
-use itertools::Itertools;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{
+    package::PackageConfig,
+    shared_package::{QPM_SHARED_JSON, SharedPackageConfig},
+};
 use semver::Version;
 
 use crate::{
-    models::{
-        config::get_combine_config,
-        package::{
-            PackageConfigExtensions, SHARED_PACKAGE_FILE_NAME, SharedPackageConfigExtensions,
-        },
-    },
-    repository::{self, Repository},
-    resolver::dependency,
+    models::{config::get_combine_config, package::PackageConfigExtensions},
+    repository::{self, file::FileRepository},
+    services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
 
@@ -42,10 +39,7 @@ pub(crate) fn is_ignored() -> bool {
 
         excludes.is_ok_and(|mut attribute| {
             attribute
-                .at_path(
-                    SHARED_PACKAGE_FILE_NAME,
-                    Some(gix::index::entry::Mode::FILE),
-                )
+                .at_path(QPM_SHARED_JSON, Some(gix::index::entry::Mode::FILE))
                 .is_ok_and(|e| e.is_excluded())
         })
     })
@@ -58,7 +52,7 @@ pub(crate) fn is_ignored() -> bool {
 
 impl Command for RestoreCommand {
     fn execute(self) -> color_eyre::Result<()> {
-        let package = PackageConfig::read(".")?;
+        let package = PackageConfig::read(".").context("Reading package config for restoring")?;
         // optionally does not exist
         let mut shared_package_opt = SharedPackageConfig::exists(".")
             .then(|| SharedPackageConfig::read("."))
@@ -70,29 +64,28 @@ impl Command for RestoreCommand {
         // manually
         // no shared.qpm.json
         // dependencies have been updated
-        let unlocked = self.update
-            || shared_package_opt.is_none()
-            || shared_package_opt.as_ref().is_some_and(|shared_package| {
-                shared_package.config.dependencies != package.dependencies
-            });
+        let unlocked = self.update || is_modified(&shared_package_opt, &package);
 
         if !unlocked && is_ignored() {
+            eprintln!("It seems that the current repository has {QPM_SHARED_JSON} ignored. ");
             eprintln!(
-                "It seems that the current repository has {SHARED_PACKAGE_FILE_NAME} ignored. "
-            );
-            eprintln!(
-                "Please commit it to avoid inconsistent dependency resolving. git add {SHARED_PACKAGE_FILE_NAME} --force"
+                "Please commit it to avoid inconsistent dependency resolving. git add {QPM_SHARED_JSON} --force"
             );
         }
 
         if unlocked && env::var("CI") == Ok("true".to_string()) {
             eprintln!("Running in CI and using unlocked resolve, this seems like a bug!");
             eprintln!(
-                "Make sure {SHARED_PACKAGE_FILE_NAME} is not gitignore'd and is comitted in the repository"
+                "Make sure {QPM_SHARED_JSON} is not gitignore'd and is comitted in the repository"
             );
         }
 
-        let resolved_deps = match &mut shared_package_opt {
+        // TODO: sanity check. This used to also require the requested triplet to be
+        // present in shared_package.locked_triplet before taking the locked-resolve path;
+        // now that there's a single config, `!unlocked` (driven by is_modified) is the only
+        // gate. Confirm this still behaves correctly for a shared package restored under
+        // the old multi-triplet format or otherwise missing restored_dependencies.
+        let restorer = match &mut shared_package_opt {
             // locked resolve
             // only if shared_package is Some() and locked
             Some(shared_package) if !unlocked => {
@@ -101,53 +94,75 @@ impl Command for RestoreCommand {
 
                 // update config
                 shared_package.config = package;
-                // make additional data use cached data
-                shared_package
-                    .restored_dependencies
-                    .iter_mut()
-                    .try_for_each(|d| -> color_eyre::Result<()> {
-                        let package = repo
-                            .get_package(&d.dependency.id, &d.version)
-                            .ok()
-                            .flatten()
-                            .with_context(|| {
-                                format!(
-                                    "Unable to fetch {}:{}",
-                                    d.dependency.id.dependency_id_color(),
-                                    d.version.version_id_color()
-                                )
-                            })?;
-                        d.dependency.additional_data = package.config.info.additional_data;
-                        Ok(())
-                    })?;
-                dependency::locked_resolve(shared_package, &repo)?.collect_vec()
+
+                PackageRestorer::locked_resolve(shared_package, &repo)?
             }
             // Unlocked resolve
             _ => {
                 println!("Resolving packages");
 
-                let (spc_result, restored_deps) =
-                    SharedPackageConfig::resolve_from_package(package, &repo)?;
-                // update shared_package
-                shared_package_opt = Some(spc_result);
-
-                restored_deps
+                PackageRestorer::resolve(package, &repo)?
             }
         };
 
-        // write the ndk path to a file if available
-        let _config = get_combine_config();
+        let shared_package = restorer.shared_package();
 
-        let shared_package = shared_package_opt.expect("SharedPackage is None somehow!");
-
-        // always write to reflect config changes
-        dependency::restore(".", &shared_package, &resolved_deps, &mut repo)?;
+        let cache_root = get_combine_config()
+            .cache
+            .clone()
+            .expect("No cache path set");
+        let file_repo = FileRepository::read(cache_root)?;
+        restorer.restore(".", &mut repo, &file_repo)?;
         shared_package.write(".")?;
+
+        println!(
+            "Restored {} with {} dependencies",
+            shared_package.config.id.dependency_id_color(),
+            restorer.resolved_deps().len()
+        );
 
         validate_ndk(&shared_package.config)?;
 
         Ok(())
     }
+}
+
+fn is_modified(shared_package_opt: &Option<SharedPackageConfig>, package: &PackageConfig) -> bool {
+    let Some(shared_package) = shared_package_opt else {
+        return true;
+    };
+
+    // we just naively compare the package configs for now,
+    // if they are different, we consider it modified.
+    // This means that any change to the package config will cause an unlocked restore, even if the triplet dependencies are not affected.
+    // We can optimize this later by only comparing the relevant parts of the package config (like dependencies and triplets).
+    if shared_package.config != *package {
+        return true;
+    }
+
+    // // return true if the triplet is not locked
+    // let Some(locked_triplet) = shared_package.locked_triplet.get(triplet_id) else {
+    //     return true;
+    // };
+
+    // // if the number of dependencies is different, it is modified
+
+    // for (dep_id, dep) in triplet.dependencies.iter() {
+    //     // if the dependency is not in the locked triplet, it is modified
+    //     let Some(locked_dep) = locked_triplet.restored_dependencies.get(dep_id) else {
+    //         return true;
+    //     };
+    //     if let Some(dep_triplet) = &dep.triplet
+    //         && *dep_triplet != locked_dep.restored_triplet
+    //     {
+    //         return true;
+    //     }
+    //     if !dep.version_range.matches(&locked_dep.restored_version) {
+    //         return true;
+    //     }
+    // }
+
+    false
 }
 
 pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
@@ -171,7 +186,7 @@ pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
     }
 
     let ndk_path = Path::new(ndk_path_str.trim());
-    if ndk_path.is_empty() {
+    if ndk_path.as_os_str().is_empty() {
         eprintln!("NDK Path is empty, skipping validate NDK version!");
         return Ok(());
     }
@@ -189,7 +204,7 @@ pub fn validate_ndk(package: &PackageConfig) -> Result<()> {
     if !ndk_req.matches(&ndk_version) {
         return Err(
             eyre!("NDK Version {ndk_version} does not satisfy {ndk_req}")
-                .suggestion("qpm ndk resolve".to_string()),
+                .suggestion("qpm2 ndk resolve".to_string()),
         );
     }
 

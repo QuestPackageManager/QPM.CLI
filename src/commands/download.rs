@@ -6,7 +6,7 @@ use color_eyre::Result;
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
-use crate::{network::agent::download_file_report, terminal::colors::QPMColor};
+use crate::{services::network::download_file_report, terminal::colors::QPMColor};
 
 use super::Command;
 
