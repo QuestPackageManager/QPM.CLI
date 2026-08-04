@@ -16,6 +16,30 @@ QPM is a package manager designed specifically for Quest/Beat Saber mods develop
 - `qpm doctor` Configuration diagnostics
 - `qpm templatr` Built-in templating
 
+## Debug
+QPM includes `quest_emu` functionality, including debugging utilities. [See here for more info.](https://github.com/QuestPackageManager/quest_emu_setup#example-debugging-a-qpm-mod)
+
+## Migrating from QPM v1
+
+If your project still has a `qpm.json`/`qpm.shared.json` (QPM v1's format), convert it to
+`qpm2.json` with the bundled migration script before doing anything else below:
+
+```bash
+# Requires Deno (https://deno.com). Run from the project root, next to qpm.json.
+deno run --allow-read --allow-write migrate.ts
+```
+
+This reads `./qpm.json` and writes `./qpm2.json` alongside it - it doesn't touch or delete the
+original files. Review the generated `qpm2.json`, then run `qpm restore` to produce a fresh
+`qpm2.shared.json` and remove the old `qpm.json`/`qpm.shared.json` once you're happy with it.
+
+The script carries over package identity/metadata, dependencies (including which are dev-only),
+workspace scripts, the NDK requirement, and each dependency's qmod inclusion mode. A few v1-only
+fields have no `qpm2.json` equivalent and won't carry over automatically - static/debug `.so`
+links, sub-folder overrides, branch-name pinning, and the legacy per-dependency `libType`/
+`localPath`/`extraFiles` modifiers. If your project used any of those, reconcile them by hand
+after migrating.
+
 ## Workflow
 
 The typical order for taking a mod from a fresh checkout to a published dependency:
