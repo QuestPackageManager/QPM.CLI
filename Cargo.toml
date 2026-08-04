@@ -107,7 +107,7 @@ zip = { version = "8", default-features = false, features = [
 walkdir = "2"
 symlink = "0.1.0"
 fs_extra = "1.2"
-itertools = "0.14"
+itertools = "0.15"
 schemars = { version = "0.8", features = ["semver"] }
 
 [target.aarch64-apple-darwin.dependencies]
