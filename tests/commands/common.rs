@@ -134,10 +134,11 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
         let mut actual_content = fs::read(&actual_path)
             .wrap_err_with(|| format!("Failed to read actual file: {actual_path:?}"))?;
 
-        // Normalize line endings in text files to ensure platform-independent comparison
-        // Convert all line endings to \n for comparison
+        // Normalize line endings and path separators to ensure platform-independent
+        // comparison against fixtures committed in canonical (LF, forward-slash) form
         expected_content = normalize_line_endings(expected_content);
         actual_content = normalize_line_endings(actual_content);
+        actual_content = normalize_path_separators(actual_content);
 
         // Helper function to normalize line endings to \n
         fn normalize_line_endings(content: Vec<u8>) -> Vec<u8> {
@@ -147,23 +148,17 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
             }
 
             content.replace(b"\r\n", "\n").replace(b"\r", b"\n")
-            // let mut normalized = Vec::with_capacity(content.len());
-            // let mut i = 0;
-            // while i < content.len() {
-            //     if content[i] == b'\r' && i + 1 < content.len() && content[i + 1] == b'\n' {
-            //         // Replace CRLF with LF
-            //         normalized.push(b'\n');
-            //         i += 2;
-            //     } else if content[i] == b'\r' {
-            //         // Replace CR with LF
-            //         normalized.push(b'\n');
-            //         i += 1;
-            //     } else {
-            //         normalized.push(content[i]);
-            //         i += 1;
-            //     }
-            // }
-            // normalized
+        }
+
+        // Commands like `ndk pin` write OS-native paths (e.g. into ndkpath.txt) into
+        // output files; normalize backslashes so Windows output matches the
+        // forward-slash fixtures committed for every platform.
+        fn normalize_path_separators(content: Vec<u8>) -> Vec<u8> {
+            if cfg!(not(windows)) {
+                return content;
+            }
+
+            content.replace(b"\\", "/")
         }
 
         ensure!(

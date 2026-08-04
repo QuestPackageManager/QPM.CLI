@@ -24,19 +24,20 @@ test_cmd/
         └── qpm.json
 ```
 
+These tests drive the built `qpm` binary via `assert_cmd::Command::cargo_bin`, which requires the `CARGO_BIN_EXE_qpm` env var that Cargo only sets for integration test targets - so this suite lives under `tests/`, not as a unit test inside `src/`.
+
 ## Running Tests
 
 To run all tests:
 
 ```bash
-cargo test tests::commands
+cargo test --test commands
 ```
 
 To update test fixtures:
 
 ```bash
-$env:QPM_TEST_UPDATE="1"
-cargo test tests::commands
+QPM_TEST_UPDATE=1 cargo test --test commands
 ```
 
 ## Writing New Tests
@@ -51,7 +52,7 @@ To create a new test:
 
 2. Add the test files to the input directory
 
-3. Add a test function in `src/tests/commands.rs` using the `test_command` function:
+3. Add a test function in `tests/commands.rs` using the `test_command` function:
 
    ```rust
    #[test]
@@ -66,13 +67,12 @@ To create a new test:
 
 4. Run the test with the `QPM_TEST_UPDATE` environment variable to generate the expected output files:
    ```
-   $env:QPM_TEST_UPDATE="1"
-   cargo test tests::commands::my_feature
+   QPM_TEST_UPDATE=1 cargo test --test commands my_feature
    ```
 
 ## Test Framework
 
-The test framework is in `src/tests/framework/` and consists of:
+The test framework is in `tests/commands/` and consists of:
 
 - `common.rs`: Test utilities for running commands and comparing directories
 
@@ -83,9 +83,3 @@ The framework provides functions for:
 - `assert_directory_equal`: Compares two directories recursively
 
 All error handling uses `color_eyre` for better error reporting and debugging.
-
-```bash
-./convert_tests.ps1
-```
-
-This will create the necessary directory structure, but you'll need to manually copy the test files.

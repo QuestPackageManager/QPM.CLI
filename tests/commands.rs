@@ -1,8 +1,11 @@
 // This file contains tests for CLI commands
 
+#[path = "commands/common.rs"]
+mod common;
+
 /// This module contains the tests for the dependency command
 mod dependency {
-    use crate::tests::framework::common;
+    use crate::common;
     use color_eyre::eyre::Result;
     use std::path::Path;
 
@@ -99,7 +102,7 @@ mod dependency {
 
 /// This module contains the tests for the ndk command
 mod ndk {
-    use crate::tests::framework::common;
+    use crate::common;
     use color_eyre::eyre::Result;
     use std::path::Path;
     #[test]
@@ -136,7 +139,7 @@ mod ndk {
 
 /// This module contains the tests for the qmod command
 mod qmod {
-    use crate::tests::framework::common;
+    use crate::common;
     use color_eyre::eyre::Result;
     use std::path::Path;
 
@@ -164,7 +167,7 @@ mod qmod {
 
 /// This module contains the tests for the restore command
 mod restore {
-    use crate::tests::framework::common;
+    use crate::common;
     use color_eyre::eyre::Result;
     use std::path::Path;
 
