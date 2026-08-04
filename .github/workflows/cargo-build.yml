@@ -195,27 +195,38 @@ jobs:
           path: target/${{ matrix.target }}/release/${{matrix.file-name}}
           if-no-files-found: error
 
-      - name: Download Inno Setup
-        if: matrix.file-name != '' && matrix.os == 'windows-latest'
-        uses: suisei-cn/actions-download-file@v1
-        with:
-          url: https://jrsoftware.org/download.php/is.exe
-          target: ../
-
-      - name: Install Inno Setup
+      - name: Prepare MSIX package
         if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
-        run: "../is.exe /VERYSILENT /NORESTART /ALLUSERS"
+        shell: pwsh
+        run: |
+          $staging = "msix-build"
+          Copy-Item -Recurse -Force installer/msix $staging
+          Copy-Item -Force target/release/${{ matrix.file-name }} "$staging/qpm2.exe"
 
-      - name: Compile Installer
+          $rawVersion = "${{ needs.version.outputs.version }}"
+          $parts = @($rawVersion -split '\.')
+          while ($parts.Count -lt 4) { $parts += "0" }
+          $msixVersion = ($parts[0..3] -join '.')
+
+          (Get-Content "$staging/AppxManifest.xml") `
+            -replace '__PACKAGE_VERSION__', $msixVersion `
+            -replace '__PACKAGE_ARCH__', 'x64' `
+            | Set-Content "$staging/AppxManifest.xml"
+
+      - name: Pack MSIX
         if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${{ needs.version.outputs.version }}" /f installer/installer.iss'
+        shell: pwsh
+        run: |
+          $makeappx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe" |
+            Sort-Object FullName | Select-Object -Last 1
+          & $makeappx.FullName pack /d msix-build /p qpm2-installer.msix /o
 
       - name: Artifact Upload
         uses: actions/upload-artifact@v4
         if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
         with:
           name: installer-${{ matrix.suffix }}
-          path: ./installer/qpm2-installer.exe
+          path: ./qpm2-installer.msix
           if-no-files-found: error
 
   macos-universal:

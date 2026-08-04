@@ -75,6 +75,6 @@ jobs:
         if: env.winget_token_present == 'true'
         with:
           identifier: QuestPackageManager.QuestPackageManager
-          installers-regex: 'installer\.exe$'
+          installers-regex: 'installer\.msix$'
           fork-user: ${{ secrets.WINGET_FORK_USER }}
           token: ${{ secrets.WINGET_TOKEN }}
