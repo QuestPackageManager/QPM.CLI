@@ -203,8 +203,12 @@ jobs:
           Copy-Item -Recurse -Force installer/msix $staging
           Copy-Item -Force target/release/${{ matrix.file-name }} "$staging/qpm2.exe"
 
+          # MSIX requires exactly 4 numeric components; strip any semver
+          # prerelease/build-metadata suffix (e.g. "1.5.11+9244e62" -> "1.5.11")
+          # before padding out to 4 parts.
           $rawVersion = "${{ needs.version.outputs.version }}"
-          $parts = @($rawVersion -split '\.')
+          $core = $rawVersion -replace '[-+].*$', ''
+          $parts = @($core -split '\.')
           while ($parts.Count -lt 4) { $parts += "0" }
           $msixVersion = ($parts[0..3] -join '.')
 
