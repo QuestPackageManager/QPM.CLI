@@ -134,11 +134,23 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
         let mut actual_content = fs::read(&actual_path)
             .wrap_err_with(|| format!("Failed to read actual file: {actual_path:?}"))?;
 
-        // Normalize line endings and path separators to ensure platform-independent
-        // comparison against fixtures committed in canonical (LF, forward-slash) form
-        expected_content = normalize_line_endings(expected_content);
-        actual_content = normalize_line_endings(actual_content);
-        actual_content = normalize_path_separators(actual_content);
+        // Binary artifacts (.so, .a, zipped .qmod, ...) must be compared byte-for-byte;
+        // CRLF/path-separator normalization is only meaningful for the text files this
+        // suite generates (qpm.json, ndkpath.txt, ...) and would silently corrupt the
+        // comparison if applied to arbitrary binary content that happens to contain the
+        // same byte sequences.
+        if !is_binary(&expected_content) && !is_binary(&actual_content) {
+            // Normalize line endings and path separators to ensure platform-independent
+            // comparison against fixtures committed in canonical (LF, forward-slash) form
+            expected_content = normalize_line_endings(expected_content);
+            actual_content = normalize_line_endings(actual_content);
+            actual_content = normalize_path_separators(actual_content);
+        }
+
+        // Same heuristic git uses: a NUL byte in the first few KB means binary content.
+        fn is_binary(content: &[u8]) -> bool {
+            content[..content.len().min(8000)].contains(&0)
+        }
 
         // Helper function to normalize line endings to \n
         fn normalize_line_endings(content: Vec<u8>) -> Vec<u8> {
