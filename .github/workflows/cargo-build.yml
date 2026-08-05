@@ -32,8 +32,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for accurate versioning
-          fetch-tags: true  # Fetch tags to determine version from tags
+          fetch-depth: 0 # Fetch all history for accurate versioning
+          fetch-tags: true # Fetch tags to determine version from tags
 
       - name: Extract version
         id: version
@@ -42,7 +42,7 @@ jobs:
           # Get the last tag that isn't bleeding
           LAST_TAG=$((git tag --merged HEAD --sort=-creatordate | grep -v '^bleeding' | head -n 1) || true)
           echo "Last tag: $LAST_TAG"
-          
+
           # Use version input or tag, fallback to default
           if [[ -n "${{ github.event.inputs.version }}" ]]; then
             FULL_VERSION="${{ github.event.inputs.version }}"
@@ -67,7 +67,7 @@ jobs:
           if [[ -z "$TAG" ]] || [[ ! "$TAG" != "$LAST_TAG" ]]; then
             VERSION="${VERSION}+${GIT_SHA}"
           fi
-  
+
           echo "version=$VERSION" | tee -a "$GITHUB_OUTPUT"
   build:
     runs-on: ${{ matrix.os }}
@@ -152,7 +152,7 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.version.outputs.version }}"
-          
+
           if [[ "${{ matrix.os }}" == macos* ]]; then
             sed -i '' "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
           else
@@ -194,28 +194,29 @@ jobs:
           path: target/${{ matrix.target }}/release/${{matrix.file-name}}
           if-no-files-found: error
 
-      - name: Download Inno Setup
-        if: matrix.file-name != '' && matrix.os == 'windows-latest'
-        uses: suisei-cn/actions-download-file@v1
-        with:
-          url: https://jrsoftware.org/download.php/is.exe
-          target: ../
+      # The Inno Setup steps are currently disabled because Inno is broken on CI.
+      # - name: Download Inno Setup
+      #   if: matrix.file-name != '' && matrix.os == 'windows-latest'
+      #   uses: suisei-cn/actions-download-file@v1
+      #   with:
+      #     url: https://jrsoftware.org/download.php/is.exe
+      #     target: ../
 
-      - name: Install Inno Setup
-        if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
-        run: "../is.exe /VERYSILENT /NORESTART /ALLUSERS"
+      # - name: Install Inno Setup
+      #   if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
+      #   run: "../is.exe /VERYSILENT /NORESTART /ALLUSERS"
 
-      - name: Compile Installer
-        if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=${{ needs.version.outputs.version }}" /f installer/installer.iss'
+      # - name: Compile Installer
+      #   if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
+      #   run: '& "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe" "/DMyAppVersion=${{ needs.version.outputs.version }}" /f installer/installer.iss'
 
-      - name: Artifact Upload
-        uses: actions/upload-artifact@v4
-        if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
-        with:
-          name: installer-${{ matrix.suffix }}
-          path: ./installer/qpm-installer.exe
-          if-no-files-found: error
+      # - name: Artifact Upload
+      #   uses: actions/upload-artifact@v4
+      #   if: matrix.file-name != '' && matrix.os == 'windows-latest' && matrix.target != 'aarch64-pc-windows-msvc'
+      #   with:
+      #     name: installer-${{ matrix.suffix }}
+      #     path: ./installer/qpm-installer.exe
+      #     if-no-files-found: error
 
   macos-universal:
     name: Create macOS Universal Binary
