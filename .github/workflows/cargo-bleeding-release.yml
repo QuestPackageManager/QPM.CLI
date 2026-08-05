@@ -34,9 +34,9 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           path: artifacts
 
-      - name: Delete the previous bleeding release
+      - name: Delete the previous bleeding2 release
         run: |
-          gh release delete bleeding -y --cleanup-tag || true
+          gh release delete bleeding2 -y --cleanup-tag || true
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -58,6 +58,6 @@ jobs:
 
             SHA: ${{ github.sha }}
           name: 'Latest Build on main'
-          tag_name: bleeding
+          tag_name: bleeding2
           prerelease: true
           files: artifacts/**/*.zip

@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use color_eyre::Result;
 
+pub mod build;
 pub mod cache;
 pub mod clear;
 pub mod collapse;
@@ -12,10 +13,13 @@ pub mod download;
 pub mod genschema;
 pub mod install;
 pub mod list;
+#[cfg(feature = "migrate")]
+pub mod migrate;
 pub mod ndk;
 pub mod package;
 pub mod publish;
 pub mod qmod;
+pub mod qpkg;
 pub mod restore;
 pub mod scripts;
 pub mod version;
@@ -68,6 +72,10 @@ pub enum MainCommand {
     Download(download::Download),
     Ndk(ndk::Ndk),
 
+    /// Migrate a legacy qpm.json (QPM v1) into a qpm2.json (QPM v2) package config
+    #[cfg(feature = "migrate")]
+    Migrate(migrate::MigrateCommand),
+
     #[command(about = "Shorthand for qpm dependency add")]
     Add(dependency::DependencyOperationAddArgs),
 
@@ -88,6 +96,12 @@ pub enum MainCommand {
 
     #[command(hide = true)]
     GenSchema(genschema::GenSchemaCommand),
+
+    /// QPKG control
+    #[command(name = "qpkg", about = "QPKG control")]
+    QPkg(qpkg::QPkgCommand),
+
+    Build(build::BuildCommand),
 }
 
 impl Command for MainCommand {
@@ -107,10 +121,15 @@ impl Command for MainCommand {
             MainCommand::Doctor(c) => c.execute(),
             MainCommand::Download(c) => c.execute(),
             MainCommand::Ndk(n) => n.execute(),
+
+            #[cfg(feature = "migrate")]
+            MainCommand::Migrate(c) => c.execute(),
             MainCommand::Add(add) => add.execute(),
             MainCommand::Scripts(s) => s.execute(),
             MainCommand::Version(v) => v.execute(),
             MainCommand::GenSchema(g) => g.execute(),
+            MainCommand::QPkg(q) => q.execute(),
+            MainCommand::Build(build_command) => build_command.execute(),
 
             #[cfg(feature = "templatr")]
             MainCommand::Templatr(c) => c.execute(),

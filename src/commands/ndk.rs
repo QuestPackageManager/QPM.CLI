@@ -1,32 +1,16 @@
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
-use color_eyre::{
-    Result, Section,
-    eyre::{Context, bail, eyre},
-};
+use color_eyre::{Result, eyre::bail};
 use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
-use semver::{Version, VersionReq};
-use std::io::Write;
+use semver::VersionReq;
 
 use crate::{
-    models::{
-        android_repo::{AndroidRepositoryManifest, RemotePackage},
-        config::get_combine_config,
-        package::PackageConfigExtensions,
-    },
-    utils::{
-        android::{
-            download_ndk_version, get_android_manifest, get_ndk_str_versions,
-            get_ndk_str_versions_str,
-        },
-        ndk,
-    },
+    models::{config::get_combine_config, package::PackageConfigExtensions},
+    services::android::{download_ndk_version, get_android_manifest, get_ndk_str_versions_str},
+    services::ndk as ndk_service,
 };
 
 use super::Command;
@@ -38,7 +22,7 @@ pub struct Ndk {
 
     /// If true, does not print progress
     #[clap(long, short, global = true, default_value = "false")]
-    quiet: bool,
+    pub quiet: bool,
 }
 
 #[derive(Subcommand, Debug, Clone)]
@@ -84,49 +68,11 @@ pub struct PinArgs {
 pub struct ResolveArgs {
     /// Download package if necessary
     #[clap(short, long, default_value = "false")]
-    download: bool,
+    pub download: bool,
 
+    // Ignore missing package
     #[clap(short, long, default_value = "false")]
-    ignore_missing: bool,
-}
-
-fn fuzzy_match_ndk<'a>(
-    manifest: &'a AndroidRepositoryManifest,
-    version: &str,
-) -> Result<(String, &'a RemotePackage)> {
-    // Find version matching version
-    let ndks_str = get_ndk_str_versions_str(manifest);
-
-    let ndk = ndks_str.get(version);
-    match ndk {
-        Some(ndk) => Ok((version.to_string(), ndk)),
-        None => {
-            // fuzzy search version using version ranges
-            let fuzzy_version_range = VersionReq::parse(version)?;
-
-            range_match_ndk(manifest, &fuzzy_version_range)
-        }
-    }
-}
-
-fn range_match_ndk<'a>(
-    manifest: &'a AndroidRepositoryManifest,
-    fuzzy_version_range: &VersionReq,
-) -> Result<(String, &'a RemotePackage)> {
-    // find version closest to specified
-    let ndks = get_ndk_str_versions(manifest);
-    let ndks_versions = ndks.keys().sorted().rev().collect_vec();
-    let matching_version_opt = ndks_versions
-        .iter()
-        .find(|probe| fuzzy_version_range.matches(probe));
-
-    match matching_version_opt {
-        Some(matching_version) => Ok((
-            matching_version.to_string(),
-            ndks.get(matching_version).unwrap(),
-        )),
-        None => bail!("Could not find any ndk version matching requirement {fuzzy_version_range}"),
-    }
+    pub ignore_missing: bool,
 }
 
 impl Command for Ndk {
@@ -135,10 +81,13 @@ impl Command for Ndk {
             NdkOperation::Download(d) => {
                 let manifest = get_android_manifest()?;
 
-                let (_version, ndk) = fuzzy_match_ndk(&manifest, &d.version)?;
-                let path = download_ndk_version(ndk, !self.quiet)?;
+                let (_version, ndk) = ndk_service::fuzzy_match_ndk(&manifest, &d.version)?;
+                let ndk_download_path = get_combine_config()
+                    .ndk_download_path
+                    .as_ref()
+                    .expect("No NDK download path set");
+                let path = download_ndk_version(ndk, !self.quiet, ndk_download_path)?;
                 println!("{}", path.display());
-                return Ok(());
             }
             NdkOperation::Available(a) => {
                 let manifest = get_android_manifest()?;
@@ -175,7 +124,7 @@ impl Command for Ndk {
             NdkOperation::Path(p) => {
                 let manifest = get_android_manifest()?;
 
-                let (version, _ndk) = fuzzy_match_ndk(&manifest, &p.version)?;
+                let (version, _ndk) = ndk_service::fuzzy_match_ndk(&manifest, &p.version)?;
 
                 let dir = get_combine_config()
                     .ndk_download_path
@@ -198,32 +147,18 @@ impl Command for Ndk {
     }
 }
 
-fn do_pin(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
-    let version = match u.online {
-        false => {
-            let version_req = VersionReq::parse(&u.version)?;
-            // find latest NDK that satisfies requirement
-            let ndk_installed_path = get_combine_config()
-                .get_ndk_installed()
-                .into_iter()
-                .flatten()
-                .sorted_by(|a, b| a.file_name().cmp(b.file_name()))
-                .rev()
-                .find(|n| {
-                    Version::parse(n.file_name().to_str().unwrap())
-                        .is_ok_and(|v| version_req.matches(&v))
-                })
-                .ok_or_else(|| eyre!("No NDK version installed that satisfies {version_req}"))?;
+fn do_pin(u: PinArgs) -> Result<()> {
+    let installed_ndks = get_combine_config()
+        .get_ndk_installed()
+        .into_iter()
+        .flatten()
+        .map(|e| e.into_path())
+        .collect_vec();
 
-            ndk_installed_path.file_name().to_str().unwrap().to_string()
-        }
-        // allow any NDK version online
-        true => {
-            let manifest = get_android_manifest()?;
-            fuzzy_match_ndk(&manifest, &u.version)?.0
-        }
-    };
+    let version = ndk_service::resolve_pin_version(&u.version, u.online, &installed_ndks)?;
+
     let mut package = PackageConfig::read(".")?;
+
     let req = match u.strict {
         true => format!("={version}"),
         false => format!("^{version}"),
@@ -231,17 +166,18 @@ fn do_pin(u: PinArgs) -> Result<(), color_eyre::eyre::Error> {
     package.workspace.ndk = Some(VersionReq::parse(&req)?);
     package.write(".")?;
 
-    let ndk_path = get_combine_config()
+    let ndk_path: PathBuf = get_combine_config()
         .ndk_download_path
         .as_ref()
         .unwrap()
         .join(version);
 
-    apply_ndk(Path::new(&ndk_path))?;
+    ndk_service::apply_ndk(&ndk_path)?;
+    println!("{}", ndk_path.display());
     Ok(())
 }
 
-fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<(), color_eyre::eyre::Error> {
+fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<()> {
     let package = PackageConfig::exists(".")
         .then(|| PackageConfig::read("."))
         .transpose()?;
@@ -250,57 +186,17 @@ fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<(), color_eyre::eyre::Error
         if r.ignore_missing {
             return Ok(());
         }
-        bail!("No package found in current directory")
+        bail!("No package found in current directory");
     };
 
-    let ndk_requirement = package.workspace.ndk.clone();
-    let Some(ndk_requirement) = ndk_requirement else {
-        bail!("No NDK requirement set in project")
-    };
+    let ndk_download_path = get_combine_config()
+        .ndk_download_path
+        .clone()
+        .expect("No NDK download path set");
+    let ndk_installed_path =
+        ndk_service::resolve_ndk_for_package(&package, r.download, quiet, &ndk_download_path)?;
 
-    let ndk_installed_path_opt = ndk::resolve_ndk_version(&package);
-
-    let ndk_installed_path: PathBuf = match ndk_installed_path_opt {
-        // NDK Found, unwrap
-        Some(ndk_installed_path) => ndk_installed_path,
-        // download
-        None if r.download => {
-            let manifest = get_android_manifest()?;
-            let (_version, ndk) = range_match_ndk(&manifest, &ndk_requirement)?;
-
-            download_ndk_version(ndk, !quiet)?
-        }
-        // error
-        _ => {
-            let mut report = eyre!("No NDK version installed that satisfies {ndk_requirement}")
-                .note("-d/--download not set, not downloading!");
-
-            // look up a version suitable to work with
-            // allow this to work offline by handling safely
-            let manifest = get_android_manifest().ok();
-            let mut suggested_version = manifest
-                .as_ref()
-                .and_then(|manifest| range_match_ndk(manifest, &ndk_requirement).ok());
-
-            if let Some((suggested_version, _)) = &mut suggested_version {
-                report = report.suggestion(format!("qpm ndk download {suggested_version}"));
-            }
-
-            return Err(report);
-        }
-    };
-
-    // apply the NDK to the environment
-    apply_ndk(&ndk_installed_path)?;
-
-    Ok(())
-}
-
-// apply NDK to project and write
-fn apply_ndk(ndk_installed_path: &Path) -> Result<(), color_eyre::eyre::Error> {
-    let mut ndk_file = File::create("./ndkpath.txt").context("Unable to open ndkpath.txt")?;
-    write!(ndk_file, "{}", ndk_installed_path.to_str().unwrap())?;
-    ndk_file.flush()?;
-    println!("{}", ndk_installed_path.to_str().unwrap());
+    ndk_service::apply_ndk(&ndk_installed_path)?;
+    println!("{}", ndk_installed_path.display());
     Ok(())
 }
