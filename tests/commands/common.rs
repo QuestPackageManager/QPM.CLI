@@ -172,10 +172,23 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
         let mut actual_content = fs::read(&actual_path)
             .wrap_err_with(|| format!("Failed to read actual file: {actual_path:?}"))?;
 
-        // Normalize line endings in text files to ensure platform-independent comparison
-        // Convert all line endings to \n for comparison
-        expected_content = normalize_line_endings(expected_content);
-        actual_content = normalize_line_endings(actual_content);
+        // Binary artifacts (.so, .a, zipped .qmod, ...) must be compared byte-for-byte;
+        // CRLF/path-separator normalization is only meaningful for the text files this
+        // suite generates (qpm.json, ndkpath.txt, ...) and would silently corrupt the
+        // comparison if applied to arbitrary binary content that happens to contain the
+        // same byte sequences.
+        if !is_binary(&expected_content) && !is_binary(&actual_content) {
+            // Normalize line endings and path separators to ensure platform-independent
+            // comparison against fixtures committed in canonical (LF, forward-slash) form
+            expected_content = normalize_line_endings(expected_content);
+            actual_content = normalize_line_endings(actual_content);
+            actual_content = normalize_path_separators(actual_content);
+        }
+
+        // Same heuristic git uses: a NUL byte in the first few KB means binary content.
+        fn is_binary(content: &[u8]) -> bool {
+            content[..content.len().min(8000)].contains(&0)
+        }
 
         // Helper function to normalize line endings to \n
         fn normalize_line_endings(content: Vec<u8>) -> Vec<u8> {
@@ -185,23 +198,17 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
             }
 
             content.replace(b"\r\n", "\n").replace(b"\r", b"\n")
-            // let mut normalized = Vec::with_capacity(content.len());
-            // let mut i = 0;
-            // while i < content.len() {
-            //     if content[i] == b'\r' && i + 1 < content.len() && content[i + 1] == b'\n' {
-            //         // Replace CRLF with LF
-            //         normalized.push(b'\n');
-            //         i += 2;
-            //     } else if content[i] == b'\r' {
-            //         // Replace CR with LF
-            //         normalized.push(b'\n');
-            //         i += 1;
-            //     } else {
-            //         normalized.push(content[i]);
-            //         i += 1;
-            //     }
-            // }
-            // normalized
+        }
+
+        // Commands like `ndk pin` write OS-native paths (e.g. into ndkpath.txt) into
+        // output files; normalize backslashes so Windows output matches the
+        // forward-slash fixtures committed for every platform.
+        fn normalize_path_separators(content: Vec<u8>) -> Vec<u8> {
+            if cfg!(not(windows)) {
+                return content;
+            }
+
+            content.replace(b"\\", "/")
         }
 
         ensure!(
