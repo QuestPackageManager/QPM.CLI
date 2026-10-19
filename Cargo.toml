@@ -48,7 +48,7 @@ qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", 
 qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true }
-quest_emu = { git = "https://github.com/Fernthedev/quest_emu_setup.git", optional = true }
+quest_emu = { git = "https://github.com/QuestPackageManager/quest_emu_setup.git", optional = true }
 
 pathdiff = "0.2"
 
