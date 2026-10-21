@@ -1060,15 +1060,6 @@ dependencies = [
 
 [[package]]
 name = "dirs"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
-dependencies = [
- "dirs-sys",
-]
-
-[[package]]
-name = "dirs"
 version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d57d423b3c82e89b9a24ca3091fee61f456a26edbd28d26c65906f4bc1dcd8f"
@@ -3075,9 +3066,9 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lzma-rust2"
-version = "0.16.5"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca93e534d1142d1d0dcca6d25fe302508a5dfb40b302802904577725ea0b695b"
+checksum = "7277c9742229dc25243236d578b6471a798c554512c6f6a04365ec2e87c2a3bb"
 dependencies = [
  "sha2 0.11.1",
 ]
@@ -3724,7 +3715,7 @@ dependencies = [
  "clap_complete",
  "color-eyre",
  "cursed-semver-parser",
- "dirs 6.0.0",
+ "dirs",
  "fs_extra",
  "gix",
  "itertools 0.15.0",
@@ -3751,7 +3742,7 @@ dependencies = [
  "templatr",
  "vergen",
  "walkdir",
- "zip 8.6.0",
+ "zip",
 ]
 
 [[package]]
@@ -3786,7 +3777,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "dialoguer",
- "dirs 7.0.0",
+ "dirs",
  "indicatif",
  "itertools 0.15.0",
  "mbf-axml",
@@ -3798,7 +3789,7 @@ dependencies = [
  "serde_json",
  "ureq",
  "xml",
- "zip 9.0.5",
+ "zip",
 ]
 
 [[package]]
@@ -4720,11 +4711,11 @@ dependencies = [
 [[package]]
 name = "templatr"
 version = "0.1.0"
-source = "git+https://github.com/QuestPackageManager/templatr.git#ac3a610cf0af030237c8bcaabb7f85a1e616d7a0"
+source = "git+https://github.com/QuestPackageManager/templatr.git#2ea60b17fa72dd8f53d79367c72273306b11a9a9"
 dependencies = [
  "clap",
  "color-eyre",
- "dirs 6.0.0",
+ "dirs",
  "fs_extra",
  "gix",
  "regex",
@@ -5682,9 +5673,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "8.6.0"
+version = "9.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
+checksum = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e"
 dependencies = [
  "bzip2",
  "crc32fast",
@@ -5693,24 +5684,11 @@ dependencies = [
  "indexmap",
  "lzma-rust2",
  "memchr",
+ "nix",
  "nt-time",
  "typed-path",
  "zopfli",
  "zstd",
-]
-
-[[package]]
-name = "zip"
-version = "9.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e"
-dependencies = [
- "crc32fast",
- "flate2",
- "indexmap",
- "memchr",
- "nix",
- "typed-path",
 ]
 
 [[package]]
@@ -5739,18 +5717,18 @@ dependencies = [
 
 [[package]]
 name = "zstd"
-version = "0.13.3"
+version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
+checksum = "db3ae9bf90af6e40197bef767eeefc46ad6397420fe873830bd85e5fbbfb3c70"
 dependencies = [
  "zstd-safe",
 ]
 
 [[package]]
 name = "zstd-safe"
-version = "7.3.0"
+version = "8.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64d80649ab6db9d9f6f9c80a40becd948eda4714a0a5ac8c4d157a32231c7882"
+checksum = "ded520f16b29e1a9b771c722221b2b0a0398c2316d9bb3c42b458a5414d7434b"
 dependencies = [
  "zstd-sys",
 ]

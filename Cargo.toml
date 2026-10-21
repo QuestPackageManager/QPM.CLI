@@ -79,7 +79,7 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
 ] }
 pubgrub = "0.4"
 owo-colors = "4"
-dirs = "6.0.0"
+dirs = "7.0.0"
 keyring = {version = "4", features = ["v1"]}
 
 gix = { version = "*", features = [
@@ -93,7 +93,7 @@ gix = { version = "*", features = [
 ], optional = true, default-features = false }
 
 # Use PR with symlink fix for Unix systems.
-zip = { version = "8", default-features = false, features = [
+zip = { version = "9", default-features = false, features = [
     "zstd",
     "nt-time",
     "deflate",

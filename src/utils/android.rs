@@ -132,7 +132,7 @@ pub fn download_ndk_version(ndk: &RemotePackage, show_progress: bool) -> Result<
 
     // Extract to tmp folde
     let mut archive = ZipArchive::new(buffer)?;
-    let extract_path = dir.join(archive.by_index(0)?.name());
+    let extract_path = dir.join(archive.by_index(0)?.name()?.as_ref());
 
     archive.extract(&dir)?;
 
