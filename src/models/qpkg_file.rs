@@ -237,16 +237,11 @@ impl<T: Write + Seek> QpkgFile<T> {
         }
 
         // Collect binaries from directory
-        if binaries_dir.exists() {
-            for entry in walkdir::WalkDir::new(binaries_dir)
-                .min_depth(1)
-                .into_iter()
-                .filter_map(Result::ok)
-                .filter(|e| e.file_type().is_file())
-            {
-                let file_path = entry.path();
+        if let Some(package_binaries) = &config.workspace.out_binaries {
+            for entry in package_binaries {
+                let file_path = binaries_dir.join(entry);
                 let binary_name = file_path.file_name().unwrap_or_default();
-                let content = std::fs::read(file_path).context("Failed to read binary file")?;
+                let content = std::fs::read(&file_path).context(format!("Failed to read binary file {}", &binary_name.display()))?;
                 binaries.push((PathBuf::from(binary_name), content));
             }
         }
