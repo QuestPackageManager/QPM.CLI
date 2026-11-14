@@ -154,14 +154,17 @@ impl<'a> PackageRestorer<'a> {
                 dep.config.id.0.dependency_id_color(),
                 dep.config.version.to_string().dependency_version_color(),
             );
-            repository.download_to_cache(agent, dep).with_context(|| {
-                format!(
-                    "Requesting {}:{}",
-                    dep.config.id.0.dependency_id_color(),
-                    dep.config.version.version_id_color()
-                )
-            })?;
-            
+            // offline: no downloading, the dependency must already be in the cache
+            if let Some(agent) = agent {
+                repository.download_to_cache(agent, dep).with_context(|| {
+                    format!(
+                        "Requesting {}:{}",
+                        dep.config.id.0.dependency_id_color(),
+                        dep.config.version.version_id_color()
+                    )
+                })?;
+            }
+
             repository.add_to_db_cache(dep.config.clone(), dep.qpkg_checksum.clone(), true)?;
         }
 
