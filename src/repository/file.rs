@@ -474,9 +474,9 @@ impl FileRepository {
                 }
 
                 if src.is_file() {
-                    symlink::symlink_file(&src, &dest)
+                    crate::utils::symlink::symlink_file(&src, &dest)
                 } else {
-                    symlink::symlink_dir(&src, &dest)
+                    crate::utils::symlink::symlink_dir(&src, &dest)
                 }
             } else {
                 Ok(())

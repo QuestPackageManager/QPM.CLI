@@ -90,7 +90,7 @@ impl Command for Download {
                 if symlink_path.exists() {
                     std::fs::remove_file(&symlink_path)?;
                 }
-                symlink::symlink_file(
+                crate::utils::symlink::symlink_file(
                     final_path.join("platform-tools").join(adb_name),
                     symlink_path,
                 )?;

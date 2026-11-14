@@ -20,7 +20,7 @@ required-features = []
 [features]
 default = ["templatr", "network_test", "cli", "quest_emu", "migrate"]
 templatr = ["dep:templatr"]
-cli = ["dep:clap", "dep:clap_complete", "dep:vergen", "dep:indicatif"]
+cli = ["dep:clap", "dep:clap_complete", "dep:vergen-gitcl", "dep:indicatif"]
 quest_emu = ["dep:quest_emu"]
 migrate = ["dep:qpm_package_v1"]
 network_test = []
@@ -28,11 +28,8 @@ gitoxide = []
 # gitoxide = ["dep:gix"]
 
 [build-dependencies]
-vergen = { version = "8", features = [
-    "build",
-    "git",
-    "gitcl",
-], optional = true }
+# only the git instructions are emitted (VERGEN_GIT_BRANCH / VERGEN_GIT_SHA)
+vergen-gitcl = { version = "10", optional = true }
 # if you wish to disable certain features
 color-eyre = { version = "0.6", default-features = false }
 
@@ -77,7 +74,7 @@ clap_complete = { version = "4", optional = true }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde-xml-rs = "0.7"
+quick-xml = { version = "0.42", features = ["serialize"] }
 semver = { version = "1.0", features = ["serde"] }
 cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser.git", features = [
     "serde",
@@ -98,12 +95,11 @@ zip = { version = "9", default-features = false, features = [
 
 walkdir = "2"
 tempfile = "3.23"
-symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.15"
 schemars = { version = "0.8", features = ["semver"] }
 sha2 = "0.11"
-digest-io = { version = "*" }
+digest-io = "0.1"
 hex = "0.4.3"
 indicatif = { version = "0.18", optional = true }
 

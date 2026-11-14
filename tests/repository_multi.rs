@@ -5,7 +5,7 @@ mod support;
 use std::path::Path;
 
 use qpm_cli::repository::{Artifact, Repository, multi::MultiDependencyRepository};
-use qpm_package::models::package::{DependencyId, PackageConfig};
+use qpm_package::models::package::DependencyId;
 use semver::Version;
 
 use mocks::mock_repository::MockRepository;

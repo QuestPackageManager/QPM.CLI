@@ -9,7 +9,7 @@ use qpm_cli::{
         file::{FileRepository, FileRepositoryRegistry},
     },
 };
-use qpm_package::models::package::{DependencyId, PackageConfig};
+use qpm_package::models::package::PackageConfig;
 use semver::Version;
 use support::{package, qpkg_bytes, test_agent};
 use tempfile::tempdir;

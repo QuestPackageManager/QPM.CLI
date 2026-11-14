@@ -65,7 +65,7 @@ fn remove_dependencies_dir() -> Result<()> {
             if path.is_dir() {
                 #[cfg(debug_assertions)]
                 println!("Was symlink dir!");
-                if let Err(e) = symlink::remove_symlink_dir(&path) {
+                if let Err(e) = crate::utils::symlink::remove_symlink_dir(&path) {
                     println!(
                         "Failed to remove symlink for directory {}: {}",
                         path.display().bright_yellow(),
@@ -75,7 +75,7 @@ fn remove_dependencies_dir() -> Result<()> {
             } else if path.is_file() {
                 #[cfg(debug_assertions)]
                 println!("Was symlink file!");
-                if let Err(e) = symlink::remove_symlink_file(&path) {
+                if let Err(e) = crate::utils::symlink::remove_symlink_file(&path) {
                     println!(
                         "Failed to remove symlink for file {}: {}",
                         path.display().bright_yellow(),

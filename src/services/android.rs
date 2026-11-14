@@ -22,7 +22,7 @@ pub fn get_android_manifest(agent: &ureq::Agent) -> Result<AndroidRepositoryMani
         .into_body()
         .into_reader();
 
-    Ok(serde_xml_rs::from_reader(response)?)
+    Ok(quick_xml::de::from_reader(std::io::BufReader::new(response))?)
 }
 
 pub fn get_ndk_packages(manifest: &AndroidRepositoryManifest) -> Vec<&RemotePackage> {
@@ -283,5 +283,66 @@ mod tests {
         };
 
         assert!(get_ndk_str_versions_str(&manifest).is_empty());
+    }
+
+    /// Trimmed from the real repository2-3.xml: namespaced root, attributes, text content,
+    /// elements with attributes deserialized as plain strings, and ignored unknown elements
+    const MANIFEST_XML: &str = r#"<?xml version='1.0' encoding='utf-8'?>
+<sdk:sdk-repository xmlns:sdk="http://schemas.android.com/sdk/android/repo/repository2/03" xmlns:generic="http://schemas.android.com/repository/android/generic/02" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <license id="android-sdk-license" type="text">Terms and Conditions</license>
+  <channel id="channel-0">stable</channel>
+  <remotePackage path="ndk;27.3.13750724">
+    <type-details xsi:type="generic:genericDetailsType"/>
+    <revision>
+      <major>27</major>
+      <minor>3</minor>
+      <micro>13750724</micro>
+    </revision>
+    <display-name>NDK (Side by side) 27.3.13750724</display-name>
+    <uses-license ref="android-sdk-license"/>
+    <channelRef ref="channel-0"/>
+    <archives>
+      <archive>
+        <complete>
+          <size>663956036</size>
+          <checksum type="sha1">22105e410cf29afcf163760cc95522b9fb981121</checksum>
+          <url>android-ndk-r27d-linux.zip</url>
+        </complete>
+        <host-os>linux</host-os>
+      </archive>
+    </archives>
+  </remotePackage>
+</sdk:sdk-repository>"#;
+
+    #[test]
+    fn parses_the_android_repository_manifest_format() {
+        let manifest: AndroidRepositoryManifest =
+            quick_xml::de::from_reader(MANIFEST_XML.as_bytes()).unwrap();
+
+        assert_eq!(manifest.license.len(), 1);
+        assert_eq!(manifest.license[0].id, "android-sdk-license");
+        assert_eq!(manifest.license[0].typ, "text");
+        assert_eq!(manifest.license[0].value, "Terms and Conditions");
+
+        let [pkg] = manifest.remote_package.as_slice() else {
+            panic!("expected one package: {:?}", manifest.remote_package);
+        };
+        assert_eq!(pkg.path, "ndk;27.3.13750724");
+        assert_eq!(pkg.display_name, "NDK (Side by side) 27.3.13750724");
+        assert_eq!(
+            (pkg.revision.major, pkg.revision.minor, pkg.revision.micro, pkg.revision.preview),
+            (Some(27), Some(3), Some(13750724), None)
+        );
+        assert_eq!(pkg.uses_license.as_ref().unwrap().license, "android-sdk-license");
+        assert_eq!(pkg.channel.as_ref().unwrap().channel, "channel-0");
+
+        let [archive] = pkg.archives.archive.as_slice() else {
+            panic!("expected one archive");
+        };
+        assert_eq!(archive.host_os.as_deref(), Some("linux"));
+        assert_eq!(archive.host_arch, None);
+        assert_eq!(archive.complete.size, Some(663956036));
+        assert_eq!(archive.complete.checksum, "22105e410cf29afcf163760cc95522b9fb981121");
+        assert_eq!(archive.complete.url, "android-ndk-r27d-linux.zip");
     }
 }
