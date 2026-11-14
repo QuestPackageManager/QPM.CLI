@@ -460,6 +460,12 @@ impl FileRepository {
             fs::remove_dir_all(&extern_headers)
                 .with_context(|| format!("Unable to delete {extern_headers:?}"))?;
         }
+        // Always recreate both, even when there's nothing to put in them (e.g. only
+        // header-only dependencies), since the build and toolchain reference them.
+        fs::create_dir_all(&extern_binaries)
+            .with_context(|| format!("Unable to create {extern_binaries:?}"))?;
+        fs::create_dir_all(&extern_headers)
+            .with_context(|| format!("Unable to create {extern_headers:?}"))?;
 
         for (src, dest) in files {
             fs::create_dir_all(dest.parent().unwrap())?;

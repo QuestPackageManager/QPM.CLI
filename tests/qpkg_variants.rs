@@ -130,6 +130,11 @@ fn assert_lifecycle(config: PackageConfig) {
         "header should be restored into extern/includes/<id>"
     );
 
+    // restore always creates extern/libs, even when nothing goes in it (header-only)
+    assert!(
+        consumer.join("extern/libs").is_dir(),
+        "restore should create extern/libs"
+    );
     let mut expected = binaries_of(&config);
     expected.sort();
     assert_eq!(file_names(&consumer.join("extern/libs")), expected);
