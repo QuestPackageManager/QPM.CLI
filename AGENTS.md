@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 QPM (Quest Package Manager) is a package manager for Quest/Beat Saber C++ mod development. This repo (`QPM.CLI`) builds the `qpm2` binary (package name `qpm_cli`). It depends on two sibling repos, pulled in as git dependencies in `Cargo.toml`:
 
-- **QPM.Package** (`qpm_package` crate) - defines the on-disk config types: `PackageConfig`/`qpm2.json`, `SharedPackageConfig`/`qpm2.shared.json`, `QPkg`/`qpm2.qpkg.json`. If you need to change what a package config *contains*, that's usually in this sibling repo, not here.
+- **QPM.Package** (`qpm_package` crate) - defines the on-disk config types: `PackageConfig`/`qpm2.json`, `SharedPackageConfig`/`qpm2.shared.json`, `QpkgManifest`/`qpm2.qpkg.json`. If you need to change what a package config *contains*, that's usually in this sibling repo, not here.
 - **QPM.Qmod** (`qpm_qmod` crate) - defines `ModJson`, the Beat Saber `mod.json` mod-manifest format that `qpm2 qmod` commands generate.
 
 When working across all three checked out locally, add a `[patch]` block in `Cargo.toml` pointing `qpm_package`/`qpm_qmod` at local paths so `cargo check` picks up unpublished sibling-repo changes - remove it again once those changes are pushed.
@@ -56,7 +56,7 @@ Both `src/main.rs` and `src/lib.rs` declare the same top-level modules (`command
 
 ### QPKG: build, publish, restore
 
-A `.qpkg` is the distributable artifact format: a zip containing a package's headers (`shared_directory`), its built binaries, and a `qpm2.qpkg.json` manifest (`QPkg { config: PackageConfig, shared_dir, files }`, from `qpm_package::models::qpkg`). This is distinct from `qpm2.json`/`qpm2.shared.json`, which describe a *consuming* project's own dependency graph, not a publishable artifact.
+A `.qpkg` is the distributable artifact format: a zip containing a package's headers (`shared_directory`), its built binaries, and a `qpm2.qpkg.json` manifest (`QpkgManifest { config: PackageConfig, shared_dir, files }`, from `qpm_package::models::qpkg`). This is distinct from `qpm2.json`/`qpm2.shared.json`, which describe a *consuming* project's own dependency graph, not a publishable artifact.
 
 - **Build**: `qpm2 qpkg` (`commands/qpkg.rs`) runs `qpm2 build` first by default (pass `--no-build` to skip and package already-built binaries), then zips `shared_directory` + each `out_binaries` entry (read from the build output dir) + a generated `qpm2.qpkg.json` into `{id}.qpkg`.
 - **Install into the local cache**: `FileRepository::install_qpkg` (`repository/local.rs`) extracts a `.qpkg` (from any `Read + Seek` source), splits headers into `{cache}/{id}/{version}/src` and binaries into `.../lib`, verifies every `out_binaries` entry landed on disk, and registers the package into the global cache index (`qpm.repository.json`) via `add_artifact_and_cache`. Two callers:
