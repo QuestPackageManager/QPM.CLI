@@ -18,12 +18,19 @@ jobs:
   bleeding-release:
     runs-on: ubuntu-latest
     # needs: build
+    # Only publish after a successful push build of main. Without this, a failed
+    # build still deleted the previous bleeding release before failing itself.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
     permissions:
       contents: write
 
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-tags: true
           fetch-depth: 0
 
@@ -51,13 +58,16 @@ jobs:
           done
 
       - name: Bleeding Artifact Upload
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           body: |
             This is an automatic release generated from the last successful commit to the main branch.  While this was a successful build, the resulting binary may not be fully stable.
 
-            SHA: ${{ github.sha }}
+            SHA: ${{ github.event.workflow_run.head_sha }}
           name: 'Latest Build on main'
           tag_name: bleeding2
+          target_commitish: ${{ github.event.workflow_run.head_sha }}
           prerelease: true
-          files: artifacts/**/*.zip
+          files: |
+            artifacts/**/*.zip
+            artifacts/installer-*/*.msix

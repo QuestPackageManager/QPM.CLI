@@ -38,34 +38,23 @@ jobs:
       - name: Extract version
         id: version
         shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           # Get the last tag that isn't bleeding
           LAST_TAG=$((git tag --merged HEAD --sort=-creatordate | grep -v '^bleeding' | head -n 1) || true)
           echo "Last tag: $LAST_TAG"
 
-          # Use version input or tag, fallback to default
-          if [[ -n "${{ github.event.inputs.version }}" ]]; then
-            FULL_VERSION="${{ github.event.inputs.version }}"
-            TAG=""
+          if [[ -n "$INPUT_VERSION" ]]; then
+            # Explicit version (release or manual dispatch)
+            VERSION="${INPUT_VERSION#v}"
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            FULL_VERSION="${TAG#v}"
-          elif [[ -n "$LAST_TAG" ]]; then
-            FULL_VERSION="${LAST_TAG#v}"
-            TAG=""
+            VERSION="${GITHUB_REF#refs/tags/v}"
           else
-            FULL_VERSION="0.1.0"
-            TAG=""
-          fi
-
-          VERSION="${FULL_VERSION%%[-+]*}"
-
-          # Get current commit short SHA
-          GIT_SHA=$(git rev-parse --short HEAD)
-
-          # Check if the workflow tag is empty or doesn't match the last tag
-          if [[ -z "$TAG" ]] || [[ ! "$TAG" != "$LAST_TAG" ]]; then
-            VERSION="${VERSION}+${GIT_SHA}"
+            # Untagged build: last tag (or 0.1.0) plus the commit SHA as build metadata
+            BASE="${LAST_TAG#v}"
+            BASE="${BASE:-0.1.0}"
+            VERSION="${BASE%%[-+]*}+$(git rev-parse --short HEAD)"
           fi
 
           echo "version=$VERSION" | tee -a "$GITHUB_OUTPUT"
@@ -136,13 +125,8 @@ jobs:
         run: |
           brew install openssl@3
 
-      - uses: actions-rs/toolchain@v1
-        if: matrix.target != ''
-        with:
-          toolchain: nightly
-          target: ${{ matrix.target }}
-
-      - name: Double check
+      # The toolchain itself comes from rust-toolchain.toml
+      - name: Add Rust target
         if: matrix.target != ''
         run: |
           rustup target add ${{ matrix.target }}
@@ -165,27 +149,18 @@ jobs:
 
       - name: Cargo build
         if: matrix.target == ''
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+        run: cargo build --release
 
       - name: Cargo build target ${{ matrix.target }}
         if: matrix.target != ''
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
       # Cargo CLI tests depend on build
       - name: Cargo test
         if: matrix.run_test == true
         continue-on-error: true # TODO: Fix when tests are ready
-        uses: actions-rs/cargo@v1
         env:
           QPM_DISABLE_GLOBAL_CONFIG: "1" # Disable global config operations during tests
-        with:
-          command: test
-          args: --release
+        run: cargo test --release
 
       - name: Artifact Upload
         if: matrix.suffix != ''
