@@ -59,7 +59,7 @@ fn install_qpkg_then_read_back_from_a_fresh_file_repository() {
     assert!(files.headers.exists());
     assert_eq!(files.binaries.len(), 1);
     assert!(files.binaries[0].exists());
-    assert_eq!(fs::read(&files.binaries[0]).unwrap(), b"binary content");
+    assert_eq!(fs::read(&files.binaries[0]).unwrap(), b"binary libfoo.so");
 
     // Simulate a later, separate `qpm2` invocation: read the repository fresh from disk
     // rather than reusing the in-memory instance that performed the install.

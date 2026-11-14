@@ -161,13 +161,9 @@ pub fn assert_directory_equal(expected: &Path, actual: &TempDir) -> color_eyre::
             content[..content.len().min(8000)].contains(&0)
         }
 
-        // Helper function to normalize line endings to \n
+        // Normalize line endings to \n on every platform: a checkout can have CRLF fixtures
+        // on Linux too (e.g. a drive shared with Windows, or core.autocrlf)
         fn normalize_line_endings(content: Vec<u8>) -> Vec<u8> {
-            // if not windows, just return the content
-            if cfg!(not(windows)) {
-                return content;
-            }
-
             content.replace(b"\r\n", "\n").replace(b"\r", b"\n")
         }
 
