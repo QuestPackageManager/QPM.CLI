@@ -3,19 +3,11 @@ use std::io;
 use clap::{CommandFactory, Parser};
 use clap_complete::{Generator, Shell, generate};
 use color_eyre::Result;
-use commands::Command;
-
-#[cfg(feature = "cli")]
-pub mod commands;
-
-pub mod models;
-pub mod repository;
-pub mod services;
-pub mod terminal;
-pub mod utils;
-
-#[cfg(test)]
-mod benchmark;
+// The binary is a thin wrapper over the library, so the crate is only compiled once
+use qpm_cli::{
+    commands::{self, Command},
+    context,
+};
 
 fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
     generate(
@@ -64,8 +56,6 @@ fn main() -> Result<()> {
         ))
         .install()?;
 
-    services::network::init_agent(models::config::get_combine_config().timeout.unwrap_or(5000));
-
     let command_result = commands::Opt::parse();
 
     if let Some(generator) = command_result.generator {
@@ -75,7 +65,8 @@ fn main() -> Result<()> {
         suggest_completion_location(generator);
     }
     if let Some(command) = command_result.command {
-        command.execute()?;
+        let ctx = context::QpmContext::load()?;
+        command.execute(&ctx)?;
     }
 
     Ok(())

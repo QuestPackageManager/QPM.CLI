@@ -2,7 +2,7 @@ mod mocks;
 
 use std::path::Path;
 
-use qpm_cli::repository::{Repository, multi::MultiDependencyRepository};
+use qpm_cli::repository::{Artifact, Repository, multi::MultiDependencyRepository};
 use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 
@@ -35,8 +35,8 @@ fn get_package_versions_merges_dedupes_and_sorts_descending() {
     let versions = multi.get_package_versions(&id).unwrap().unwrap();
 
     assert_eq!(
-        versions,
-        vec![
+        &*versions,
+        [
             Version::new(3, 0, 0),
             Version::new(2, 0, 0),
             Version::new(1, 0, 0),
@@ -134,8 +134,11 @@ fn download_to_cache_delegates_to_the_repo_that_has_the_package() {
 
     let mut multi = MultiDependencyRepository::new(vec![Box::new(without), Box::new(with)]);
 
-    let config = pkg("pkg", version.clone());
-    let downloaded = multi.download_to_cache(&config).unwrap();
+    let artifact = Artifact {
+        config: pkg("pkg", version.clone()),
+        ..Default::default()
+    };
+    let downloaded = multi.download_to_cache(&test_agent(), &artifact).unwrap();
 
     assert!(downloaded);
     assert_eq!(with_handle.downloaded(), vec![(id, version)]);
@@ -151,8 +154,11 @@ fn download_to_cache_errors_when_no_repo_has_the_package() {
         Box::new(MockRepository::new(false)),
     ]);
 
-    let config = pkg("missing", Version::new(1, 0, 0));
-    assert!(multi.download_to_cache(&config).is_err());
+    let artifact = Artifact {
+        config: pkg("missing", Version::new(1, 0, 0)),
+        ..Default::default()
+    };
+    assert!(multi.download_to_cache(&test_agent(), &artifact).is_err());
 }
 
 /// Registering a package in the shared/db cache should propagate to every underlying
@@ -174,4 +180,9 @@ fn add_to_db_cache_forwards_to_every_repo() {
 
     assert!(a_handle.get_package(&id, &version).unwrap().is_some());
     assert!(b_handle.get_package(&id, &version).unwrap().is_some());
+}
+
+/// Network client for calls that never make a request here (cached packages, mocks)
+fn test_agent() -> ureq::Agent {
+    qpm_cli::services::network::build_agent(qpm_cli::services::network::DEFAULT_TIMEOUT_MS)
 }

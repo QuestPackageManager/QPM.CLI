@@ -2070,7 +2070,6 @@ version = "2.0.0"
 dependencies = [
  "assert_fs",
  "bstr",
- "bytes",
  "clap",
  "clap_complete",
  "color-eyre",

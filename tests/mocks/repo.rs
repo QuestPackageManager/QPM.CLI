@@ -95,6 +95,7 @@ pub fn get_mock_repository() -> FileRepository {
                             Artifact {
                                 config: a.config.clone(),
                                 qpkg_checksum: None,
+                                qpkg_url: None,
                             },
                         )]),
                     )

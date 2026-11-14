@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::{Args, ValueEnum};
 use color_eyre::eyre::ContextCompat;
 use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
@@ -32,12 +33,13 @@ pub struct PublishCommand {
 }
 
 impl Command for PublishCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         let shared_package = SharedPackageConfig::read(".")?;
-        let qpackages = QPMRepository::default();
+        let qpackages = QPMRepository::new(ctx.agent().clone());
 
         let publisher = PackagePublisher::validate(
+            ctx.agent(),
             package,
             &shared_package,
             self.qpkg_url.clone(),
@@ -53,7 +55,7 @@ impl Command for PublishCommand {
         };
 
         let published = match self.backend {
-            Backend::QPackages => publisher.publish_to_qpackages(&auth_token)?,
+            Backend::QPackages => publisher.publish_to_qpackages(&qpackages, &auth_token)?,
         };
 
         println!(

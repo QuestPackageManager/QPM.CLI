@@ -1,5 +1,6 @@
 #![cfg(all(feature = "migrate", feature = "cli"))]
 
+use qpm_cli::{context::QpmContext, models::config::UserConfig};
 use std::{env, fs, path::PathBuf};
 
 use qpm_cli::commands::{Command, migrate::MigrateCommand};
@@ -51,7 +52,7 @@ fn migrate_then_read() -> color_eyre::Result<()> {
         input: None,
         force: false,
     }
-    .execute();
+    .execute(&QpmContext::new(UserConfig::default()));
     env::set_current_dir(previous_dir)?;
     migrate_result?;
 
@@ -59,10 +60,19 @@ fn migrate_then_read() -> color_eyre::Result<()> {
 
     assert_eq!(package.id, DependencyId("mymod".to_string()));
     assert_eq!(package.version, Version::new(1, 2, 3));
-    assert_eq!(package.additional_data.url.as_deref(), Some("https://github.com/example/mymod"));
-    assert_eq!(package.workspace.out_binaries, Some(vec!["libmymod.so".into()]));
+    assert_eq!(
+        package.additional_data.url.as_deref(),
+        Some("https://github.com/example/mymod")
+    );
+    assert_eq!(
+        package.workspace.out_binaries,
+        Some(vec!["libmymod.so".into()])
+    );
     assert_eq!(package.workspace.cmake, Some(true));
-    assert_eq!(package.workspace.scripts.get("build"), Some(&vec!["echo hi".to_string()]));
+    assert_eq!(
+        package.workspace.scripts.get("build"),
+        Some(&vec!["echo hi".to_string()])
+    );
     assert_eq!(
         package.qmod.download_url.as_deref(),
         Some("https://example.com/mymod.qmod")

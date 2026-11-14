@@ -1,12 +1,10 @@
+use crate::context::QpmContext;
 use clap::Args;
 use color_eyre::Result;
 use itertools::Itertools;
 use owo_colors::OwoColorize;
 
-use crate::{
-    commands::Command,
-    repository::{self, Repository},
-};
+use crate::{commands::Command, repository::Repository};
 
 #[derive(Args, Debug, Clone)]
 pub struct PackageListCommand {
@@ -15,8 +13,9 @@ pub struct PackageListCommand {
 }
 
 impl Command for PackageListCommand {
-    fn execute(self) -> Result<()> {
-        let ids = repository::useful_default_new(self.offline)?
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
+        let ids = ctx
+            .repositories(self.offline)?
             .get_package_names()?
             .into_iter()
             .sorted_by(|a, b| a.0.cmp(&b.0))

@@ -13,12 +13,20 @@ use semver::{Version, VersionReq};
 use qpm_cli::{
     models::package_files::PackageIdPath,
     repository::{self, Repository, file::FileRepository, qpackages::QPMRepository},
-    services::restore::PackageRestorer,
+    services::{
+        network::{DEFAULT_TIMEOUT_MS, build_agent},
+        restore::PackageRestorer,
+    },
 };
+
+/// The qpackages index, for read-only queries
+fn qpackages() -> QPMRepository {
+    QPMRepository::new(build_agent(DEFAULT_TIMEOUT_MS))
+}
 
 #[test]
 fn get_artifact_packages() -> Result<()> {
-    let repo = QPMRepository::default();
+    let repo = qpackages();
     let names = repo.get_package_names()?;
 
     assert!(!names.is_empty());
@@ -26,7 +34,7 @@ fn get_artifact_packages() -> Result<()> {
 }
 #[test]
 fn get_artifact_package_versions() -> Result<()> {
-    let repo = QPMRepository::default();
+    let repo = qpackages();
     let versions = repo.get_package_versions(&DependencyId("beatsaber-hook".to_owned()))?;
 
     assert_ne!(versions, None);
@@ -34,7 +42,7 @@ fn get_artifact_package_versions() -> Result<()> {
 }
 // #[test]
 // fn download_package_binary() -> Result<()> {
-//     let repo = QPMRepository::default();
+//     let repo = qpackages();
 //     let id = DependencyId("beatsaber-hook".to_owned());
 //     let versions = repo.get_package_versions(&id)?.ok_or_eyre("No versions")?;
 //     let version = &versions.first().unwrap();
@@ -57,7 +65,7 @@ fn get_artifact_package_versions() -> Result<()> {
 
 #[test]
 fn get_artifact() -> Result<()> {
-    let repo = QPMRepository::default();
+    let repo = qpackages();
     let version = Version::new(3, 14, 0);
     let p = repo.get_package(&DependencyId("beatsaber-hook".to_owned()), &version)?;
 
@@ -74,7 +82,7 @@ fn get_artifact() -> Result<()> {
 
 #[test]
 fn resolve() -> Result<()> {
-    let repo = QPMRepository::default();
+    let repo = qpackages();
     let version = Version::new(6, 4, 0);
     let p = repo.get_package(&DependencyId("beatsaber-hook".to_owned()), &version)?;
 
@@ -115,7 +123,7 @@ fn resolve() -> Result<()> {
 
 #[test]
 fn resolve_fail() -> Result<()> {
-    let repo = QPMRepository::default();
+    let repo = qpackages();
     let p = PackageConfig {
         shared_directory: Default::default(),
         dependencies_directory: Default::default(),
@@ -167,7 +175,11 @@ fn resolve_redownload_cache() -> Result<()> {
         }
         file_repo.write()?;
 
-        let repo = repository::useful_default_new_at(false, cache_root.to_path_buf())?;
+        let repo = repository::default_repository_stack(
+            false,
+            cache_root.to_path_buf(),
+            &build_agent(DEFAULT_TIMEOUT_MS),
+        )?;
 
         Ok(repo)
     }
@@ -203,7 +215,13 @@ fn resolve_redownload_cache() -> Result<()> {
         let mut repo = get_repo(&cache_root)?;
         let file_repo = FileRepository::read(cache_root.clone())?;
 
-        restorer.restore(&workspace_tmp_dir, &mut repo, &file_repo)?;
+        restorer.restore(
+            Some(&build_agent(DEFAULT_TIMEOUT_MS)),
+            &workspace_tmp_dir,
+            &mut repo,
+            &file_repo,
+            true,
+        )?;
 
         println!("Lib path: {lib_path:?}");
 
@@ -216,7 +234,13 @@ fn resolve_redownload_cache() -> Result<()> {
         let file_repo = FileRepository::read(cache_root.clone())?;
         assert!(!lib_path.exists());
 
-        restorer.restore(&workspace_tmp_dir, &mut repo, &file_repo)?;
+        restorer.restore(
+            Some(&build_agent(DEFAULT_TIMEOUT_MS)),
+            &workspace_tmp_dir,
+            &mut repo,
+            &file_repo,
+            true,
+        )?;
         assert!(lib_path.exists());
     }
 

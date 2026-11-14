@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::Args;
 
 use super::Command;
@@ -17,7 +18,7 @@ pub struct TemplatrCommand {
 }
 
 impl Command for TemplatrCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         templatr::prompt::prompt(&self.git, &self.dest, self.git_branch.as_deref())
     }
 }

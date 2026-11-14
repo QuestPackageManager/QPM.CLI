@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::{Args, Subcommand};
 use color_eyre::Result;
 
@@ -29,7 +30,7 @@ struct LatestOperationArgs {
 }
 
 impl Command for VersionCommand {
-    fn execute(self) -> Result<()> {
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
         match self.op {
             VersionOperation::Check(b) => {
                 let current = qpm_version::current_version();
@@ -41,7 +42,7 @@ impl Command for VersionCommand {
                     current.commit.version_id_color()
                 );
 
-                let result = qpm_version::check_version(&input_branch)?;
+                let result = qpm_version::check_version(ctx.agent(), &input_branch)?;
 
                 println!(
                     "The latest branch {input_branch} commit is {}",
@@ -78,16 +79,17 @@ impl Command for VersionCommand {
                     current.commit.version_id_color()
                 );
 
-                let download_url = match qpm_version::resolve_update_url(u.branch.as_deref())? {
-                    UpdateTarget::AlreadyLatest => {
-                        println!("Already running commit");
-                        return Ok(());
-                    }
-                    UpdateTarget::DownloadUrl(url) => url,
-                };
+                let download_url =
+                    match qpm_version::resolve_update_url(ctx.agent(), u.branch.as_deref())? {
+                        UpdateTarget::AlreadyLatest => {
+                            println!("Already running commit");
+                            return Ok(());
+                        }
+                        UpdateTarget::DownloadUrl(url) => url,
+                    };
 
                 println!("Downloading {download_url}");
-                qpm_version::apply_update(&download_url)?;
+                qpm_version::apply_update(ctx.agent(), &download_url)?;
                 println!("Finished updating")
             }
         }

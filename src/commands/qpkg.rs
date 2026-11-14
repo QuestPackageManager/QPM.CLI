@@ -10,6 +10,7 @@
 //!
 //! The QPKG is used by other projects as a dependency via `qpm restore`.
 
+use crate::context::QpmContext;
 use std::fs;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
@@ -60,7 +61,7 @@ pub struct QPkgCommand {
 
 impl Command for QPkgCommand {
     /// Creates a QPKG ZIP archive: build (optional) -> collect headers/binaries -> zip -> finalize
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
         let build_dir = self
@@ -78,7 +79,7 @@ impl Command for QPkgCommand {
                 ndk_resolve: self.resolve_ndk,
             };
 
-            command.execute().context("Failed to build qpkg")?;
+            command.execute(ctx).context("Failed to build qpkg")?;
         }
 
         let out = self

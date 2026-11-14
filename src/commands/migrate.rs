@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 use clap::Args;
@@ -35,7 +36,7 @@ pub struct MigrateCommand {
 }
 
 impl Command for MigrateCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         if !self.force && PackageConfig::exists(".") {
             bail!(
                 "qpm2.json already exists, refusing to overwrite it. Use {} to overwrite it anyway.",

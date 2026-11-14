@@ -4,7 +4,7 @@ use itertools::Itertools;
 use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 
-use super::{Artifact, Repository};
+use super::{Artifact, Repository, Versions};
 
 pub struct MultiDependencyRepository {
     repositories: Vec<Box<dyn Repository>>,
@@ -23,25 +23,31 @@ impl MultiDependencyRepository {
 ///
 impl Repository for MultiDependencyRepository {
     // get versions of all repositories
-    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
-        let result: Vec<Version> = self
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Versions>> {
+        let mut per_repo = self
             .repositories
             .iter()
-            .map(|r| r.get_package_versions(id))
-            .collect::<Result<Vec<_>>>()?
-            .into_iter()
-            .flatten()
-            .flatten()
+            .filter_map(|r| r.get_package_versions(id).transpose())
+            .collect::<Result<Vec<_>>>()?;
+
+        // common case: only one repository knows the package, share its list as-is
+        if per_repo.len() <= 1 {
+            return Ok(per_repo.pop().filter(|v| !v.is_empty()));
+        }
+
+        let result: Vec<Version> = per_repo
+            .iter()
+            .flat_map(|versions| versions.iter())
             .unique()
-            .sorted_by(|a, b| a.cmp(b))
-            .rev() // highest first
+            .sorted_by(|a, b| b.cmp(a)) // highest first
+            .cloned()
             .collect();
 
         if result.is_empty() {
             return Ok(None);
         }
 
-        Ok(Some(result))
+        Ok(Some(result.into()))
     }
 
     // get package from the first repository that has it
@@ -72,16 +78,15 @@ impl Repository for MultiDependencyRepository {
         Ok(names)
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
+    /// Asks each repository in order; the first that can provide the package downloads it
+    fn download_to_cache(&mut self, agent: &ureq::Agent, artifact: &Artifact) -> Result<bool> {
         for repo in &mut self.repositories {
-            if repo.get_package(&config.id, &config.version)?.is_none() {
-                continue;
-            }
-            if repo.download_to_cache(config)? {
+            if repo.download_to_cache(agent, artifact)? {
                 return Ok(true);
             }
         }
 
+        let config = &artifact.config;
         bail!(
             "No repository found that has package {}:{}",
             config.id,

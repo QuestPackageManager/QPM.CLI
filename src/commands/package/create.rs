@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::path::Path;
 
 use clap::Args;
@@ -20,7 +21,7 @@ pub struct PackageOperationCreateArgs {
 }
 
 impl Command for PackageOperationCreateArgs {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         if PackageConfig::exists(".") {
             println!(
                 "{}",

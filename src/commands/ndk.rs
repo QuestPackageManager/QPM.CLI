@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use crate::context::QpmContext;
+use std::path::{Path, PathBuf};
 
 use clap::{Args, Subcommand};
 use color_eyre::{Result, eyre::bail};
@@ -6,9 +7,10 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 use semver::VersionReq;
+use walkdir::WalkDir;
 
 use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
+    models::package::PackageConfigExtensions,
     services::android::{download_ndk_version, get_android_manifest, get_ndk_str_versions_str},
     services::ndk as ndk_service,
 };
@@ -76,21 +78,18 @@ pub struct ResolveArgs {
 }
 
 impl Command for Ndk {
-    fn execute(self) -> Result<()> {
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
         match self.op {
             NdkOperation::Download(d) => {
-                let manifest = get_android_manifest()?;
+                let manifest = get_android_manifest(ctx.agent())?;
 
                 let (_version, ndk) = ndk_service::fuzzy_match_ndk(&manifest, &d.version)?;
-                let ndk_download_path = get_combine_config()
-                    .ndk_download_path
-                    .as_ref()
-                    .expect("No NDK download path set");
-                let path = download_ndk_version(ndk, !self.quiet, ndk_download_path)?;
+                let path =
+                    download_ndk_version(ctx.agent(), ndk, !self.quiet, ctx.ndk_download_path()?)?;
                 println!("{}", path.display());
             }
             NdkOperation::Available(a) => {
-                let manifest = get_android_manifest()?;
+                let manifest = get_android_manifest(ctx.agent())?;
                 let amount_per_page = 5;
 
                 let page_offset = a.page;
@@ -107,7 +106,7 @@ impl Command for Ndk {
                     .for_each(|(v, p)| println!("{} -> {}", v.blue(), p.display_name.purple()))
             }
             NdkOperation::List => {
-                let dir = get_combine_config().get_ndk_installed();
+                let dir = installed_ndk_dirs(ctx.ndk_download_path()?);
 
                 dir.into_iter()
                     .try_collect::<_, Vec<_>, _>()?
@@ -122,14 +121,11 @@ impl Command for Ndk {
                     })
             }
             NdkOperation::Path(p) => {
-                let manifest = get_android_manifest()?;
+                let manifest = get_android_manifest(ctx.agent())?;
 
                 let (version, _ndk) = ndk_service::fuzzy_match_ndk(&manifest, &p.version)?;
 
-                let dir = get_combine_config()
-                    .ndk_download_path
-                    .as_ref()
-                    .expect("No NDK download path set");
+                let dir = ctx.ndk_download_path()?;
 
                 let ndk_path = dir.join(version);
 
@@ -139,23 +135,29 @@ impl Command for Ndk {
 
                 println!("{}", ndk_path.display());
             }
-            NdkOperation::Resolve(r) => do_resolve(r, self.quiet)?,
-            NdkOperation::Pin(u) => do_pin(u)?,
+            NdkOperation::Resolve(r) => do_resolve(r, self.quiet, ctx)?,
+            NdkOperation::Pin(u) => do_pin(u, ctx)?,
         }
 
         Ok(())
     }
 }
 
-fn do_pin(u: PinArgs) -> Result<()> {
-    let installed_ndks = get_combine_config()
-        .get_ndk_installed()
+/// Entries directly inside the NDK download directory
+fn installed_ndk_dirs(ndk_download_path: &Path) -> WalkDir {
+    WalkDir::new(ndk_download_path).max_depth(1)
+}
+
+fn do_pin(u: PinArgs, ctx: &QpmContext) -> Result<()> {
+    let ndk_download_path = ctx.ndk_download_path()?;
+    let installed_ndks = installed_ndk_dirs(ndk_download_path)
         .into_iter()
         .flatten()
         .map(|e| e.into_path())
         .collect_vec();
 
-    let version = ndk_service::resolve_pin_version(&u.version, u.online, &installed_ndks)?;
+    let version =
+        ndk_service::resolve_pin_version(ctx.agent(), &u.version, u.online, &installed_ndks)?;
 
     let mut package = PackageConfig::read(".")?;
 
@@ -166,18 +168,14 @@ fn do_pin(u: PinArgs) -> Result<()> {
     package.workspace.ndk = Some(VersionReq::parse(&req)?);
     package.write(".")?;
 
-    let ndk_path: PathBuf = get_combine_config()
-        .ndk_download_path
-        .as_ref()
-        .unwrap()
-        .join(version);
+    let ndk_path: PathBuf = ndk_download_path.join(version);
 
     ndk_service::apply_ndk(&ndk_path)?;
     println!("{}", ndk_path.display());
     Ok(())
 }
 
-fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<()> {
+fn do_resolve(r: ResolveArgs, quiet: bool, ctx: &QpmContext) -> Result<()> {
     let package = PackageConfig::exists(".")
         .then(|| PackageConfig::read("."))
         .transpose()?;
@@ -189,12 +187,13 @@ fn do_resolve(r: ResolveArgs, quiet: bool) -> Result<()> {
         bail!("No package found in current directory");
     };
 
-    let ndk_download_path = get_combine_config()
-        .ndk_download_path
-        .clone()
-        .expect("No NDK download path set");
-    let ndk_installed_path =
-        ndk_service::resolve_ndk_for_package(&package, r.download, quiet, &ndk_download_path)?;
+    let ndk_installed_path = ndk_service::resolve_ndk_for_package(
+        ctx.agent(),
+        &package,
+        r.download,
+        quiet,
+        ctx.ndk_download_path()?,
+    )?;
 
     ndk_service::apply_ndk(&ndk_installed_path)?;
     println!("{}", ndk_installed_path.display());

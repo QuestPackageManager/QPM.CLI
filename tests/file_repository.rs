@@ -3,7 +3,7 @@ use std::{fs, io::Cursor, path::Path};
 use qpm_cli::{
     models::qpkg_file::QpkgFile,
     repository::{
-        Repository,
+        Artifact, Repository,
         file::{FileRepository, FileRepositoryRegistry},
     },
 };
@@ -86,7 +86,7 @@ fn install_qpkg_then_read_back_from_a_fresh_file_repository() {
     assert_eq!(reread_artifact.config.version, config.version);
 
     let already_cached = reread_repo
-        .download_to_cache(&reread_artifact.config.clone())
+        .download_to_cache(&test_agent(), &reread_artifact.clone())
         .expect("download_to_cache should succeed for an already-installed package");
     assert!(
         already_cached,
@@ -140,4 +140,30 @@ fn install_qpkg_overwrites_when_requested() {
         .expect("overwrite install should succeed");
 
     assert_eq!(second_install.config.id, config.id);
+}
+
+/// An uncached package with no `qpkg_url` (here or in the registry) has nowhere to be
+/// downloaded from, so the cache reports it as unavailable instead of erroring.
+#[test]
+fn download_to_cache_without_url_reports_unavailable() {
+    let cache_dir = tempdir().unwrap();
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
+
+    let artifact = Artifact {
+        config: sample_qpkg_config(),
+        ..Default::default()
+    };
+
+    let downloaded = file_repo
+        .download_to_cache(&test_agent(), &artifact)
+        .expect("a cache miss without a URL is not an error");
+    assert!(!downloaded);
+}
+
+/// Network client for calls that never make a request here (cached packages, mocks)
+fn test_agent() -> ureq::Agent {
+    qpm_cli::services::network::build_agent(qpm_cli::services::network::DEFAULT_TIMEOUT_MS)
 }

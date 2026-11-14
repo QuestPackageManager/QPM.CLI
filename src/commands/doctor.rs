@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::{env, fs::File};
 
 use clap::Args;
@@ -37,7 +38,7 @@ fn look_path(path: &str) -> Result<bool, std::env::VarError> {
 #[derive(Args)]
 pub struct DoctorCommand {}
 impl Command for DoctorCommand {
-    fn execute(self) -> Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> Result<()> {
         let cmake = look_path("cmake")?;
         let ninja = look_path("ninja")?;
         let adb = look_path("adb")?;

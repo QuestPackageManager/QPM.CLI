@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::{fs, path::Path};
 
 use clap::Args;
@@ -14,7 +15,7 @@ use super::Command;
 pub struct ClearCommand {}
 
 impl Command for ClearCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         remove_dependencies_dir()?;
         remove(QPM_SHARED_JSON)?;
         Ok(())

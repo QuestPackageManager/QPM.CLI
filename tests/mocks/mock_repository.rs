@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use qpm_cli::repository::{Artifact, Repository};
+use qpm_cli::repository::{Artifact, Repository, Versions};
 use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 
@@ -61,12 +61,12 @@ impl Repository for MockRepository {
         Ok(self.0.borrow().packages.keys().cloned().collect())
     }
 
-    fn get_package_versions(&self, id: &DependencyId) -> color_eyre::Result<Option<Vec<Version>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> color_eyre::Result<Option<Versions>> {
         Ok(self.0.borrow().packages.get(id).map(|versions| {
             let mut versions: Vec<Version> = versions.keys().cloned().collect();
             versions.sort();
             versions.reverse();
-            versions
+            versions.into()
         }))
     }
 
@@ -84,7 +84,7 @@ impl Repository for MockRepository {
             .cloned()
             .map(|config| Artifact {
                 config,
-                qpkg_checksum: None,
+                ..Default::default()
             }))
     }
 
@@ -102,12 +102,24 @@ impl Repository for MockRepository {
         self.0.borrow().online
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> color_eyre::Result<bool> {
-        self.0
-            .borrow_mut()
-            .downloaded
-            .push((config.id.clone(), config.version.clone()));
-        Ok(true)
+    /// Like a real repository: only "downloads" packages it actually has
+    fn download_to_cache(
+        &mut self,
+        _agent: &ureq::Agent,
+        artifact: &Artifact,
+    ) -> color_eyre::Result<bool> {
+        let config = &artifact.config;
+        let mut inner = self.0.borrow_mut();
+        let has_package = inner
+            .packages
+            .get(&config.id)
+            .is_some_and(|versions| versions.contains_key(&config.version));
+        if has_package {
+            inner
+                .downloaded
+                .push((config.id.clone(), config.version.clone()));
+        }
+        Ok(has_package)
     }
 
     fn write_repo(&self) -> color_eyre::Result<()> {

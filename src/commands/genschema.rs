@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::Args;
 use color_eyre::eyre::Context;
 
@@ -23,7 +24,7 @@ impl GenSchemaCommand {
 }
 
 impl Command for GenSchemaCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         Self::write_schema::<UserConfig>(SchemaLinks::USER_CONFIG)?;
         Self::write_schema::<FileRepositoryRegistry>(SchemaLinks::FILE_REPOSITORY)?;
         Self::write_schema::<ToolchainData>(SchemaLinks::TOOLCHAIN_DATA)?;

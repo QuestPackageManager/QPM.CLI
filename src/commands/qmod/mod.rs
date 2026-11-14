@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::{Args, Subcommand};
 use color_eyre::{Result, owo_colors::OwoColorize};
 
@@ -35,7 +36,7 @@ pub enum QmodOperation {
 }
 
 impl Command for QmodCommand {
-    fn execute(self) -> Result<()> {
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
         match self.op {
             QmodOperation::Create(q) => create::execute_qmod_create_operation(q),
             QmodOperation::Build(b) => {
@@ -44,11 +45,11 @@ impl Command for QmodCommand {
                     "qpm2 qmod build".yellow(),
                     "qpm2 qmod manifest".green()
                 );
-                manifest::execute_qmod_manifest_operation(b)
+                manifest::execute_qmod_manifest_operation(ctx, b)
             }
-            QmodOperation::Manifest(b) => manifest::execute_qmod_manifest_operation(b),
-            QmodOperation::Zip(b) => zip::execute_qmod_zip_operation(b, vec![]),
-            QmodOperation::Edit(e) => e.execute(),
+            QmodOperation::Manifest(b) => manifest::execute_qmod_manifest_operation(ctx, b),
+            QmodOperation::Zip(b) => zip::execute_qmod_zip_operation(ctx, b, vec![]),
+            QmodOperation::Edit(e) => e.execute(ctx),
         }
     }
 }

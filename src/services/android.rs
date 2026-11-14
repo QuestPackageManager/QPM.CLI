@@ -1,6 +1,5 @@
-use std::{collections::HashMap, env, fs, io::Cursor, path::Path, path::PathBuf};
+use std::{collections::HashMap, env, fs, io::BufReader, path::Path, path::PathBuf};
 
-use bytes::{BufMut, BytesMut};
 use color_eyre::Result;
 use owo_colors::OwoColorize;
 use semver::{BuildMetadata, Prerelease, Version};
@@ -9,15 +8,15 @@ use zip::ZipArchive;
 
 use crate::{
     models::android_repo::{AndroidRepositoryManifest, Archive, RemotePackage},
-    services::network::{download_file, download_file_report, get_agent},
+    services::network::download_to_tempfile,
     terminal::colors::QPMColor,
 };
 
 const ANDROID_REPO_MANIFEST: &str = "https://dl.google.com/android/repository/repository2-3.xml";
 const ANDROID_DL_URL: &str = "https://dl.google.com/android/repository";
 
-pub fn get_android_manifest() -> Result<AndroidRepositoryManifest> {
-    let response = get_agent()
+pub fn get_android_manifest(agent: &ureq::Agent) -> Result<AndroidRepositoryManifest> {
+    let response = agent
         .get(ANDROID_REPO_MANIFEST)
         .call()?
         .into_body()
@@ -37,7 +36,7 @@ pub fn get_ndk_packages(manifest: &AndroidRepositoryManifest) -> Vec<&RemotePack
 pub fn get_ndk_version(ndk: &RemotePackage) -> Version {
     let build = BuildMetadata::new(&format!(
         "preview-{}",
-        &ndk.revision.preview.unwrap_or(0).to_string()
+        ndk.revision.preview.unwrap_or(0).to_string()
     ))
     .unwrap();
 
@@ -103,6 +102,7 @@ pub fn get_host_archive(ndk: &RemotePackage) -> Option<&Archive> {
 }
 
 pub fn download_ndk_version(
+    agent: &ureq::Agent,
     ndk: &RemotePackage,
     show_progress: bool,
     ndk_download_path: &Path,
@@ -114,22 +114,15 @@ pub fn download_ndk_version(
     println!(
         "Downloading {} from {}, this may take some time",
         get_ndk_version(ndk).blue(),
-        &archive_url.yellow()
+        archive_url.yellow()
     );
 
     let _name = &archive.complete.url;
 
-    let mut bytes = BytesMut::new().writer();
-    match show_progress {
-        true => {
-            download_file_report(&archive_url, &mut bytes, |_, _| {})?;
-        }
-        false => {
-            download_file(&archive_url, &mut bytes, |_, _| {})?;
-        }
-    }
+    // NDK archives are hundreds of MB; stream to disk instead of memory
+    let file = download_to_tempfile(agent, &archive_url, show_progress)?;
     println!("Extracting ndk");
-    let buffer = Cursor::new(bytes.into_inner());
+    let buffer = BufReader::new(file);
 
     // Extract to tmp folde
     let mut archive = ZipArchive::new(buffer)?;

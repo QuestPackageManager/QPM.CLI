@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::Args;
 use itertools::Itertools;
 use owo_colors::OwoColorize;
@@ -22,9 +23,9 @@ pub struct CollapseCommand {
 }
 
 impl Command for CollapseCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let repo = repository::useful_default_new(self.offline)?;
+        let repo = ctx.repositories(self.offline)?;
 
         list_dependencies(package, &repo, self.env)?;
 
@@ -63,8 +64,8 @@ fn list_dependencies(
         for (dep_id, dep) in resolved_dep.dependencies.iter() {
             println!(
                 " - {}: ({})",
-                &dep_id.dependency_id_color(),
-                &dep.version_range.dependency_version_color(),
+                dep_id.dependency_id_color(),
+                dep.version_range.dependency_version_color(),
             );
         }
     }

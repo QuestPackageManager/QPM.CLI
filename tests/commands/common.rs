@@ -6,18 +6,17 @@ use color_eyre::eyre::{Context, ensure};
 use fs_extra::dir::{self, CopyOptions};
 use predicates::prelude::*;
 use qpm_cli::commands::{Command, Opt};
+use qpm_cli::context::QpmContext;
+use qpm_cli::models::config::UserConfig;
 use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
 
-/// Commands mutate process-global state (current dir, env vars) that isn't safe to touch
+/// Commands mutate process-global state (the current dir) that isn't safe to touch
 /// concurrently, since `cargo test` runs every test in this binary on its own thread within
 /// one process. Held for the full duration of a test, not just around command execution,
 /// since fixture copying/comparison also resolves paths relative to the process's cwd.
 ///
-/// Note this does NOT cover `get_combine_config()`'s process-wide cache (see
-/// `models::config`) - only the first test in this binary to read qpm.settings.json gets
-/// its own; every later test silently reuses that same cached config.
 static PROCESS_LOCK: Mutex<()> = Mutex::new(());
 
 /// Parses `args` as a qpm2 CLI invocation and runs it in-process against `dir`.
@@ -28,28 +27,19 @@ fn run_qpm(args: &[&str], dir: &Path) -> color_eyre::Result<()> {
     std::env::set_current_dir(dir)
         .with_context(|| format!("Failed to set current dir to {dir:?}"))?;
 
-    // SAFETY: serialized by PROCESS_LOCK - no other thread reads/writes env vars while
-    // this guard is held.
-    unsafe {
-        std::env::set_var("QPM_DISABLE_GLOBAL_CONFIG", "1");
-    }
-
     let result = (|| -> color_eyre::Result<()> {
         let full_args = std::iter::once("qpm2").chain(args.iter().copied());
         let opt = Opt::try_parse_from(full_args)
             .with_context(|| format!("Failed to parse args {args:?}"))?;
 
         if let Some(command) = opt.command {
-            command.execute()?;
+            // Default config, never the user's qpm.settings.json
+            command.execute(&QpmContext::new(UserConfig::default()))?;
         }
 
         Ok(())
     })();
 
-    // SAFETY: see above.
-    unsafe {
-        std::env::remove_var("QPM_DISABLE_GLOBAL_CONFIG");
-    }
     std::env::set_current_dir(previous_dir).context("Failed to restore current dir")?;
 
     result

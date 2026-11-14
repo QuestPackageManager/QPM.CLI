@@ -1,16 +1,15 @@
-use std::io::Cursor;
+use std::io::BufReader;
 
 use color_eyre::eyre::{Context, ContextCompat, Result, bail};
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::PackageConfig, qpackages::QPackagesPackage, shared_package::SharedPackageConfig,
 };
-use sha2::{Digest, Sha256};
 
 use crate::{
     models::qpkg_file::QpkgFile,
     repository::{Repository, qpackages::QPMRepository},
-    services::network::download_bytes,
+    services::network::download_to_tempfile_hashed,
     terminal::colors::QPMColor,
 };
 
@@ -27,6 +26,7 @@ impl PackagePublisher {
     /// `repo`, downloads the qpkg at `qpkg_url` and checks its embedded config matches
     /// `package` exactly, then computes its checksum.
     pub fn validate(
+        agent: &ureq::Agent,
         package: PackageConfig,
         shared_package: &SharedPackageConfig,
         qpkg_url: String,
@@ -34,11 +34,8 @@ impl PackagePublisher {
     ) -> Result<Self> {
         check_dependencies(&package, repo, shared_package)?;
 
-        let qpkg_cursor = Self::download_and_verify_qpkg(&qpkg_url, &package)
+        let qpkg_checksum = Self::download_and_verify_qpkg(agent, &qpkg_url, &package)
             .context("Validating QPKG failed")?;
-
-        let result = Sha256::digest(qpkg_cursor.get_ref());
-        let qpkg_checksum = hex::encode(result);
 
         Ok(Self {
             package,
@@ -47,18 +44,18 @@ impl PackagePublisher {
         })
     }
 
+    /// Returns the hex sha256 of the downloaded archive
     fn download_and_verify_qpkg(
+        agent: &ureq::Agent,
         qpkg_url: &str,
         package: &PackageConfig,
-    ) -> Result<Cursor<bytes::BytesMut>> {
+    ) -> Result<String> {
         // TODO: What if the URL is not accessible due to Authorization or rate limits?
-        let bytes = download_bytes(qpkg_url).context(
+        let (file, checksum) = download_to_tempfile_hashed(agent, qpkg_url).context(
             "Downloading qpkg file failed. QPKG URL must be accessible at time of publishing",
         )?;
 
-        let cursor = Cursor::new(bytes);
-
-        let qpkg_file = QpkgFile::open(cursor).context("Failed to read QPKG")?;
+        let qpkg_file = QpkgFile::open(BufReader::new(file)).context("Failed to read QPKG")?;
         if qpkg_file.manifest().config != *package {
             bail!(
                 "QPKG config mismatch. Expected{:#?}\nGot {:#?}",
@@ -67,18 +64,22 @@ impl PackagePublisher {
             );
         }
 
-        Ok(qpkg_file.into_inner())
+        Ok(checksum)
     }
 
     /// Submits the validated package to the qpackages.dev backend using the given auth token
-    pub fn publish_to_qpackages(&self, auth_token: &str) -> Result<QPackagesPackage> {
+    pub fn publish_to_qpackages(
+        &self,
+        qpackages: &QPMRepository,
+        auth_token: &str,
+    ) -> Result<QPackagesPackage> {
         let qpackage = QPackagesPackage {
             config: self.package.clone(),
             qpkg_checksum: Some(self.qpkg_checksum.clone()),
             qpkg_url: self.qpkg_url.clone(),
         };
 
-        QPMRepository::publish_package(&qpackage, auth_token)?;
+        qpackages.publish_package(&qpackage, auth_token)?;
 
         Ok(qpackage)
     }

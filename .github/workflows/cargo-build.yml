@@ -158,8 +158,6 @@ jobs:
       - name: Cargo test
         if: matrix.run_test == true
         continue-on-error: true # TODO: Fix when tests are ready
-        env:
-          QPM_DISABLE_GLOBAL_CONFIG: "1" # Disable global config operations during tests
         run: cargo test --release
 
       - name: Artifact Upload

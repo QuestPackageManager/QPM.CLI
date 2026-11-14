@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
@@ -7,7 +8,6 @@ use qpm_qmod::models::mod_json::ModJson;
 
 use crate::models::mod_json::{ModJsonExtensions, PreProcessingData};
 use crate::models::package::{PackageConfigExtensions, SharedPackageConfigExtensions};
-use crate::repository;
 
 use qpm_package::models::package::{PackageConfig, QPM_ENV_GAME_ID, QPM_ENV_GAME_VERSION};
 
@@ -36,18 +36,20 @@ pub struct ManifestQmodOperationArgs {
 
 // This will parse the `qmod.template.json` and process it, then finally export a `qmod.json` for packaging and deploying.
 pub(crate) fn execute_qmod_manifest_operation(
+    ctx: &QpmContext,
     build_parameters: ManifestQmodOperationArgs,
 ) -> Result<()> {
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
-    let new_json = generate_qmod_manifest(&package, shared_package, build_parameters)?;
+    let new_json = generate_qmod_manifest(ctx, &package, shared_package, build_parameters)?;
     // Write mod.json
     new_json.write(&PathBuf::from(ModJson::get_result_name()))?;
     Ok(())
 }
 
 pub(crate) fn generate_qmod_manifest(
+    ctx: &QpmContext,
     package: &PackageConfig,
     shared_package: SharedPackageConfig,
     build_parameters: ManifestQmodOperationArgs,
@@ -101,7 +103,7 @@ pub(crate) fn generate_qmod_manifest(
     };
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data, mod_template)?;
 
-    let repo = repository::useful_default_new(build_parameters.offline)?;
+    let repo = ctx.repositories(build_parameters.offline)?;
     let template_mod_json: ModJson = shared_package.to_mod_json(&repo)?;
 
     // Merge the existing json with the template mod json

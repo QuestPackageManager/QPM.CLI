@@ -25,19 +25,18 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     models::{
-        config::get_combine_config,
         package::PackageConfigExtensions,
         package_files::PackageIdPath,
         qpkg::QPkgExtensions,
         qpkg_file::QpkgFile,
         schemas::{SchemaLinks, WithSchema},
     },
-    services::{network::download_bytes, pubgrub::ResolvedDependency},
+    services::{network::download_to_tempfile_hashed, pubgrub::ResolvedDependency},
     terminal::colors::QPMColor,
     utils::{fs::copy_things, json},
 };
 
-use super::{Artifact, Repository};
+use super::{Artifact, Repository, Versions};
 
 // All files must exist
 pub struct PackageFiles {
@@ -54,8 +53,6 @@ pub struct FileRepositoryRegistry {
     pub artifacts: HashMap<DependencyId, HashMap<Version, Artifact>>,
 }
 
-// TODO: Somehow make a global singleton of sorts/cached instance to share across places
-// like resolver
 #[derive(Clone, Debug, Default)]
 pub struct FileRepository {
     root: PathBuf,
@@ -103,17 +100,23 @@ impl FileRepository {
         qpkg_checksum: Option<String>,
         overwrite_existing: bool,
     ) -> Result<()> {
-        let id_artifacts = self
-            .registry
-            .artifacts
-            .entry(package.id.clone())
-            .or_default();
-
-        let entry = id_artifacts.entry(package.version.clone());
         let artifact = Artifact {
             config: package,
             qpkg_checksum,
+            qpkg_url: None,
         };
+        self.insert_artifact(artifact, overwrite_existing);
+        Ok(())
+    }
+
+    /// Registers `artifact` in the index (in memory; call [`Self::write`] to persist)
+    fn insert_artifact(&mut self, artifact: Artifact, overwrite_existing: bool) {
+        let entry = self
+            .registry
+            .artifacts
+            .entry(artifact.config.id.clone())
+            .or_default()
+            .entry(artifact.config.version.clone());
 
         match entry {
             Entry::Occupied(mut e) => {
@@ -125,20 +128,6 @@ impl FileRepository {
                 e.insert(artifact);
             }
         };
-
-        Ok(())
-    }
-
-    /// for local qpm-rs installs
-    pub fn add_artifact_and_cache(
-        &mut self,
-        package: PackageConfig,
-        qpkg_checksum: Option<String>,
-        overwrite_existing: bool,
-    ) -> Result<()> {
-        self.add_artifact_to_map(package, qpkg_checksum, overwrite_existing)?;
-
-        Ok(())
     }
 
     #[deprecated(note = "Use qpkg_install instead")]
@@ -229,16 +218,6 @@ impl FileRepository {
     /// `root/qpm.repository.json`.
     pub fn read(root: PathBuf) -> Result<Self> {
         let registry_path = root.join("qpm.repository.json");
-        Self::read_at(root, registry_path)
-    }
-
-    /// Reads the file repository rooted at the user's configured global cache directory, with
-    /// its registry index at the OS config directory (the real, on-disk layout used by `qpm2`)
-    pub fn read_global_cache() -> Result<Self> {
-        Self::read_at(Self::cache_root(), Self::global_file_repository_path())
-    }
-
-    fn read_at(root: PathBuf, registry_path: PathBuf) -> Result<Self> {
         fs::create_dir_all(registry_path.parent().unwrap())
             .context("Failed to make config folder")?;
 
@@ -272,28 +251,6 @@ impl FileRepository {
         Ok(())
     }
 
-    /// Returns the path to the global file repository
-    pub fn global_file_repository_path() -> PathBuf {
-        Self::global_repository_dir().join("qpm.repository.json")
-    }
-
-    /// Returns the global repository directory, which is usually in the user's config directory
-    pub fn global_repository_dir() -> PathBuf {
-        dirs::config_dir().unwrap().join("QPM-RS2")
-    }
-
-    pub fn clear() -> Result<(), std::io::Error> {
-        fs::remove_file(Self::global_file_repository_path())
-    }
-
-    /// Returns the root cache directory packages are installed under
-    fn cache_root() -> PathBuf {
-        get_combine_config()
-            .cache
-            .clone()
-            .expect("No cache path set")
-    }
-
     pub fn install_qpkg<T>(
         &mut self,
         mut buffer: T,
@@ -318,6 +275,23 @@ impl FileRepository {
             .seek(std::io::SeekFrom::Start(0))
             .context("Failed to seek in buffer")?;
 
+        self.install_qpkg_with_checksum(buffer, qpkg_checksum, None, overwrite_existing, version)
+    }
+
+    /// [`Self::install_qpkg`] for an archive whose sha256 (`qpkg_checksum`) is already known.
+    /// `qpkg_url` is where it was downloaded from, if anywhere; it is recorded in the index so
+    /// the package can be fetched again if its cached files go missing.
+    fn install_qpkg_with_checksum<T>(
+        &mut self,
+        buffer: T,
+        qpkg_checksum: String,
+        qpkg_url: Option<&str>,
+        overwrite_existing: bool,
+        version: Option<Version>,
+    ) -> color_eyre::Result<Artifact>
+    where
+        T: Read + Seek,
+    {
         // Open and read QPKG
         let qpkg_file = QpkgFile::open(buffer).context("Failed to read QPKG")?;
 
@@ -403,13 +377,15 @@ impl FileRepository {
         })?;
 
         // Update repository index
-        self.add_artifact_and_cache(extracted_config.clone(), Some(qpkg_checksum.clone()), true)?;
-        self.write()?;
-
-        Ok(Artifact {
+        let artifact = Artifact {
             config: extracted_config,
             qpkg_checksum: Some(qpkg_checksum),
-        })
+            qpkg_url: qpkg_url.map(str::to_string),
+        };
+        self.insert_artifact(artifact.clone(), true);
+        self.write()?;
+
+        Ok(artifact)
     }
 
     /// Downloads a QPKG from a URL, optionally verifies its checksum, then installs it to the cache.
@@ -417,30 +393,35 @@ impl FileRepository {
     /// and dependency-level `qpkgUrl` overrides.
     pub fn install_qpkg_from_url(
         &mut self,
+        agent: &ureq::Agent,
         url: &str,
         checksum: Option<&str>,
         overwrite_existing: bool,
         version: Option<Version>,
     ) -> color_eyre::Result<Artifact> {
         println!("Downloading {}", url.file_path_color());
-        let bytes = download_bytes(url)?;
+        // hashed while streaming to disk, so the archive is neither held in memory nor
+        // hashed a second time on install
+        let (file, hash_hex) = download_to_tempfile_hashed(agent, url)?;
 
-        if let Some(checksum) = checksum {
-            let result = Sha256::digest(&bytes);
-            let hash_hex = hex::encode(result);
-
-            if !hash_hex.eq_ignore_ascii_case(checksum) {
-                bail!(
-                    "Checksum mismatch for {}: expected {}, got {}",
-                    url.blue(),
-                    checksum,
-                    hash_hex
-                );
-            }
+        if let Some(checksum) = checksum
+            && !hash_hex.eq_ignore_ascii_case(checksum)
+        {
+            bail!(
+                "Checksum mismatch for {}: expected {}, got {}",
+                url.blue(),
+                checksum,
+                hash_hex
+            );
         }
 
-        let cursor = std::io::Cursor::new(bytes);
-        self.install_qpkg(cursor, overwrite_existing, version)
+        self.install_qpkg_with_checksum(
+            BufReader::new(file),
+            hash_hex,
+            Some(url),
+            overwrite_existing,
+            version,
+        )
     }
 
     pub fn copy_from_cache(
@@ -448,11 +429,9 @@ impl FileRepository {
         package: &PackageConfig,
         restored_deps: &[ResolvedDependency],
         workspace_dir: &Path,
+        symlink: bool,
     ) -> Result<()> {
         let files = self.collect_deps(package, restored_deps, workspace_dir)?;
-
-        let config = get_combine_config();
-        let symlink = config.symlink.unwrap_or(true);
 
         let copy_dir_options = fs_extra::dir::CopyOptions {
             overwrite: true,
@@ -754,7 +733,7 @@ impl FileRepository {
 }
 
 impl Repository for FileRepository {
-    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Versions>> {
         Ok(self.get_artifacts_from_id(id).map(|artifacts| {
             artifacts
                 .keys()
@@ -789,21 +768,55 @@ impl Repository for FileRepository {
         Ok(())
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
-        if !exist_in_db {
-            return Ok(false);
+    /// True if `artifact` is already cached. Otherwise downloads it from its `qpkg_url` (from
+    /// qpackages, a dependency override, or this cache's own record).
+    fn download_to_cache(&mut self, agent: &ureq::Agent, artifact: &Artifact) -> Result<bool> {
+        if self.is_cached(&artifact.config) {
+            return Ok(true);
         }
 
-        let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
-        let cache_root = &self.root;
-        if !package_path.src_path(cache_root).exists() {
+        // fall back to where this cache last installed it from
+        let qpkg_url = artifact.qpkg_url.clone().or_else(|| {
+            self.get_artifact(&artifact.config.id, &artifact.config.version)
+                .and_then(|cached| cached.qpkg_url.clone())
+        });
+        let Some(qpkg_url) = qpkg_url else {
             return Ok(false);
-        }
+        };
 
-        let config = PackageConfig::read(package_path.qpm_json_dir(cache_root));
+        let config = &artifact.config;
+        println!(
+            "Downloading dependency {} {}",
+            config.id.dependency_id_color(),
+            config.version.version_id_color()
+        );
 
-        Ok(exist_in_db && package_path.src_path(cache_root).exists() && config.is_ok())
+        // not (fully) cached, so replace whatever partial install is there
+        let installed = self
+            .install_qpkg_from_url(
+                agent,
+                &qpkg_url,
+                artifact.qpkg_checksum.as_deref(),
+                true,
+                None,
+            )
+            .with_context(|| {
+                format!(
+                    "Installing {}:{} from {qpkg_url}",
+                    config.id, config.version
+                )
+            })?;
+
+        ensure!(
+            installed.config == *config,
+            "Package config mismatch for {}:{} from {qpkg_url}: expected {:?}, got {:?}",
+            config.id.dependency_id_color(),
+            config.version.version_id_color(),
+            config,
+            installed.config
+        );
+
+        Ok(true)
     }
 
     fn write_repo(&self) -> Result<()> {
@@ -812,5 +825,23 @@ impl Repository for FileRepository {
 
     fn is_online(&self) -> bool {
         false
+    }
+}
+
+impl FileRepository {
+    /// Registered in the index, with its files and config present on disk
+    fn is_cached(&self, config: &PackageConfig) -> bool {
+        let exist_in_db = self.get_artifact(&config.id, &config.version).is_some();
+        if !exist_in_db {
+            return false;
+        }
+
+        let package_path = PackageIdPath::new(config.id.clone()).version(config.version.clone());
+        let cache_root = &self.root;
+        if !package_path.src_path(cache_root).exists() {
+            return false;
+        }
+
+        PackageConfig::read(package_path.qpm_json_dir(cache_root)).is_ok()
     }
 }

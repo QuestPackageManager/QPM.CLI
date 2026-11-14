@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use color_eyre::Result;
@@ -28,7 +29,7 @@ pub mod version;
 pub mod templatr;
 
 pub trait Command {
-    fn execute(self) -> Result<()>;
+    fn execute(self, ctx: &QpmContext) -> Result<()>;
 }
 
 #[derive(Parser)]
@@ -105,34 +106,34 @@ pub enum MainCommand {
 }
 
 impl Command for MainCommand {
-    fn execute(self) -> Result<()> {
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
         match self {
-            MainCommand::Restore(r) => r.execute(),
-            MainCommand::Cache(c) => c.execute(),
-            MainCommand::Clear(c) => c.execute(),
-            MainCommand::Collapse(c) => c.execute(),
-            MainCommand::Config(c) => c.execute(),
-            MainCommand::Dependency(c) => c.execute(),
-            MainCommand::Package(c) => c.execute(),
-            MainCommand::List(c) => c.execute(),
-            MainCommand::Publish(c) => c.execute(),
-            MainCommand::Qmod(c) => c.execute(),
-            MainCommand::Install(c) => c.execute(),
-            MainCommand::Doctor(c) => c.execute(),
-            MainCommand::Download(c) => c.execute(),
-            MainCommand::Ndk(n) => n.execute(),
+            MainCommand::Restore(r) => r.execute(ctx),
+            MainCommand::Cache(c) => c.execute(ctx),
+            MainCommand::Clear(c) => c.execute(ctx),
+            MainCommand::Collapse(c) => c.execute(ctx),
+            MainCommand::Config(c) => c.execute(ctx),
+            MainCommand::Dependency(c) => c.execute(ctx),
+            MainCommand::Package(c) => c.execute(ctx),
+            MainCommand::List(c) => c.execute(ctx),
+            MainCommand::Publish(c) => c.execute(ctx),
+            MainCommand::Qmod(c) => c.execute(ctx),
+            MainCommand::Install(c) => c.execute(ctx),
+            MainCommand::Doctor(c) => c.execute(ctx),
+            MainCommand::Download(c) => c.execute(ctx),
+            MainCommand::Ndk(n) => n.execute(ctx),
 
             #[cfg(feature = "migrate")]
-            MainCommand::Migrate(c) => c.execute(),
-            MainCommand::Add(add) => add.execute(),
-            MainCommand::Scripts(s) => s.execute(),
-            MainCommand::Version(v) => v.execute(),
-            MainCommand::GenSchema(g) => g.execute(),
-            MainCommand::QPkg(q) => q.execute(),
-            MainCommand::Build(build_command) => build_command.execute(),
+            MainCommand::Migrate(c) => c.execute(ctx),
+            MainCommand::Add(add) => add.execute(ctx),
+            MainCommand::Scripts(s) => s.execute(ctx),
+            MainCommand::Version(v) => v.execute(ctx),
+            MainCommand::GenSchema(g) => g.execute(ctx),
+            MainCommand::QPkg(q) => q.execute(ctx),
+            MainCommand::Build(build_command) => build_command.execute(ctx),
 
             #[cfg(feature = "templatr")]
-            MainCommand::Templatr(c) => c.execute(),
+            MainCommand::Templatr(c) => c.execute(ctx),
 
             #[cfg(feature = "quest_emu")]
             MainCommand::Emu { yes, main_command } => quest_emu::commands::Command::execute(

@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::{env, fs::File, io::Read, path::Path};
 
 use clap::Args;
@@ -13,9 +14,7 @@ use qpm_package::models::{
 use semver::Version;
 
 use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
-    repository::{self, file::FileRepository},
-    services::restore::PackageRestorer,
+    models::package::PackageConfigExtensions, services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
 
@@ -51,14 +50,14 @@ pub(crate) fn is_ignored() -> bool {
 }
 
 impl Command for RestoreCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".").context("Reading package config for restoring")?;
         // optionally does not exist
         let mut shared_package_opt = SharedPackageConfig::exists(".")
             .then(|| SharedPackageConfig::read("."))
             .transpose()?;
 
-        let mut repo = repository::useful_default_new(self.offline)?;
+        let mut repo = ctx.repositories(self.offline)?;
 
         // only update if:
         // manually
@@ -107,12 +106,14 @@ impl Command for RestoreCommand {
 
         let shared_package = restorer.shared_package();
 
-        let cache_root = get_combine_config()
-            .cache
-            .clone()
-            .expect("No cache path set");
-        let file_repo = FileRepository::read(cache_root)?;
-        restorer.restore(".", &mut repo, &file_repo)?;
+        let file_repo = ctx.file_repository()?;
+        restorer.restore(
+            (!self.offline).then(|| ctx.agent()),
+            ".",
+            &mut repo,
+            &file_repo,
+            ctx.symlink(),
+        )?;
         shared_package.write(".")?;
 
         println!(

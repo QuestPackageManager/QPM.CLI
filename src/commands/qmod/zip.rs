@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
@@ -87,6 +88,7 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
 }
 
 pub(crate) fn execute_qmod_zip_operation(
+    ctx: &QpmContext,
     build_parameters: ZipQmodOperationArgs,
     additional_include_folders: Vec<PathBuf>,
 ) -> Result<()> {
@@ -99,6 +101,7 @@ pub(crate) fn execute_qmod_zip_operation(
             serde_json::from_reader(manifest_file)?
         }
         None => generate_qmod_manifest(
+            ctx,
             &package,
             shared_package,
             ManifestQmodOperationArgs {
@@ -114,7 +117,7 @@ pub(crate) fn execute_qmod_zip_operation(
         let clean_script = &package.workspace.get_clean();
         if let Some(clean_script) = clean_script {
             println!("Running clean script");
-            scripts::invoke_script(clean_script, &[], &package)?;
+            scripts::invoke_script(ctx, clean_script, &[], &package)?;
         }
     }
 
@@ -124,7 +127,7 @@ pub(crate) fn execute_qmod_zip_operation(
         && !build_parameters.skip_build
     {
         println!("Running build script");
-        scripts::invoke_script(build_script, &[], &package)?;
+        scripts::invoke_script(ctx, build_script, &[], &package)?;
     }
 
     let mut include_dirs = additional_include_folders;

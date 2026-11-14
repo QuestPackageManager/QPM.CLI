@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::Args;
 use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 use semver::Version;
@@ -16,7 +17,7 @@ pub struct EditArgs {
 }
 
 impl Command for EditArgs {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         let mut package = PackageConfig::read(".")?;
         let mut any_changed = false;
         if let Some(version) = self.version {

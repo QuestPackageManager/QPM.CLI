@@ -5,13 +5,13 @@ use std::{cell::RefCell, collections::HashMap};
 
 use qpm_package::models::package::{DependencyId, PackageConfig};
 
-use super::{Artifact, Repository};
+use super::{Artifact, Repository, Versions};
 
 pub struct MemcachedRepository<R: Repository> {
     // interior mutability - pubgrub's DependencyProvider trait only gives us `&self` to cache
     // lookups behind
     packages_cache: RefCell<HashMap<DependencyId, HashMap<Version, Artifact>>>,
-    versions_cache: RefCell<HashMap<DependencyId, Vec<Version>>>,
+    versions_cache: RefCell<HashMap<DependencyId, Versions>>,
     package_list: RefCell<Option<Vec<DependencyId>>>,
 
     inner_repo: R,
@@ -41,7 +41,7 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
         Ok(inner_package_names)
     }
 
-    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Vec<Version>>> {
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Versions>> {
         if let Some(cached) = self.versions_cache.borrow().get(id).cloned() {
             return Ok(Some(cached));
         }
@@ -51,7 +51,7 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
         if let Some(versions) = &versions {
             self.versions_cache
                 .borrow_mut()
-                .insert(id.clone(), versions.clone());
+                .insert(id.clone(), Versions::clone(versions));
         }
 
         Ok(versions)
@@ -91,8 +91,8 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
             .add_to_db_cache(config, qpkg_checksum, permanent)
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        self.inner_repo.download_to_cache(config)
+    fn download_to_cache(&mut self, agent: &ureq::Agent, artifact: &Artifact) -> Result<bool> {
+        self.inner_repo.download_to_cache(agent, artifact)
     }
 
     fn write_repo(&self) -> Result<()> {
@@ -100,6 +100,6 @@ impl<R: Repository> Repository for MemcachedRepository<R> {
     }
 
     fn is_online(&self) -> bool {
-        false
+        self.inner_repo.is_online()
     }
 }

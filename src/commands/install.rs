@@ -1,13 +1,11 @@
+use crate::context::QpmContext;
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 use clap::Args;
 use color_eyre::eyre::{Context, bail};
 use qpm_package::models::shared_package::SharedPackageConfig;
 
-use crate::{
-    models::package::PackageConfigExtensions, repository::file::FileRepository,
-    terminal::colors::QPMColor,
-};
+use crate::{models::package::PackageConfigExtensions, terminal::colors::QPMColor};
 
 use super::Command;
 
@@ -39,17 +37,17 @@ pub struct InstallCommand {
 }
 
 impl Command for InstallCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         if self.legacy {
-            return self.local_install();
+            return self.local_install(ctx);
         }
-        self.qpkg_install()?;
+        self.qpkg_install(ctx)?;
         Ok(())
     }
 }
 
 impl InstallCommand {
-    fn qpkg_install(self) -> Result<(), color_eyre::eyre::Error> {
+    fn qpkg_install(self, ctx: &QpmContext) -> Result<(), color_eyre::eyre::Error> {
         let version = self
             .version_override
             .map(|v| {
@@ -58,7 +56,7 @@ impl InstallCommand {
             })
             .transpose()?;
 
-        let mut file_repo = FileRepository::read_global_cache()?;
+        let mut file_repo = ctx.file_repository()?;
 
         let package = if let Some(qpkg_path) = &self.qpkg_path {
             println!("Installing qpkg from path: {}", qpkg_path.display());
@@ -73,7 +71,7 @@ impl InstallCommand {
             println!("Installing qpkg from URL: {qpkg_url}");
 
             file_repo
-                .install_qpkg_from_url(qpkg_url, None, true, version)
+                .install_qpkg_from_url(ctx.agent(), qpkg_url, None, true, version)
                 .context("Installing qpkg from URL failed")?
         } else {
             bail!("Either --path or --url must be provided to install a qpkg");
@@ -88,7 +86,7 @@ impl InstallCommand {
         Ok(())
     }
 
-    fn local_install(&self) -> Result<(), color_eyre::eyre::Error> {
+    fn local_install(&self, ctx: &QpmContext) -> Result<(), color_eyre::eyre::Error> {
         println!("Publishing package to local file repository");
         let shared_package = SharedPackageConfig::read(".")?;
         let project_folder = PathBuf::from(".").canonicalize()?;
@@ -107,10 +105,10 @@ impl InstallCommand {
                 }
             }
         }
-        let mut file_repo = FileRepository::read_global_cache()?;
+        let mut file_repo = ctx.file_repository()?;
         file_repo.copy_to_cache(&shared_package.config, project_folder, binaries, false)?;
         // legacy install copies already-built binaries directly, there's no qpkg archive to checksum
-        file_repo.add_artifact_and_cache(shared_package.config, None, true)?;
+        file_repo.add_artifact_to_map(shared_package.config, None, true)?;
         file_repo.write()?;
         Ok(())
     }

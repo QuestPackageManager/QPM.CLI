@@ -42,6 +42,7 @@ fn seed_cache(
             Artifact {
                 config: dep_config.clone(),
                 qpkg_checksum: None,
+                qpkg_url: None,
             },
         )]),
     )
@@ -99,7 +100,7 @@ fn restore_copies_cached_headers_and_binaries_into_the_workspace() {
 
     let file_repo = repo.clone();
     restorer
-        .restore(workspace_dir.path(), &mut repo, &file_repo)
+        .restore(None, workspace_dir.path(), &mut repo, &file_repo, true)
         .expect("restore should succeed against the pre-seeded cache");
 
     let extern_dir = workspace_dir.path().join("extern");

@@ -4,11 +4,15 @@ use qpm_cli::services::github::{
     bleeding_release_github_artifact_url, download_github_artifact_url, get_github_branch,
     get_github_commit_diff,
 };
-use qpm_cli::services::network::get_agent;
+use qpm_cli::services::network::{DEFAULT_TIMEOUT_MS, build_agent};
+
+fn agent() -> ureq::Agent {
+    build_agent(DEFAULT_TIMEOUT_MS)
+}
 
 #[test]
 fn get_github_branch_main_is_reachable() {
-    let branch = get_github_branch("main").expect("GET branches/main should succeed");
+    let branch = get_github_branch(&agent(), "main").expect("GET branches/main should succeed");
 
     assert_eq!(branch.name, "main");
     assert!(!branch.commit.sha.is_empty());
@@ -16,8 +20,8 @@ fn get_github_branch_main_is_reachable() {
 
 #[test]
 fn get_github_commit_diff_same_ref_is_reachable_and_identical() {
-    let diff =
-        get_github_commit_diff("main", "main").expect("GET compare/main...main should succeed");
+    let diff = get_github_commit_diff(&agent(), "main", "main")
+        .expect("GET compare/main...main should succeed");
 
     assert_eq!(diff.status, "identical");
     assert_eq!(diff.ahead_by, 0);
@@ -30,10 +34,10 @@ fn get_github_commit_diff_same_ref_is_reachable_and_identical() {
 #[test]
 #[ignore = "depends on live GitHub Actions artifact state for the tip of main; skip by default"]
 fn download_github_artifact_url_for_latest_main_commit_does_not_404() {
-    let branch = get_github_branch("main").expect("GET branches/main should succeed");
+    let branch = get_github_branch(&agent(), "main").expect("GET branches/main should succeed");
     let url = download_github_artifact_url(&branch.commit.sha);
 
-    let status = get_agent()
+    let status = agent()
         .head(&url)
         .call()
         .expect("request should complete")
@@ -49,7 +53,7 @@ fn download_github_artifact_url_for_latest_main_commit_does_not_404() {
 fn bleeding_release_github_artifact_url_does_not_404() {
     let url = bleeding_release_github_artifact_url();
 
-    let status = get_agent()
+    let status = agent()
         .head(&url)
         .call()
         .expect("request should complete")

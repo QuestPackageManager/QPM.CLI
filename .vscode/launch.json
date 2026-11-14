@@ -4,7 +4,7 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'qpm_cli'",
+      "name": "Debug qpm2 restore (test_package)",
       "cargo": {
         "args": ["build", "--bin=qpm2", "--package=qpm_cli"],
         "filter": {
@@ -12,18 +12,18 @@
           "kind": "bin"
         }
       },
-      "args": ["restore","default"],
+      "args": ["restore"],
       "cwd": "${workspaceFolder}/test_package"
     },
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug unit tests in executable 'qpm_cli'",
+      "name": "Debug unit tests in library 'qpm_cli'",
       "cargo": {
-        "args": ["test", "--no-run", "--bin=qpm", "--package=qpm_cli"],
+        "args": ["test", "--no-run", "--lib", "--package=qpm_cli"],
         "filter": {
-          "name": "qpm2",
-          "kind": "bin"
+          "name": "qpm_cli",
+          "kind": "lib"
         }
       },
       "args": [],

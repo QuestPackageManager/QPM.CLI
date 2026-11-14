@@ -1,11 +1,9 @@
+use crate::context::QpmContext;
 use clap::Args;
 use owo_colors::OwoColorize;
 use qpm_package::models::package::DependencyId;
 
-use crate::{
-    commands::Command,
-    repository::{self, Repository},
-};
+use crate::{commands::Command, repository::Repository};
 
 #[derive(Args, Debug, Clone)]
 pub struct PackageCommand {
@@ -18,8 +16,9 @@ pub struct PackageCommand {
 }
 
 impl Command for PackageCommand {
-    fn execute(self) -> color_eyre::Result<()> {
-        let versions = repository::useful_default_new(self.offline)?
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
+        let versions = ctx
+            .repositories(self.offline)?
             .get_package_versions(&DependencyId(self.package.clone()))?;
 
         match versions {

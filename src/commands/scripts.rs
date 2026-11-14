@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::process::{Stdio, exit};
 
 use clap::Args;
@@ -7,10 +8,7 @@ use itertools::Itertools;
 use qpm_arg_tokenizer::arg::Expression;
 use qpm_package::models::package::PackageConfig;
 
-use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
-    services::ndk,
-};
+use crate::{models::package::PackageConfigExtensions, services::ndk};
 
 use super::Command;
 
@@ -24,7 +22,7 @@ pub struct ScriptsCommand {
 }
 
 impl Command for ScriptsCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
         let scripts = &package.workspace.scripts;
@@ -35,22 +33,19 @@ impl Command for ScriptsCommand {
             bail!("Could not find script {}", self.script);
         };
 
-        invoke_script(script, &self.args, &package)?;
+        invoke_script(ctx, script, &self.args, &package)?;
 
         Ok(())
     }
 }
 
 pub fn invoke_script(
+    ctx: &QpmContext,
     script_commands: &[String],
     supplied_args: &[String],
     package: &PackageConfig,
 ) -> Result<(), color_eyre::eyre::Error> {
-    let ndk_download_path = get_combine_config()
-        .ndk_download_path
-        .as_ref()
-        .expect("No NDK download path set");
-    let android_ndk_home = ndk::resolve_ndk_version(package, ndk_download_path);
+    let android_ndk_home = ndk::resolve_ndk_version(package, ctx.ndk_download_path()?);
 
     for command_str in script_commands {
         let split = command_str.split_once(' ');

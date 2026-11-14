@@ -11,6 +11,7 @@ rust-version = "1.90"
 [[bin]]
 name = "qpm2"
 path = "src/main.rs"
+required-features = ["cli"]
 
 [lib]
 required-features = []
@@ -38,7 +39,6 @@ color-eyre = { version = "0.6", default-features = false }
 [dev-dependencies]
 bstr = "1.12"
 predicates = "3.1.0"
-tempfile = "3.23"
 assert_fs = "1.1.0"
 color-eyre = { version = "0.6", default-features = false }
 
@@ -56,7 +56,6 @@ pathdiff = "0.2"
 # No need for tracing support
 color-eyre = { version = "0.6", default-features = false }
 
-bytes = "*"
 ureq = { version = "3", features = [
     "rustls",
     "json",
@@ -98,6 +97,7 @@ zip = { version = "9", default-features = false, features = [
 ] }
 
 walkdir = "2"
+tempfile = "3.23"
 symlink = "0.1.0"
 fs_extra = "1.2"
 itertools = "0.15"

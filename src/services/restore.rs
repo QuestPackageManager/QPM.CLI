@@ -1,7 +1,6 @@
 use std::{borrow::Cow, path::Path, time::Instant};
 
-use color_eyre::eyre::{Context, Result, bail};
-use itertools::Itertools;
+use color_eyre::eyre::{Context, Result, bail, eyre};
 use pubgrub::{DefaultStringReporter, PubGrubError, Reporter};
 use qpm_package::models::{
     package::PackageConfig,
@@ -42,17 +41,9 @@ impl<'a> PackageRestorer<'a> {
             repo: repository,
         };
         let time = Instant::now();
-        let result = match pubgrub::resolve(&resolver, config.id.clone(), config.version.clone()) {
-            Ok(deps) => deps.into_iter().filter_map(|(id, version)| {
-                if id == config.id && version == config.version {
-                    return None;
-                }
-
-                repository
-                    .get_package(&id, &version.into())
-                    .expect("Failed to get package")
-            }),
-
+        let solution = match pubgrub::resolve(&resolver, config.id.clone(), config.version.clone())
+        {
+            Ok(deps) => deps,
             Err(PubGrubError::NoSolution(tree)) => {
                 let report = DefaultStringReporter::report(&tree);
                 bail!("failed to resolve dependencies: \n{}", report);
@@ -65,7 +56,19 @@ impl<'a> PackageRestorer<'a> {
         let sw = time.elapsed();
         println!("Took {}ms to dependency resolve", sw.as_millis());
 
-        let resolved_dependencies = result.collect_vec();
+        let resolved_dependencies = solution
+            .into_iter()
+            .filter(|(id, version)| !(*id == config.id && *version == config.version))
+            .map(|(id, version)| {
+                let version: semver::Version = version.into();
+                repository
+                    .get_package(&id, &version)
+                    .with_context(|| format!("Failed to get resolved package {id}:{version}"))?
+                    .ok_or_else(|| {
+                        eyre!("Resolved package {id}:{version} disappeared from the repository")
+                    })
+            })
+            .collect::<Result<Vec<_>>>()?;
 
         let restored_dependencies = resolved_dependencies
             .iter()
@@ -116,34 +119,34 @@ impl<'a> PackageRestorer<'a> {
             .restored_dependencies
             .iter()
             .map(|(dep_id, dep)| {
+                let version = &dep.restored_version;
                 repository
-                    .get_package(dep_id, &dep.restored_version)
-                    .unwrap_or_else(|e| {
-                        panic!(
-                            "Encountered an issue resolving for package {}:{} {e:#?}",
-                            dep_id.0, dep.restored_version
-                        )
+                    .get_package(dep_id, version)
+                    .with_context(|| format!("Failed to get locked package {dep_id}:{version}"))?
+                    .ok_or_else(|| {
+                        eyre!("No package found for locked dependency {dep_id}:{version}")
                     })
-                    .unwrap_or_else(|| {
-                        panic!("No package found for {}:{}", dep_id.0, dep.restored_version)
-                    })
-            });
+            })
+            .collect::<Result<Box<[_]>>>()?;
 
         Ok(Self {
-            resolved_deps: packages.collect(),
+            resolved_deps: packages,
             shared_package: Cow::Borrowed(shared_package),
         })
     }
 
     /// Restore dependencies for a package
-    /// This will download the dependencies to the cache and copy them to the workspace
+    /// This will download the dependencies to the cache (unless `agent` is `None`, i.e. offline)
+    /// and copy them to the workspace
     /// It will also generate the toolchain JSON file if specified
     /// Returns an error if any dependency fails to download or copy
     pub fn restore<P: AsRef<Path>>(
         &self,
+        agent: Option<&ureq::Agent>,
         workspace: P,
         repository: &mut impl Repository,
         file_repo: &FileRepository,
+        symlink: bool,
     ) -> color_eyre::Result<()> {
         for dep in &self.resolved_deps {
             println!(
@@ -151,13 +154,14 @@ impl<'a> PackageRestorer<'a> {
                 dep.config.id.0.dependency_id_color(),
                 dep.config.version.to_string().dependency_version_color(),
             );
-            repository.download_to_cache(&dep.config).with_context(|| {
+            repository.download_to_cache(agent, dep).with_context(|| {
                 format!(
                     "Requesting {}:{}",
                     dep.config.id.0.dependency_id_color(),
                     dep.config.version.version_id_color()
                 )
             })?;
+            
             repository.add_to_db_cache(dep.config.clone(), dep.qpkg_checksum.clone(), true)?;
         }
 
@@ -167,6 +171,7 @@ impl<'a> PackageRestorer<'a> {
             &self.shared_package.config,
             &self.resolved_deps,
             workspace.as_ref(),
+            symlink,
         )?;
 
         self.shared_package

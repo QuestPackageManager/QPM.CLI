@@ -82,12 +82,13 @@ pub fn range_match_ndk<'a>(
 /// (parsed as a requirement) when `online` is false, or a fuzzy manifest match when `online`
 /// is true (allowing versions that aren't installed yet).
 pub fn resolve_pin_version(
+    agent: &ureq::Agent,
     version: &str,
     online: bool,
     installed_ndks: &[PathBuf],
 ) -> Result<String> {
     if online {
-        let manifest = get_android_manifest()?;
+        let manifest = get_android_manifest(agent)?;
         return Ok(fuzzy_match_ndk(&manifest, version)?.0);
     }
 
@@ -114,6 +115,7 @@ pub fn resolve_pin_version(
 /// matching version if `download` is true and none is installed. Errors (with a download
 /// suggestion) if no NDK satisfies the requirement and downloading wasn't requested.
 pub fn resolve_ndk_for_package(
+    agent: &ureq::Agent,
     package: &PackageConfig,
     download: bool,
     quiet: bool,
@@ -130,16 +132,16 @@ pub fn resolve_ndk_for_package(
     }
 
     if download {
-        let manifest = get_android_manifest()?;
+        let manifest = get_android_manifest(agent)?;
         let (_version, ndk) = range_match_ndk(&manifest, &ndk_requirement)?;
-        return download_ndk_version(ndk, !quiet, ndk_download_path);
+        return download_ndk_version(agent, ndk, !quiet, ndk_download_path);
     }
 
     let mut report = eyre!("No NDK version installed that satisfies {ndk_requirement}")
         .note("-d/--download not set, not downloading!");
 
     // look up a version suitable to work with, allowing this to work offline
-    let manifest = get_android_manifest().ok();
+    let manifest = get_android_manifest(agent).ok();
     let suggested_version = manifest
         .as_ref()
         .and_then(|manifest| range_match_ndk(manifest, &ndk_requirement).ok());
@@ -319,11 +321,17 @@ mod tests {
         assert!(range_match_ndk(&manifest, &req).is_err());
     }
 
+    /// Offline code paths never make a request with it
+    fn test_agent() -> ureq::Agent {
+        crate::services::network::build_agent(crate::services::network::DEFAULT_TIMEOUT_MS)
+    }
+
     #[test]
     fn resolve_pin_version_offline_picks_highest_installed_satisfying_version() {
         let (_root, paths) = installed_ndk_dirs(&["24.0.0", "25.1.0", "26.0.0"]);
 
-        let pinned = resolve_pin_version(">=25.0.0, <26.0.0", false, &paths).unwrap();
+        let pinned =
+            resolve_pin_version(&test_agent(), ">=25.0.0, <26.0.0", false, &paths).unwrap();
 
         assert_eq!(pinned, "25.1.0");
     }
@@ -332,6 +340,6 @@ mod tests {
     fn resolve_pin_version_offline_errors_when_nothing_installed_matches() {
         let (_root, paths) = installed_ndk_dirs(&["24.0.0"]);
 
-        assert!(resolve_pin_version("^25", false, &paths).is_err());
+        assert!(resolve_pin_version(&test_agent(), "^25", false, &paths).is_err());
     }
 }

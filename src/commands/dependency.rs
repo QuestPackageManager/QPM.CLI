@@ -1,4 +1,5 @@
 use super::package::format::reserialize_package;
+use crate::context::QpmContext;
 use clap::{Args, Subcommand};
 use color_eyre::{
     Result,
@@ -8,10 +9,8 @@ use qpm_package::models::package::{DependencyId, PackageConfig, PackageDependenc
 use semver::{Version, VersionReq};
 
 use crate::{
-    models::package::PackageConfigExtensions,
-    repository::{self, Repository},
-    services::restore::PackageRestorer,
-    terminal::colors::QPMColor,
+    models::package::PackageConfigExtensions, repository::Repository,
+    services::restore::PackageRestorer, terminal::colors::QPMColor,
 };
 
 use super::Command;
@@ -80,21 +79,21 @@ pub struct DependencyOperationRemoveArgs {
 }
 
 impl Command for DependencyCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         match self.op {
-            DependencyOperation::Add(a) => a.execute(),
+            DependencyOperation::Add(a) => a.execute(ctx),
             DependencyOperation::Remove(r) => remove_dependency(r),
-            DependencyOperation::Download(f) => download_dependency(f),
+            DependencyOperation::Download(f) => download_dependency(ctx, f),
             DependencyOperation::Sort => reserialize_package(true),
         }
     }
 }
 
 impl Command for DependencyOperationAddArgs {
-    fn execute(self) -> Result<()> {
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
         let id = DependencyId(self.id);
 
-        let repo = repository::useful_default_new(self.offline)?;
+        let repo = ctx.repositories(self.offline)?;
 
         let versions = repo
             .get_package_versions(&id)
@@ -174,10 +173,13 @@ fn remove_dependency(dependency_args: DependencyOperationRemoveArgs) -> Result<(
     Ok(())
 }
 
-fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Result<()> {
+fn download_dependency(
+    ctx: &QpmContext,
+    dependency_args: DependencyOperationDownloadArgs,
+) -> Result<()> {
     let id = DependencyId(dependency_args.id);
 
-    let mut repository = repository::useful_default_new(false)?;
+    let mut repository = ctx.repositories(false)?;
     let version = match dependency_args.version {
         Some(v) => v,
         _ => {
@@ -193,16 +195,14 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
         }
     };
 
-    let package = repository
-        .get_package(&id, &version)?
-        .with_context(|| {
-            format!(
-                "Failed to resolve package {}:{}",
-                id.dependency_id_color(),
-                version.dependency_version_color()
-            )
-        })?
-        .config;
+    let artifact = repository.get_package(&id, &version)?.with_context(|| {
+        format!(
+            "Failed to resolve package {}:{}",
+            id.dependency_id_color(),
+            version.dependency_version_color()
+        )
+    })?;
+    let package = artifact.config.clone();
 
     let version = package.version.clone();
 
@@ -216,13 +216,15 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
                 id.dependency_id_color(),
                 version.to_string().dependency_version_color()
             );
-            repository.download_to_cache(&dep.config).with_context(|| {
-                format!(
-                    "Requesting {}:{}",
-                    id.dependency_id_color(),
-                    version.version_id_color()
-                )
-            })?;
+            repository
+                .download_to_cache(ctx.agent(), &dep)
+                .with_context(|| {
+                    format!(
+                        "Requesting {}:{}",
+                        id.dependency_id_color(),
+                        version.version_id_color()
+                    )
+                })?;
             repository.add_to_db_cache(dep.config, dep.qpkg_checksum, true)?;
         }
 
@@ -234,17 +236,16 @@ fn download_dependency(dependency_args: DependencyOperationDownloadArgs) -> Resu
         id.dependency_id_color(),
         version.to_string().dependency_version_color()
     );
-    repository.download_to_cache(&package).with_context(|| {
-        format!(
-            "Requesting {}:{}",
-            id.dependency_id_color(),
-            version.version_id_color()
-        )
-    })?;
-    let qpkg_checksum = repository
-        .get_package(&package.id, &package.version)?
-        .and_then(|a| a.qpkg_checksum);
-    repository.add_to_db_cache(package, qpkg_checksum, true)?;
+    repository
+        .download_to_cache(ctx.agent(), &artifact)
+        .with_context(|| {
+            format!(
+                "Requesting {}:{}",
+                id.dependency_id_color(),
+                version.version_id_color()
+            )
+        })?;
+    repository.add_to_db_cache(package, artifact.qpkg_checksum, true)?;
 
     repository.write_repo()?;
 

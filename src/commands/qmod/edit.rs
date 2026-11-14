@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::path::Path;
 
 use clap::Args;
@@ -38,7 +39,7 @@ pub struct EditQmodJsonCommand {
 }
 
 impl Command for EditQmodJsonCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
         let mod_template = package

@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::fs;
 
 use clap::Args;
@@ -10,7 +11,7 @@ use crate::{commands::Command, models::package::PackageConfigExtensions};
 pub struct FormatArgs {}
 
 impl Command for FormatArgs {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         reserialize_package(false)?;
         Ok(())
     }

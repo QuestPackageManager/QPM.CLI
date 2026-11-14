@@ -2,25 +2,15 @@ use std::{
     fs::{self, File},
     io::BufReader,
     path::{Path, PathBuf},
-    sync,
 };
 
 use color_eyre::{Result, eyre::Context};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use walkdir::WalkDir;
 
 use crate::utils::json;
 
 use super::schemas::{SchemaLinks, WithSchema};
-
-// Cached per-process: in-process test harnesses running multiple "invocations" only
-// ever see the first one's config.
-static COMBINED_CONFIG: sync::OnceLock<UserConfig> = sync::OnceLock::new();
-
-pub fn get_combine_config() -> &'static UserConfig {
-    COMBINED_CONFIG.get_or_init(|| UserConfig::read_combine().unwrap())
-}
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug, Hash, PartialEq, Eq)]
 #[allow(non_snake_case)]
@@ -58,11 +48,6 @@ impl UserConfig {
     }
 
     pub fn read_global() -> Result<Self> {
-        // During tests, use a default configuration instead of reading from the global file
-        if std::env::var("QPM_DISABLE_GLOBAL_CONFIG").is_ok() {
-            return Ok(Self::default());
-        }
-
         fs::create_dir_all(Self::global_config_path().parent().unwrap())?;
 
         if !Self::global_config_path().exists() {
@@ -97,11 +82,6 @@ impl UserConfig {
     }
 
     pub fn write(&self, workspace: bool) -> Result<()> {
-        // During tests, don't write to the global configuration file
-        if !workspace && std::env::var("QPM_DISABLE_GLOBAL_CONFIG").is_ok() {
-            return Ok(());
-        }
-
         let path = if workspace {
             Path::new(".").join(Self::config_file_name())
         } else {
@@ -135,14 +115,6 @@ impl UserConfig {
             },
             None => global,
         })
-    }
-
-    pub fn get_ndk_installed(&self) -> WalkDir {
-        let dir = get_combine_config()
-            .ndk_download_path
-            .as_ref()
-            .expect("No NDK download path set");
-        WalkDir::new(dir).max_depth(1)
     }
 }
 

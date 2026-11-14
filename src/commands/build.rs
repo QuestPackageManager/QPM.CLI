@@ -6,6 +6,7 @@
 //! 3. Execute build script from workspace.scripts.build
 //! 4. Optionally create QMOD package if --qmod flag is set
 
+use crate::context::QpmContext;
 use std::path::PathBuf;
 
 use clap::Args;
@@ -21,8 +22,8 @@ use crate::{
         qmod::zip,
         scripts,
     },
-    models::{config::get_combine_config, package::PackageConfigExtensions},
-    repository::{self, file::FileRepository},
+    models::package::PackageConfigExtensions,
+    repository::file::FileRepository,
     services::restore::PackageRestorer,
     terminal::colors::QPMColor,
 };
@@ -58,7 +59,7 @@ pub struct BuildCommand {
 
 impl Command for BuildCommand {
     /// Executes the build workflow: restore -> resolve NDK -> build -> qmod (optional)
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         let mut shared_package = SharedPackageConfig::read(".")?;
 
@@ -79,7 +80,7 @@ impl Command for BuildCommand {
 
         let args = self.args.unwrap_or_default();
 
-        let mut repo = repository::useful_default_new(self.offline)?;
+        let mut repo = ctx.repositories(self.offline)?;
 
         // TODO: sanity check. This collapses the old "is this triplet already restored"
         // gate (comparing shared_package.restored_triplet against the requested triplet)
@@ -90,12 +91,14 @@ impl Command for BuildCommand {
 
             shared_package.config = package.clone();
             let restorer = PackageRestorer::locked_resolve(&shared_package, &repo)?;
-            let cache_root = get_combine_config()
-                .cache
-                .clone()
-                .expect("No cache path set");
-            let file_repo = FileRepository::read(cache_root)?;
-            restorer.restore(".", &mut repo, &file_repo)?;
+            let file_repo = ctx.file_repository()?;
+            restorer.restore(
+                (!self.offline).then(|| ctx.agent()),
+                ".",
+                &mut repo,
+                &file_repo,
+                ctx.symlink(),
+            )?;
             shared_package.write(".")?;
 
             if self.ndk_resolve {
@@ -107,7 +110,7 @@ impl Command for BuildCommand {
                     quiet: false,
                 };
 
-                ndk.execute()
+                ndk.execute(ctx)
                     .context("Failed to resolve NDK dependencies")?;
             }
         }
@@ -115,12 +118,12 @@ impl Command for BuildCommand {
         // run build
         if let Some(build_script) = &build_script {
             println!("Building QPKG for {}", package.id.dependency_id_color());
-            scripts::invoke_script(build_script, &args, &package)?;
+            scripts::invoke_script(ctx, build_script, &args, &package)?;
         }
 
         // finally qmod
         if self.qmod {
-            zip::execute_qmod_zip_operation(Default::default(), vec![out_dir.clone()])
+            zip::execute_qmod_zip_operation(ctx, Default::default(), vec![out_dir.clone()])
                 .context("Making qmod")?;
         }
 

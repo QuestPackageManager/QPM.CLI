@@ -111,6 +111,7 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
             return Ok(None);
         };
 
+        // highest first, so the first match is the newest allowed version
         let chosen = dependencies
             .iter()
             .map(|version| VersionWrapper::from(version.clone()))
@@ -136,8 +137,8 @@ impl<R: Repository> DependencyProvider for PackageDependencyResolver<'_, '_, R> 
 
         // Count versions that satisfy the range constraint
         let version_count = versions
-            .into_iter()
-            .filter(|v| range.contains(&VersionWrapper(v.clone())))
+            .iter()
+            .filter(|v| range.contains(&VersionWrapper((*v).clone())))
             .count();
 
         // If no versions satisfy the constraint, use maximum priority

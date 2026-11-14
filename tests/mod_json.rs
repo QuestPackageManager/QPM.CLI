@@ -44,8 +44,10 @@ fn to_mod_json_excludes_dependency_whose_resolved_config_has_no_qmod_download_ur
     let dep_id = DependencyId("nightly-lib".to_string());
     let restored_version = Version::new(1, 0, 0);
 
-    let repo = MockRepository::new(true)
-        .with_package(dep_config_without_qmod_link(dep_id.clone(), restored_version.clone()));
+    let repo = MockRepository::new(true).with_package(dep_config_without_qmod_link(
+        dep_id.clone(),
+        restored_version.clone(),
+    ));
 
     let package = PackageConfig {
         id: DependencyId("my-mod".to_string()),
@@ -113,10 +115,7 @@ fn to_mod_json_includes_dependency_once_its_resolved_config_has_a_qmod_download_
 
     let shared_package = SharedPackageConfig {
         config: package,
-        restored_dependencies: HashMap::from([(
-            dep_id.clone(),
-            dependency_info(restored_version),
-        )]),
+        restored_dependencies: HashMap::from([(dep_id.clone(), dependency_info(restored_version))]),
         env: Default::default(),
     };
 

@@ -1,16 +1,15 @@
 use std::{
     env,
     fs::{self, File},
-    io::{BufReader, BufWriter, Cursor, Read, Write},
+    io::{BufReader, BufWriter, Read, Write},
 };
 
-use bytes::{BufMut, BytesMut};
 use color_eyre::{Help, Result, eyre::bail};
 use itertools::Itertools;
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
-use crate::services::{github, network::download_file_report};
+use crate::services::{github, network::download_to_tempfile};
 
 /// The branch and commit qpm2 was built from
 pub struct CurrentVersion {
@@ -33,9 +32,9 @@ pub struct VersionCheck {
 }
 
 /// Compares the running build against `branch`'s latest commit on GitHub
-pub fn check_version(branch: &str) -> Result<VersionCheck> {
+pub fn check_version(agent: &ureq::Agent, branch: &str) -> Result<VersionCheck> {
     let current = current_version();
-    let latest_branch = github::get_github_branch(branch)?;
+    let latest_branch = github::get_github_branch(agent, branch)?;
 
     if latest_branch.commit.sha == current.commit {
         return Ok(VersionCheck {
@@ -46,7 +45,7 @@ pub fn check_version(branch: &str) -> Result<VersionCheck> {
         });
     }
 
-    let diff = github::get_github_commit_diff(current.commit, branch)?;
+    let diff = github::get_github_commit_diff(agent, current.commit, branch)?;
 
     if diff.behind_by > 0 {
         bail!("Selected an older branch");
@@ -68,12 +67,12 @@ pub enum UpdateTarget {
 
 /// Resolves the artifact URL to update to: the given branch's latest build, or the
 /// bleeding release if no branch was given.
-pub fn resolve_update_url(branch: Option<&str>) -> Result<UpdateTarget> {
+pub fn resolve_update_url(agent: &ureq::Agent, branch: Option<&str>) -> Result<UpdateTarget> {
     let current = current_version();
 
     match branch {
         Some(input_branch) => {
-            let latest_branch = github::get_github_branch(input_branch)?;
+            let latest_branch = github::get_github_branch(agent, input_branch)?;
 
             if current.commit == latest_branch.commit.sha {
                 return Ok(UpdateTarget::AlreadyLatest);
@@ -91,14 +90,14 @@ pub fn resolve_update_url(branch: Option<&str>) -> Result<UpdateTarget> {
 
 /// Downloads the qpm2 build at `download_url` and replaces the currently running executable
 /// with it, keeping the previous binary around with an `.old` extension.
-pub fn apply_update(download_url: &str) -> Result<()> {
+pub fn apply_update(agent: &ureq::Agent, download_url: &str) -> Result<()> {
     let path = env::current_exe()?;
     let tmp_path = path.with_extension("tmp");
-    let mut bytes = BytesMut::with_capacity(1024 * 1024 * 10).writer();
-    download_file_report(download_url, &mut bytes, |_, _| {})?;
-
-    let cursor = Cursor::new(bytes.into_inner());
-    let mut zip = ZipArchive::new(cursor)?;
+    let mut zip = ZipArchive::new(BufReader::new(download_to_tempfile(
+        agent,
+        download_url,
+        true,
+    )?))?;
     let buf_reader = BufReader::new(zip.by_index(0)?);
     let bytes = buf_reader.bytes();
 
@@ -141,7 +140,7 @@ mod tests {
     /// resolve to the same URL `bleeding_release_github_artifact_url` produces directly.
     #[test]
     fn resolve_update_url_without_branch_points_at_bleeding_release() {
-        let target = resolve_update_url(None)
+        let target = resolve_update_url(&crate::services::network::build_agent(5000), None)
             .expect("no network call needed for the bleeding release path");
 
         match target {

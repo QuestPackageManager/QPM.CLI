@@ -1,8 +1,6 @@
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 
-use super::network::get_agent;
-
 const GITHUB_OWNER: &str = "QuestPackageManager";
 const GITHUB_REPO: &str = "QPM.CLI";
 const GITHUB_ACTION: &str = "cargo-build";
@@ -46,8 +44,11 @@ pub struct GithubCommitDiffCommitDataResponse {
     pub message: String,
 }
 
-pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, ureq::Error> {
-    get_agent()
+pub fn get_github_branch(
+    agent: &ureq::Agent,
+    branch: &str,
+) -> Result<GithubBranchResponse, ureq::Error> {
+    agent
         .get(format!(
             "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/branches/{branch}"
         ))
@@ -56,10 +57,11 @@ pub fn get_github_branch(branch: &str) -> Result<GithubBranchResponse, ureq::Err
         .read_json()
 }
 pub fn get_github_commit_diff(
+    agent: &ureq::Agent,
     old: &str,
     new: &str,
 ) -> Result<GithubCommitDiffResponse, ureq::Error> {
-    get_agent()
+    agent
         .get(format!(
             "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/compare/{old}...{new}"
         ))

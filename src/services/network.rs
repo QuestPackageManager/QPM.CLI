@@ -1,19 +1,19 @@
 use std::{
     env,
-    io::{ErrorKind, Read, Write},
-    sync,
-    thread::sleep,
+    fs::File,
+    io::{ErrorKind, Read, Seek, Write},
     time::Duration,
 };
 
-use bytes::{BufMut, BytesMut};
 use color_eyre::{Result, eyre::Context};
+use digest_io::HashWriter;
+use sha2::{Digest, Sha256};
 
-static AGENT: sync::OnceLock<ureq::Agent> = sync::OnceLock::new();
+pub const DEFAULT_TIMEOUT_MS: u32 = 5000;
 
-const DEFAULT_TIMEOUT_MS: u32 = 5000;
-
-fn build_agent(timeout_ms: u32) -> ureq::Agent {
+/// Builds the HTTP client. It's cheap to clone (clones share one connection pool), so build
+/// it once per invocation (see `QpmContext`) and pass it down.
+pub fn build_agent(timeout_ms: u32) -> ureq::Agent {
     ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_millis(timeout_ms.into())))
         .no_delay(false)
@@ -23,55 +23,44 @@ fn build_agent(timeout_ms: u32) -> ureq::Agent {
         .new_agent()
 }
 
-/// Initializes the shared HTTP agent with an explicit connect timeout. Only the first call
-/// across `init_agent`/`get_agent` has any effect - once the underlying client is built it
-/// can't be reconfigured. Call this once at startup with the user's configured timeout before
-/// any network-touching command runs; `get_agent()` alone falls back to `DEFAULT_TIMEOUT_MS`.
-pub fn init_agent(timeout_ms: u32) -> &'static ureq::Agent {
-    AGENT.get_or_init(|| build_agent(timeout_ms))
-}
+/// Size of each read from the response body
+const READ_CHUNK: usize = 64 * 1024;
 
-pub fn get_agent() -> &'static ureq::Agent {
-    AGENT.get_or_init(|| build_agent(DEFAULT_TIMEOUT_MS))
-}
-pub fn download_file<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
+pub fn download_file<F>(
+    agent: &ureq::Agent,
+    url: &str,
+    buffer: &mut impl Write,
+    mut callback: F,
+) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
-    // Perform the request with ureq
-    let response = get_agent()
+    let response = agent
         .get(url)
         .call()
         .with_context(|| format!("Unable to download file {url}"))?;
     let mut body = response.into_body();
 
-    // Read content-length header if present
+    // 0 when the server sends no Content-Length
     let expected_amount = body.content_length().map(|s| s as usize).unwrap_or(0);
-
-    let mut reader = body.as_reader();
-
     if expected_amount == 0 {
         println!("Unable to determine content length for download from {url}");
     }
 
+    let mut reader = body.as_reader();
     let mut written: usize = 0;
-    let mut temp_buf = vec![0u8; 1024];
+    let mut chunk = vec![0u8; READ_CHUNK];
 
     loop {
-        match reader.read(&mut temp_buf) {
+        match reader.read(&mut chunk) {
             // EOF
             Ok(0) => break,
-
             Ok(amount) => {
+                buffer.write_all(&chunk[..amount])?;
                 written += amount;
-                buffer.write_all(&temp_buf[..amount])?;
                 callback(written, expected_amount);
             }
-
-            Err(e) if e.kind() == ErrorKind::Interrupted => {
-                sleep(Duration::from_millis(1));
-            }
-
+            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
             Err(e) => {
                 return Err(e)
                     .with_context(|| format!("Failed to continue reading bytes from {url}"));
@@ -79,26 +68,36 @@ where
         }
     }
 
-    if written != expected_amount {
+    if expected_amount != 0 && written != expected_amount {
         println!("Downloaded size does not match expected size!");
         println!("Read: 0x{written:x} Expected: 0x{expected_amount:x}");
     }
 
-    Ok(expected_amount)
+    Ok(written)
 }
 
 #[inline(always)]
 #[cfg(not(feature = "cli"))]
-pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, callback: F) -> Result<usize>
+pub fn download_file_report<F>(
+    agent: &ureq::Agent,
+    url: &str,
+    buffer: &mut impl Write,
+    callback: F,
+) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
-    download_file(url, buffer, callback)
+    download_file(agent, url, buffer, callback)
 }
 
 #[inline(always)]
 #[cfg(feature = "cli")]
-pub fn download_file_report<F>(url: &str, buffer: &mut impl Write, mut callback: F) -> Result<usize>
+pub fn download_file_report<F>(
+    agent: &ureq::Agent,
+    url: &str,
+    buffer: &mut impl Write,
+    mut callback: F,
+) -> Result<usize>
 where
     F: FnMut(usize, usize),
 {
@@ -123,7 +122,7 @@ where
         progress_bar.set_draw_target(ProgressDrawTarget::stderr_with_hz(2));
     }
 
-    let result = download_file(url, buffer, |current, expected| {
+    let result = download_file(agent, url, buffer, |current, expected| {
         progress_bar.set_length(expected as u64);
         progress_bar.set_position(current as u64);
 
@@ -136,11 +135,38 @@ where
     result
 }
 
-/// Downloads a URL fully into memory, reporting progress along the way.
-pub fn download_bytes(url: &str) -> Result<BytesMut> {
-    let mut bytes = BytesMut::new().writer();
-    download_file_report(url, &mut bytes, |_, _| {})
+fn download_with_progress(
+    agent: &ureq::Agent,
+    url: &str,
+    writer: &mut impl Write,
+    show_progress: bool,
+) -> Result<usize> {
+    if show_progress {
+        download_file_report(agent, url, writer, |_, _| {})
+    } else {
+        download_file(agent, url, writer, |_, _| {})
+    }
+}
+
+/// Downloads a URL into an anonymous temp file (deleted on drop), rewound to the start.
+/// Keeps large downloads (NDKs, QPKGs) out of memory.
+pub fn download_to_tempfile(agent: &ureq::Agent, url: &str, show_progress: bool) -> Result<File> {
+    let mut file = tempfile::tempfile().context("Failed to create temp file for download")?;
+    download_with_progress(agent, url, &mut file, show_progress)
+        .with_context(|| format!("Failed while downloading {url}"))?;
+    file.rewind().context("Failed to rewind downloaded file")?;
+    Ok(file)
+}
+
+/// Like [`download_to_tempfile`], also returning the hex sha256 of the content, computed
+/// while it streams in.
+pub fn download_to_tempfile_hashed(agent: &ureq::Agent, url: &str) -> Result<(File, String)> {
+    let file = tempfile::tempfile().context("Failed to create temp file for download")?;
+    let mut writer = HashWriter::<Sha256, _>::new(file);
+    download_with_progress(agent, url, &mut writer, true)
         .with_context(|| format!("Failed while downloading {url}"))?;
 
-    Ok(bytes.into_inner())
+    let (hasher, mut file) = writer.into_parts();
+    file.rewind().context("Failed to rewind downloaded file")?;
+    Ok((file, hex::encode(hasher.finalize())))
 }

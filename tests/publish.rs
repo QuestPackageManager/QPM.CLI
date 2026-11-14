@@ -1,5 +1,6 @@
 mod mocks;
 
+use qpm_cli::services::network::{DEFAULT_TIMEOUT_MS, build_agent};
 use std::collections::HashMap;
 
 use qpm_cli::services::publish::PackagePublisher;
@@ -49,6 +50,7 @@ fn validate_fails_when_a_restored_dependency_is_missing_from_the_repo() {
 
     // Note: repo has no packages registered at all, so the restored dependency lookup fails.
     let result = PackagePublisher::validate(
+        &build_agent(DEFAULT_TIMEOUT_MS),
         package,
         &shared_package,
         "https://example.invalid/does-not-matter.qpkg".to_string(),
@@ -88,6 +90,7 @@ fn validate_fails_when_a_declared_dependency_was_never_restored() {
     };
 
     let result = PackagePublisher::validate(
+        &build_agent(DEFAULT_TIMEOUT_MS),
         package,
         &shared_package,
         "https://example.invalid/does-not-matter.qpkg".to_string(),
@@ -136,6 +139,7 @@ fn validate_fails_when_restored_version_does_not_satisfy_declared_range() {
     };
 
     let result = PackagePublisher::validate(
+        &build_agent(DEFAULT_TIMEOUT_MS),
         package,
         &shared_package,
         "https://example.invalid/does-not-matter.qpkg".to_string(),
@@ -185,6 +189,7 @@ fn validate_passes_dependency_checks_then_fails_on_unreachable_qpkg_url() {
     // Dependency checks all pass here; the only remaining failure is the QPKG download, which
     // hits a URL that can never resolve to a real host.
     let result = PackagePublisher::validate(
+        &build_agent(DEFAULT_TIMEOUT_MS),
         package,
         &shared_package,
         "https://example.invalid/does-not-exist.qpkg".to_string(),
