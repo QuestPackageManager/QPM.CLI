@@ -2,6 +2,9 @@
 // Regenerate expected outputs with QPM_TEST_UPDATE=1.
 #![cfg(all(feature = "cli", feature = "network_test"))]
 
+#[path = "support/mod.rs"]
+mod support;
+
 #[path = "commands/common.rs"]
 mod common;
 

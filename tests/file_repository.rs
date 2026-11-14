@@ -1,7 +1,9 @@
-use std::{fs, io::Cursor, path::Path};
+#[path = "support/mod.rs"]
+mod support;
+
+use std::{fs, io::Cursor};
 
 use qpm_cli::{
-    models::qpkg_file::QpkgFile,
     repository::{
         Artifact, Repository,
         file::{FileRepository, FileRepositoryRegistry},
@@ -9,29 +11,16 @@ use qpm_cli::{
 };
 use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
+use support::{package, qpkg_bytes, test_agent};
 use tempfile::tempdir;
 
 fn sample_qpkg_config() -> PackageConfig {
-    let mut config = PackageConfig {
-        id: DependencyId("libfoo".to_string()),
-        version: Version::new(1, 0, 0),
-        shared_directory: "shared".into(),
-        dependencies_directory: "extern".into(),
-        ..Default::default()
-    };
-    config.workspace.out_binaries = Some(vec!["libfoo.so".into()]);
-    config
+    package("libfoo", Version::new(1, 0, 0), Some(&["libfoo.so"]))
 }
 
-/// Builds a real, valid `.qpkg` zip in memory (manifest + one header + one binary), matching
-/// what `qpm2 qpkg` would actually produce.
+/// A real, valid `.qpkg` zip in memory, matching what `qpm2 qpkg` would actually produce
 fn build_qpkg(config: PackageConfig) -> Cursor<Vec<u8>> {
-    let headers: Vec<(&Path, &[u8])> = vec![(Path::new("foo.h"), b"// header content\n")];
-    let binaries: Vec<(&Path, &[u8])> = vec![(Path::new("libfoo.so"), b"binary content")];
-
-    QpkgFile::create(Cursor::new(Vec::new()), config, headers, binaries)
-        .expect("building the in-memory qpkg should succeed")
-        .into_inner()
+    Cursor::new(qpkg_bytes(&config))
 }
 
 /// Full lifecycle against a real on-disk cache (no mocked business logic): build a real
@@ -161,9 +150,4 @@ fn download_to_cache_without_url_reports_unavailable() {
         .download_to_cache(&test_agent(), &artifact)
         .expect("a cache miss without a URL is not an error");
     assert!(!downloaded);
-}
-
-/// Network client for calls that never make a request here (cached packages, mocks)
-fn test_agent() -> ureq::Agent {
-    qpm_cli::services::network::build_agent(qpm_cli::services::network::DEFAULT_TIMEOUT_MS)
 }

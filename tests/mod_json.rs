@@ -1,25 +1,18 @@
 mod mocks;
+#[path = "support/mod.rs"]
+mod support;
 
 use std::collections::HashMap;
 
 use qpm_cli::models::package::SharedPackageConfigExtensions;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency, QmodConfig, QmodDependencyMode},
-    shared_package::{SharedDependencyInfo, SharedPackageConfig},
+    shared_package::SharedPackageConfig,
 };
 use semver::{Version, VersionReq};
 
 use mocks::mock_repository::MockRepository;
-
-fn dependency_info(version: Version) -> SharedDependencyInfo {
-    SharedDependencyInfo {
-        restored_version: version,
-        qpkg_url: None,
-        qpkg_checksum: None,
-        restored_binaries: vec![],
-        restored_env: Default::default(),
-    }
-}
+use support::locked;
 
 /// A dependency's resolved package config with no `qmod.downloadUrl` set (e.g. a locally
 /// installed nightly qpkg with no separate qmod release) - the common case for a bare/dev
@@ -65,7 +58,7 @@ fn to_mod_json_excludes_dependency_whose_resolved_config_has_no_qmod_download_ur
 
     let shared_package = SharedPackageConfig {
         config: package,
-        restored_dependencies: HashMap::from([(dep_id, dependency_info(restored_version))]),
+        restored_dependencies: HashMap::from([(dep_id, locked(restored_version))]),
         env: Default::default(),
     };
 
@@ -115,7 +108,7 @@ fn to_mod_json_includes_dependency_once_its_resolved_config_has_a_qmod_download_
 
     let shared_package = SharedPackageConfig {
         config: package,
-        restored_dependencies: HashMap::from([(dep_id.clone(), dependency_info(restored_version))]),
+        restored_dependencies: HashMap::from([(dep_id.clone(), locked(restored_version))]),
         env: Default::default(),
     };
 
@@ -165,7 +158,7 @@ fn to_mod_json_excludes_dependency_explicitly_marked_qmod_none_even_with_a_downl
 
     let shared_package = SharedPackageConfig {
         config: package,
-        restored_dependencies: HashMap::from([(dep_id, dependency_info(restored_version))]),
+        restored_dependencies: HashMap::from([(dep_id, locked(restored_version))]),
         env: Default::default(),
     };
 

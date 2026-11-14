@@ -8,80 +8,34 @@
 //! The files were on disk (`qpm2 cache list` showed them) yet resolving failed with
 //! "there is no version of <id> in <range>".
 
-use std::{
-    collections::HashMap,
-    fs::File,
-    path::{Path, PathBuf},
-    sync::Mutex,
-};
+#[path = "support/mod.rs"]
+mod support;
 
-use clap::Parser;
-use qpm_cli::{
-    commands::{Command, Opt},
-    context::QpmContext,
-    models::{config::UserConfig, package::PackageConfigExtensions, qpkg_file::QpkgFile},
-};
+use std::{collections::HashMap, path::PathBuf};
+
+use qpm_cli::models::package::PackageConfigExtensions;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency},
     shared_package::SharedPackageConfig,
 };
 use semver::{Version, VersionReq};
+use support::{package, qpkg_bytes, run_qpm, user_config};
 use tempfile::tempdir;
 
 /// A local-only package (not on qpackages), like the reporter's `capstone`
 fn local_package() -> PackageConfig {
-    let mut config = PackageConfig {
-        id: DependencyId("localpkg".to_string()),
-        version: Version::new(0, 1, 0),
-        shared_directory: "shared".into(),
-        dependencies_directory: "extern".into(),
-        ..Default::default()
-    };
-    config.workspace.out_binaries = Some(vec!["liblocalpkg.so".into()]);
-    config
-}
-
-fn write_qpkg(config: PackageConfig, path: &Path) {
-    let headers: Vec<(&Path, &[u8])> = vec![(Path::new("localpkg.h"), b"// header\n")];
-    let binaries: Vec<(&Path, &[u8])> = vec![(Path::new("liblocalpkg.so"), b"binary")];
-    let file = File::create(path).unwrap();
-    QpkgFile::create(file, config, headers, binaries).expect("creating the qpkg should succeed");
-}
-
-/// Commands run relative to the process-wide current directory, so tests in this binary
-/// (which run in parallel threads) must take turns.
-static CWD_LOCK: Mutex<()> = Mutex::new(());
-
-/// Runs a qpm2 command line in-process with `config`, from `cwd`, the way `main` does
-fn run_qpm(config: &UserConfig, cwd: &Path, args: &[&str]) -> color_eyre::Result<()> {
-    let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let previous = std::env::current_dir()?;
-    std::env::set_current_dir(cwd)?;
-
-    let result = (|| {
-        let opt = Opt::try_parse_from(std::iter::once("qpm2").chain(args.iter().copied()))?;
-        let ctx = QpmContext::new(config.clone(), opt.offline);
-        opt.command.expect("a subcommand").execute(&ctx)
-    })();
-
-    std::env::set_current_dir(previous)?;
-    result
+    package("localpkg", Version::new(0, 1, 0), Some(&["liblocalpkg.so"]))
 }
 
 #[test]
 fn locally_installed_qpkg_is_restorable_offline() {
     let cache = tempdir().unwrap();
     let workspace = tempdir().unwrap();
-    let config = UserConfig {
-        cache: Some(cache.path().to_path_buf()),
-        // copy, so the test doesn't depend on symlink support
-        symlink: Some(false),
-        ..UserConfig::default()
-    };
+    let config = user_config(cache.path());
 
     // qpm2 install --path localpkg.qpkg
     let qpkg_path: PathBuf = workspace.path().join("localpkg.qpkg");
-    write_qpkg(local_package(), &qpkg_path);
+    std::fs::write(&qpkg_path, qpkg_bytes(&local_package())).unwrap();
     run_qpm(
         &config,
         workspace.path(),
@@ -124,10 +78,7 @@ fn locally_installed_qpkg_is_restorable_offline() {
 fn network_only_command_refuses_offline() {
     let cache = tempdir().unwrap();
     let workspace = tempdir().unwrap();
-    let config = UserConfig {
-        cache: Some(cache.path().to_path_buf()),
-        ..UserConfig::default()
-    };
+    let config = user_config(cache.path());
 
     let err = run_qpm(
         &config,

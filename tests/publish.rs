@@ -1,26 +1,18 @@
 mod mocks;
+#[path = "support/mod.rs"]
+mod support;
 
-use qpm_cli::services::network::{DEFAULT_TIMEOUT_MS, build_agent};
 use std::collections::HashMap;
 
 use qpm_cli::services::publish::PackagePublisher;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, PackageDependency},
-    shared_package::{SharedDependencyInfo, SharedPackageConfig},
+    shared_package::SharedPackageConfig,
 };
 use semver::{Version, VersionReq};
 
 use mocks::mock_repository::MockRepository;
-
-fn dependency_info(version: Version) -> SharedDependencyInfo {
-    SharedDependencyInfo {
-        restored_version: version,
-        qpkg_url: None,
-        qpkg_checksum: None,
-        restored_binaries: vec![],
-        restored_env: Default::default(),
-    }
-}
+use support::{locked, test_agent};
 
 /// `PackagePublisher::validate` checks every dependency before ever touching the network
 /// (downloading the qpkg to verify it), so these failure paths are fully exercisable offline.
@@ -44,13 +36,13 @@ fn validate_fails_when_a_restored_dependency_is_missing_from_the_repo() {
 
     let shared_package = SharedPackageConfig {
         config: package.clone(),
-        restored_dependencies: HashMap::from([(dep_id, dependency_info(Version::new(5, 1, 9)))]),
+        restored_dependencies: HashMap::from([(dep_id, locked(Version::new(5, 1, 9)))]),
         env: Default::default(),
     };
 
     // Note: repo has no packages registered at all, so the restored dependency lookup fails.
     let result = PackagePublisher::validate(
-        &build_agent(DEFAULT_TIMEOUT_MS),
+        &test_agent(),
         package,
         &shared_package,
         "https://example.invalid/does-not-matter.qpkg".to_string(),
@@ -90,7 +82,7 @@ fn validate_fails_when_a_declared_dependency_was_never_restored() {
     };
 
     let result = PackagePublisher::validate(
-        &build_agent(DEFAULT_TIMEOUT_MS),
+        &test_agent(),
         package,
         &shared_package,
         "https://example.invalid/does-not-matter.qpkg".to_string(),
@@ -134,12 +126,12 @@ fn validate_fails_when_restored_version_does_not_satisfy_declared_range() {
 
     let shared_package = SharedPackageConfig {
         config: package.clone(),
-        restored_dependencies: HashMap::from([(dep_id, dependency_info(restored_version))]),
+        restored_dependencies: HashMap::from([(dep_id, locked(restored_version))]),
         env: Default::default(),
     };
 
     let result = PackagePublisher::validate(
-        &build_agent(DEFAULT_TIMEOUT_MS),
+        &test_agent(),
         package,
         &shared_package,
         "https://example.invalid/does-not-matter.qpkg".to_string(),
@@ -182,14 +174,14 @@ fn validate_passes_dependency_checks_then_fails_on_unreachable_qpkg_url() {
 
     let shared_package = SharedPackageConfig {
         config: package.clone(),
-        restored_dependencies: HashMap::from([(dep_id, dependency_info(restored_version))]),
+        restored_dependencies: HashMap::from([(dep_id, locked(restored_version))]),
         env: Default::default(),
     };
 
     // Dependency checks all pass here; the only remaining failure is the QPKG download, which
     // hits a URL that can never resolve to a real host.
     let result = PackagePublisher::validate(
-        &build_agent(DEFAULT_TIMEOUT_MS),
+        &test_agent(),
         package,
         &shared_package,
         "https://example.invalid/does-not-exist.qpkg".to_string(),

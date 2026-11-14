@@ -74,7 +74,7 @@ impl PackageConfigExtensions for PackageConfig {
     }
 
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
-        dir.as_ref().with_file_name(QPM_JSON).exists()
+        dir.as_ref().join(QPM_JSON).exists()
     }
 
     fn run_if_version(

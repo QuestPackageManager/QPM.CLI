@@ -1,4 +1,6 @@
 mod mocks;
+#[path = "support/mod.rs"]
+mod support;
 
 use std::path::Path;
 
@@ -7,14 +9,7 @@ use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 
 use mocks::mock_repository::MockRepository;
-
-fn pkg(id: &str, version: Version) -> PackageConfig {
-    PackageConfig {
-        id: DependencyId(id.to_string()),
-        version,
-        ..Default::default()
-    }
-}
+use support::{package, test_agent};
 
 /// Versions available across all repositories should be merged, deduplicated, and sorted
 /// descending - matching the `Repository::get_package_versions` contract ("Ordered by
@@ -23,12 +18,12 @@ fn pkg(id: &str, version: Version) -> PackageConfig {
 fn get_package_versions_merges_dedupes_and_sorts_descending() {
     let id = DependencyId("pkg".to_string());
     let a = MockRepository::new(false)
-        .with_package(pkg("pkg", Version::new(1, 0, 0)))
-        .with_package(pkg("pkg", Version::new(2, 0, 0)));
+        .with_package(package("pkg", Version::new(1, 0, 0), None))
+        .with_package(package("pkg", Version::new(2, 0, 0), None));
     let b = MockRepository::new(false)
         // 2.0.0 present in both repos - must not appear twice in the merged result
-        .with_package(pkg("pkg", Version::new(2, 0, 0)))
-        .with_package(pkg("pkg", Version::new(3, 0, 0)));
+        .with_package(package("pkg", Version::new(2, 0, 0), None))
+        .with_package(package("pkg", Version::new(3, 0, 0), None));
 
     let multi = MultiDependencyRepository::new(vec![Box::new(a), Box::new(b)]);
 
@@ -66,9 +61,9 @@ fn get_package_returns_from_first_repo_that_has_it() {
     let id = DependencyId("pkg".to_string());
     let version = Version::new(1, 0, 0);
 
-    let mut first_config = pkg("pkg", version.clone());
+    let mut first_config = package("pkg", version.clone(), None);
     first_config.shared_directory = "from-first-repo".into();
-    let mut second_config = pkg("pkg", version.clone());
+    let mut second_config = package("pkg", version.clone(), None);
     second_config.shared_directory = "from-second-repo".into();
 
     let first = MockRepository::new(false).with_package(first_config);
@@ -83,10 +78,10 @@ fn get_package_returns_from_first_repo_that_has_it() {
 /// Package names should be deduplicated across repositories that share a package.
 #[test]
 fn get_package_names_dedupes_across_repos() {
-    let a = MockRepository::new(false).with_package(pkg("shared", Version::new(1, 0, 0)));
+    let a = MockRepository::new(false).with_package(package("shared", Version::new(1, 0, 0), None));
     let b = MockRepository::new(false)
-        .with_package(pkg("shared", Version::new(1, 0, 0)))
-        .with_package(pkg("only-in-b", Version::new(1, 0, 0)));
+        .with_package(package("shared", Version::new(1, 0, 0), None))
+        .with_package(package("only-in-b", Version::new(1, 0, 0), None));
 
     let multi = MultiDependencyRepository::new(vec![Box::new(a), Box::new(b)]);
 
@@ -127,7 +122,7 @@ fn download_to_cache_delegates_to_the_repo_that_has_the_package() {
     let version = Version::new(1, 0, 0);
 
     let without = MockRepository::new(false);
-    let with = MockRepository::new(false).with_package(pkg("pkg", version.clone()));
+    let with = MockRepository::new(false).with_package(package("pkg", version.clone(), None));
 
     let with_handle = with.clone();
     let without_handle = without.clone();
@@ -135,7 +130,7 @@ fn download_to_cache_delegates_to_the_repo_that_has_the_package() {
     let mut multi = MultiDependencyRepository::new(vec![Box::new(without), Box::new(with)]);
 
     let artifact = Artifact {
-        config: pkg("pkg", version.clone()),
+        config: package("pkg", version.clone(), None),
         ..Default::default()
     };
     let downloaded = multi.download_to_cache(&test_agent(), &artifact).unwrap();
@@ -155,7 +150,7 @@ fn download_to_cache_errors_when_no_repo_has_the_package() {
     ]);
 
     let artifact = Artifact {
-        config: pkg("missing", Version::new(1, 0, 0)),
+        config: package("missing", Version::new(1, 0, 0), None),
         ..Default::default()
     };
     assert!(multi.download_to_cache(&test_agent(), &artifact).is_err());
@@ -175,14 +170,9 @@ fn add_to_db_cache_forwards_to_every_repo() {
     let id = DependencyId("pkg".to_string());
     let version = Version::new(1, 0, 0);
     multi
-        .add_to_db_cache(pkg("pkg", version.clone()), None, true)
+        .add_to_db_cache(package("pkg", version.clone(), None), None, true)
         .unwrap();
 
     assert!(a_handle.get_package(&id, &version).unwrap().is_some());
     assert!(b_handle.get_package(&id, &version).unwrap().is_some());
-}
-
-/// Network client for calls that never make a request here (cached packages, mocks)
-fn test_agent() -> ureq::Agent {
-    qpm_cli::services::network::build_agent(qpm_cli::services::network::DEFAULT_TIMEOUT_MS)
 }

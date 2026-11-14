@@ -1,10 +1,15 @@
-use std::{borrow::Cow, path::Path, time::Instant};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    path::Path,
+    time::Instant,
+};
 
 use color_eyre::eyre::{Context, Result, bail, eyre};
 use pubgrub::{DefaultStringReporter, PubGrubError, Reporter};
 use qpm_package::models::{
-    package::PackageConfig,
-    shared_package::{SharedDependencyInfo, SharedPackageConfig},
+    package::{DependencyId, PackageConfig},
+    shared_package::{QPM_SHARED_JSON, SharedDependencyInfo, SharedPackageConfig},
 };
 
 use crate::{
@@ -70,6 +75,8 @@ impl<'a> PackageRestorer<'a> {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        ensure_acyclic(&config, &resolved_dependencies)?;
+
         let restored_dependencies = resolved_dependencies
             .iter()
             .map(|resolved_dep| {
@@ -120,14 +127,30 @@ impl<'a> PackageRestorer<'a> {
             .iter()
             .map(|(dep_id, dep)| {
                 let version = &dep.restored_version;
-                repository
+                let artifact = repository
                     .get_package(dep_id, version)
                     .with_context(|| format!("Failed to get locked package {dep_id}:{version}"))?
                     .ok_or_else(|| {
                         eyre!("No package found for locked dependency {dep_id}:{version}")
-                    })
+                    })?;
+
+                // the lock file pins the exact archive; a different one under the same version
+                // means the package was republished or tampered with
+                if let (Some(locked), Some(actual)) = (&dep.qpkg_checksum, &artifact.qpkg_checksum)
+                    && !locked.eq_ignore_ascii_case(actual)
+                {
+                    bail!(
+                        "Checksum mismatch for locked dependency {}:{}: {QPM_SHARED_JSON} expects {locked}, repository has {actual}",
+                        dep_id.dependency_id_color(),
+                        version.version_id_color(),
+                    );
+                }
+
+                Ok(artifact)
             })
             .collect::<Result<Box<[_]>>>()?;
+
+        ensure_acyclic(&shared_package.config, &packages)?;
 
         Ok(Self {
             resolved_deps: packages,
@@ -182,4 +205,58 @@ impl<'a> PackageRestorer<'a> {
 
         Ok(())
     }
+}
+
+/// Fails if any package can reach itself through the dependency graph formed by `root` and
+/// `resolved`, e.g. `root -> a -> b -> a`. The root's dev dependencies count, but a dependency's
+/// own dev dependencies are never resolved and so don't.
+/// Depth First Search
+fn ensure_acyclic(root: &PackageConfig, resolved: &[ResolvedDependency]) -> Result<()> {
+    let mut graph: HashMap<&DependencyId, Vec<&DependencyId>> = resolved
+        .iter()
+        .map(|dep| (&dep.config.id, dep.config.dependencies.keys().collect()))
+        .collect();
+    graph.insert(
+        &root.id,
+        root.dependencies
+            .keys()
+            .chain(root.dev_dependencies.keys())
+            .collect(),
+    );
+
+    fn visit<'a>(
+        node: &'a DependencyId,
+        graph: &HashMap<&'a DependencyId, Vec<&'a DependencyId>>,
+        path: &mut Vec<&'a DependencyId>,
+        done: &mut HashSet<&'a DependencyId>,
+    ) -> Result<()> {
+        if let Some(start) = path.iter().position(|id| *id == node) {
+            let cycle = path[start..]
+                .iter()
+                .chain(std::iter::once(&node))
+                .map(|id| id.0.as_str())
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            bail!("Cyclic dependency detected: {cycle}");
+        }
+        if !done.insert(node) {
+            return Ok(());
+        }
+
+        path.push(node);
+        for next in graph.get(node).into_iter().flatten() {
+            visit(next, graph, path, done)?;
+        }
+        path.pop();
+        Ok(())
+    }
+
+    let mut done = HashSet::new();
+    let mut path = Vec::new();
+    visit(&root.id, &graph, &mut path, &mut done)?;
+    // packages unreachable from the root (only possible with a hand-edited lock file)
+    for dep in resolved {
+        visit(&dep.config.id, &graph, &mut path, &mut done)?;
+    }
+    Ok(())
 }

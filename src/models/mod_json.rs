@@ -157,3 +157,130 @@ impl ModJsonExtensions for ModJson {
         existing_json
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use qpm_qmod::models::mod_json::{ModDependency, ModJson};
+    use semver::VersionReq;
+
+    use super::{ModJsonExtensions, PreProcessingData};
+
+    fn data(game_id: Option<&str>, game_version: Option<&str>) -> PreProcessingData {
+        PreProcessingData {
+            version: "1.2.3".into(),
+            mod_id: "my-mod".into(),
+            binaries: vec![],
+            game_id: game_id.map(Into::into),
+            game_version: game_version.map(Into::into),
+            additional_env: HashMap::from([("FOO".to_string(), "bar".to_string())]),
+        }
+    }
+
+    fn dep(id: &str, range: &str) -> ModDependency {
+        ModDependency {
+            version_range: VersionReq::parse(range).unwrap(),
+            id: id.into(),
+            mod_link: None,
+            required: None,
+        }
+    }
+
+    #[test]
+    fn preprocess_replaces_known_placeholders() {
+        let out = data(Some("com.beatgames.beatsaber"), Some("1.40.0"))
+            .preprocess("${mod_id}@${version} for ${game_id} ${game_version}".into());
+        assert_eq!(out, "my-mod@1.2.3 for com.beatgames.beatsaber 1.40.0");
+    }
+
+    #[test]
+    fn preprocess_blanks_missing_game_info() {
+        let out = data(None, None).preprocess("[${game_id}][${game_version}]".into());
+        assert_eq!(out, "[][]");
+    }
+
+    #[test]
+    fn preprocess_substitutes_qpm_prefixed_env_only() {
+        let out = data(None, None).preprocess("${QPM_FOO} ${FOO} ${QPM_MISSING} ${unknown}".into());
+        assert_eq!(out, "bar ${FOO} ${QPM_MISSING} ${unknown}");
+    }
+
+    #[test]
+    fn merge_drops_template_binaries_already_declared_anywhere() {
+        let existing = ModJson {
+            mod_files: vec!["libmain.so".into()],
+            late_mod_files: vec!["liblate.so".into()],
+            library_files: vec!["libshared.so".into()],
+            ..Default::default()
+        };
+        let template = ModJson {
+            library_files: vec![
+                "libmain.so".into(),
+                "liblate.so".into(),
+                "libshared.so".into(),
+                "libnew.so".into(),
+            ],
+            ..Default::default()
+        };
+
+        let merged = ModJson::merge_modjson(existing, template);
+
+        assert_eq!(merged.mod_files, vec!["libmain.so"]);
+        assert_eq!(merged.late_mod_files, vec!["liblate.so"]);
+        assert_eq!(merged.library_files, vec!["libshared.so", "libnew.so"]);
+    }
+
+    #[test]
+    fn merge_keeps_existing_dependency_on_id_clash() {
+        let existing = ModJson {
+            dependencies: vec![dep("a", "^1.0.0")],
+            ..Default::default()
+        };
+        let template = ModJson {
+            dependencies: vec![dep("a", "^2.0.0"), dep("b", "^0.1.0")],
+            ..Default::default()
+        };
+
+        let merged = ModJson::merge_modjson(existing, template);
+
+        let deps: Vec<_> = merged
+            .dependencies
+            .iter()
+            .map(|d| (d.id.as_str(), d.version_range.to_string()))
+            .collect();
+        assert_eq!(deps, vec![("a", "^1.0.0".into()), ("b", "^0.1.0".into())]);
+    }
+
+    /// Only library files and dependencies come from the template; its mod files never do
+    #[test]
+    fn merge_does_not_take_template_mod_files() {
+        let template = ModJson {
+            mod_files: vec!["libtemplate.so".into()],
+            late_mod_files: vec!["libtemplate_late.so".into()],
+            ..Default::default()
+        };
+
+        let merged = ModJson::merge_modjson(ModJson::default(), template);
+
+        assert!(merged.mod_files.is_empty());
+        assert!(merged.late_mod_files.is_empty());
+    }
+
+    #[test]
+    fn merge_dedupes_existing_lists() {
+        let existing = ModJson {
+            mod_files: vec!["a.so".into(), "a.so".into()],
+            late_mod_files: vec!["b.so".into(), "b.so".into()],
+            dependencies: vec![dep("x", "^1.0.0"), dep("x", "^2.0.0")],
+            ..Default::default()
+        };
+
+        let merged = ModJson::merge_modjson(existing, ModJson::default());
+
+        assert_eq!(merged.mod_files, vec!["a.so"]);
+        assert_eq!(merged.late_mod_files, vec!["b.so"]);
+        assert_eq!(merged.dependencies.len(), 1);
+        assert_eq!(merged.dependencies[0].version_range.to_string(), "^1.0.0");
+    }
+}
