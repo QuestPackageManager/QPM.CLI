@@ -70,8 +70,15 @@ pub fn run_qpm_unlocked(config: &UserConfig, cwd: &Path, args: &[&str]) -> color
 }
 
 /// HTTP client for tests; only makes requests where a test serves or mocks them
+/// Like `build_agent`, but allows plain HTTP: the checksum tests serve qpkgs from a local
+/// `http://127.0.0.1` server, which the real (https-only) agent refuses.
 pub fn test_agent() -> ureq::Agent {
-    qpm_cli::services::network::build_agent(qpm_cli::services::network::DEFAULT_TIMEOUT_MS)
+    ureq::Agent::config_builder()
+        .timeout_connect(Some(std::time::Duration::from_millis(
+            qpm_cli::services::network::DEFAULT_TIMEOUT_MS.into(),
+        )))
+        .build()
+        .new_agent()
 }
 
 pub fn id(s: &str) -> DependencyId {
