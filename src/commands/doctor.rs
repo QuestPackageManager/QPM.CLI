@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::{env, fs::File};
 
 use clap::Args;
@@ -37,12 +38,12 @@ fn look_path(path: &str) -> Result<bool, std::env::VarError> {
 #[derive(Args)]
 pub struct DoctorCommand {}
 impl Command for DoctorCommand {
-    fn execute(self) -> Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> Result<()> {
         let cmake = look_path("cmake")?;
         let ninja = look_path("ninja")?;
         let adb = look_path("adb")?;
 
-        let qpm = look_path("qpm")?;
+        let qpm = look_path("qpm2")?;
 
         if !cmake {
             eprintln!(
@@ -55,22 +56,22 @@ impl Command for DoctorCommand {
         if !ninja {
             eprintln!(
                 "Ninja is not installed in path! Use {} to download ninja",
-                "qpm download ninja".yellow()
+                "qpm2 download ninja".yellow()
             )
         } else {
             println!("Ninja found!");
         }
 
         if !qpm {
-            eprintln!("Qpm not found in path!")
+            eprintln!("qpm2 not found in path!")
         } else {
-            println!("Qpm found!");
+            println!("qpm2 found!");
         }
 
         if !adb {
             eprintln!(
                 "ADB not installed in path. Use {} to download ADB",
-                "qpm download adb".yellow()
+                "qpm2 download adb".yellow()
             )
         } else {
             println!("ADB found!");
@@ -81,7 +82,7 @@ impl Command for DoctorCommand {
 
             match ndk_path {
                 Ok(ndk) => {
-                    println!("NDK {} found in path!", ndk);
+                    println!("NDK {ndk} found in path!");
                 }
                 Err(err) => {
                     if File::open("./ndkpath.txt").is_err() {
@@ -97,7 +98,7 @@ impl Command for DoctorCommand {
         if cmake && adb && qpm && ninja {
             println!("{}", "Everything looks good!".green());
         } else {
-            bail!("Some functionality is missing")
+            bail!("Some functionality is missing");
         }
         Ok(())
     }

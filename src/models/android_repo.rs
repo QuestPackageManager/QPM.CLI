@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // https://dl.google.com/android/repository/repository2-3.xml
+// Deserialized with quick-xml: `@name` fields are XML attributes, `$text` is an element's text.
 
 /// https://android.googlesource.com/platform/tools/base/+/studio-master-dev/repository/src/main/java/com/android/repository/impl/generated/v1/RepositoryType.java
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -13,29 +14,30 @@ pub struct AndroidRepositoryManifest {
 /// https://android.googlesource.com/platform/tools/base/+/studio-master-dev/repository/src/main/java/com/android/repository/impl/generated/v1/ChannelType.java
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ChannelType {
-    #[serde(rename = "$value")]
+    #[serde(rename = "$text")]
     pub value: String,
 
-    #[serde(alias = "ID")]
+    #[serde(rename = "@id")]
     pub id: String,
 }
 
 /// https://android.googlesource.com/platform/tools/base/+/studio-master-dev/repository/src/main/java/com/android/repository/impl/generated/v1/LicenseType.java
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct LicenseType {
-    #[serde(rename = "$value")]
+    #[serde(rename = "$text")]
     pub value: String,
 
-    #[serde(alias = "ID")]
+    #[serde(rename = "@id")]
     pub id: String,
 
-    #[serde(rename = "type")]
+    #[serde(rename = "@type")]
     pub typ: String,
 }
 
 /// https://android.googlesource.com/platform/tools/base/+/studio-master-dev/repository/src/main/java/com/android/repository/impl/generated/v1/RemotePackage.java
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct RemotePackage {
+    #[serde(rename = "@path")]
     pub path: String,
     pub archives: ArchivesType,
     pub revision: RevisionType,
@@ -50,14 +52,14 @@ pub struct RemotePackage {
 /// https://android.googlesource.com/platform/tools/base/+/studio-master-dev/repository/src/main/java/com/android/repository/impl/generated/v1/ChannelType.java
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ChannelRefType {
-    #[serde(rename = "ref")]
+    #[serde(rename = "@ref")]
     pub channel: String,
 }
 
 /// https://android.googlesource.com/platform/tools/base/+/studio-master-dev/repository/src/main/java/com/android/repository/impl/generated/v1/ChannelType.java
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct LicenseRefType {
-    #[serde(rename = "ref")]
+    #[serde(rename = "@ref")]
     pub license: String,
 }
 

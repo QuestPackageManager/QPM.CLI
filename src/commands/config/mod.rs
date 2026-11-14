@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::{Args, Subcommand};
 
 mod cache;
@@ -44,7 +45,7 @@ pub enum ConfigOperation {
 }
 
 impl Command for ConfigCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let mut config = if self.local {
             UserConfig::read_workspace()?.unwrap()
         } else {
@@ -55,13 +56,13 @@ impl Command for ConfigCommand {
             ConfigOperation::Cache(c) => c.execute(&mut config)?,
             ConfigOperation::Symlink(s) => s.execute(&mut config)?,
             ConfigOperation::Timeout(t) => t.execute(&mut config)?,
-            ConfigOperation::Token(t) => t.execute()?,
+            ConfigOperation::Token(t) => t.execute(ctx)?,
             ConfigOperation::Location => println!(
                 "Global Config is located at {}",
                 UserConfig::global_config_path().display().bright_yellow()
             ),
             ConfigOperation::NDKPath(p) => p.execute(&mut config)?,
-            ConfigOperation::Publish(k) => k.execute()?,
+            ConfigOperation::Publish(k) => k.execute(ctx)?,
         };
 
         config.write(self.local)?;

@@ -1,0 +1,5 @@
+{
+    "cache": "./qpm_junk/cache",
+    "ndkDownloadPath": "./qpm_junk/ndk",
+    "symlink": false
+}

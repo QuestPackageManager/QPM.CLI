@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
@@ -8,6 +9,7 @@ use itertools::Itertools;
 
 use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
+use qpm_package::models::shared_package::SharedPackageConfig;
 use qpm_qmod::models::mod_json::ModJson;
 
 use crate::commands::qmod::manifest::{ManifestQmodOperationArgs, generate_qmod_manifest};
@@ -17,13 +19,11 @@ use crate::models::package::PackageConfigExtensions;
 use crate::models::schemas::{SchemaLinks, WithSchema};
 use crate::terminal::colors::QPMColor;
 
-use qpm_package::models::dependency::SharedPackageConfig;
-
 use qpm_package::models::package::PackageConfig;
 
 use color_eyre::Result;
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct ZipQmodOperationArgs {
     ///
     /// Tells QPM to exclude mods from being listed as copied mod or libs dependencies
@@ -55,9 +55,6 @@ pub struct ZipQmodOperationArgs {
     #[clap(long = "import")]
     pub import: Option<PathBuf>,
 
-    #[clap(long, default_value = "false")]
-    pub(crate) offline: bool,
-
     /// Run the clean script before building
     #[clap(long = "clean", default_value = "false")]
     pub(crate) clean: bool,
@@ -87,7 +84,11 @@ fn get_relative_pathbuf(path: PathBuf) -> Result<PathBuf, Box<dyn std::error::Er
     Ok(relative_path)
 }
 
-pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs) -> Result<()> {
+pub(crate) fn execute_qmod_zip_operation(
+    ctx: &QpmContext,
+    build_parameters: ZipQmodOperationArgs,
+    additional_include_folders: Vec<PathBuf>,
+) -> Result<()> {
     let package = PackageConfig::read(".")?;
     let shared_package = SharedPackageConfig::read(".")?;
 
@@ -97,13 +98,13 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
             serde_json::from_reader(manifest_file)?
         }
         None => generate_qmod_manifest(
+            ctx,
             &package,
             shared_package,
             ManifestQmodOperationArgs {
                 exclude_libs: build_parameters.exclude_libs.clone(),
                 include_libs: build_parameters.include_libs.clone(),
-                offline: build_parameters.offline,
-            }
+            },
         )?,
     };
 
@@ -112,7 +113,7 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         let clean_script = &package.workspace.get_clean();
         if let Some(clean_script) = clean_script {
             println!("Running clean script");
-            scripts::invoke_script(clean_script, &[], &package)?;
+            scripts::invoke_script(ctx, clean_script, &[], &package)?;
         }
     }
 
@@ -122,21 +123,24 @@ pub(crate) fn execute_qmod_zip_operation(build_parameters: ZipQmodOperationArgs)
         && !build_parameters.skip_build
     {
         println!("Running build script");
-        scripts::invoke_script(build_script, &[], &package)?;
+        scripts::invoke_script(ctx, build_script, &[], &package)?;
     }
 
-    let include_dirs = build_parameters
-        .include_dirs
-        .unwrap_or(package.workspace.qmod_include_dirs);
+    let mut include_dirs = additional_include_folders;
+    include_dirs.extend(
+        build_parameters
+            .include_dirs
+            .unwrap_or(package.qmod.search_dirs.clone()),
+    );
 
     let include_files = build_parameters
         .include_files
-        .unwrap_or(package.workspace.qmod_include_files);
+        .unwrap_or(package.qmod.include_files.clone());
 
     let qmod_out = build_parameters
         .out_target
-        .or(package.workspace.qmod_output)
-        .unwrap_or(format!("./{}", package.info.id).into());
+        .or(package.qmod.output.clone())
+        .unwrap_or(format!("./{}", new_manifest.id).into());
 
     let look_for_files = |s: &str| {
         include_dirs

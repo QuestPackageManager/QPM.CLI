@@ -1,9 +1,10 @@
+use crate::context::QpmContext;
 use clap::Args;
 use color_eyre::eyre::Context;
 
 use crate::{
     models::{config::UserConfig, schemas::SchemaLinks, toolchain::ToolchainData},
-    repository::local::FileRepository,
+    repository::file::FileRepositoryRegistry,
 };
 
 use super::Command;
@@ -23,9 +24,9 @@ impl GenSchemaCommand {
 }
 
 impl Command for GenSchemaCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         Self::write_schema::<UserConfig>(SchemaLinks::USER_CONFIG)?;
-        Self::write_schema::<FileRepository>(SchemaLinks::FILE_REPOSITORY)?;
+        Self::write_schema::<FileRepositoryRegistry>(SchemaLinks::FILE_REPOSITORY)?;
         Self::write_schema::<ToolchainData>(SchemaLinks::TOOLCHAIN_DATA)?;
         Ok(())
     }

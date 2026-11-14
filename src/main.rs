@@ -1,27 +1,13 @@
-#![feature(path_is_empty)]
-
 use std::io;
 
 use clap::{CommandFactory, Parser};
 use clap_complete::{Generator, Shell, generate};
 use color_eyre::Result;
-use commands::Command;
-
-#[cfg(feature = "cli")]
-pub mod commands;
-
-pub mod models;
-pub mod network;
-pub mod repository;
-pub mod resolver;
-pub mod terminal;
-pub mod utils;
-
-#[cfg(test)]
-mod benchmark;
-
-#[cfg(test)]
-mod tests;
+// The binary is a thin wrapper over the library, so the crate is only compiled once
+use qpm_cli::{
+    commands::{self, Command},
+    context,
+};
 
 fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
     generate(
@@ -37,7 +23,7 @@ fn print_completions<G: Generator>(generator: G, cmd: &mut clap::Command) {
 fn suggest_completion_location(shell: Shell) {
     eprintln!("To add this to your shell, you may use the following command:");
 
-    let file_name = shell.file_name("qpm");
+    let file_name = shell.file_name("qpm2");
 
     // powershell is unique so
     // we make it its own suggestion
@@ -69,6 +55,7 @@ fn main() -> Result<()> {
             "/issues/new"
         ))
         .install()?;
+
     let command_result = commands::Opt::parse();
 
     if let Some(generator) = command_result.generator {
@@ -78,7 +65,8 @@ fn main() -> Result<()> {
         suggest_completion_location(generator);
     }
     if let Some(command) = command_result.command {
-        command.execute()?;
+        let ctx = context::QpmContext::load(command_result.offline)?;
+        command.execute(&ctx)?;
     }
 
     Ok(())

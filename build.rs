@@ -6,11 +6,11 @@ fn main() -> Result<()> {
     // Emit the instructions
     #[cfg(feature = "cli")]
     {
-        use vergen::EmitBuilder;
+        use vergen_gitcl::{Emitter, Gitcl};
 
-        EmitBuilder::builder()
-            .all_git()
-            .emit()
+        Emitter::default()
+            .add_instructions(&Gitcl::all_git())
+            .and_then(|emitter| emitter.emit())
             .expect("vergen failed");
     }
     Ok(())

@@ -1,12 +1,12 @@
-use std::io::Cursor;
+use crate::context::QpmContext;
+use std::io::BufReader;
 
-use bytes::{BufMut, BytesMut};
 use clap::{Args, Subcommand};
 use color_eyre::Result;
 use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
-use crate::{network::agent::download_file_report, terminal::colors::QPMColor};
+use crate::{services::network::download_to_tempfile, terminal::colors::QPMColor};
 
 use super::Command;
 
@@ -50,7 +50,7 @@ pub enum DownloadOperation {
 }
 
 impl Command for Download {
-    fn execute(self) -> Result<()> {
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
         let download = self.op;
 
         let url = match download {
@@ -61,10 +61,7 @@ impl Command for Download {
         let exe = std::env::current_exe()?;
         let final_path = exe.parent().unwrap();
 
-        // allocate 10 MB of RAM
-        let mut bytes = BytesMut::with_capacity(1024 * 1024 * 10).writer();
-        download_file_report(url, &mut bytes, |_, _| {})?;
-        let buffer = Cursor::new(bytes.into_inner());
+        let buffer = BufReader::new(download_to_tempfile(ctx.online_agent()?, url, true)?);
 
         // Extract to tmp folde
         let mut archive = ZipArchive::new(buffer)?;
@@ -93,7 +90,7 @@ impl Command for Download {
                 if symlink_path.exists() {
                     std::fs::remove_file(&symlink_path)?;
                 }
-                symlink::symlink_file(
+                crate::utils::symlink::symlink_file(
                     final_path.join("platform-tools").join(adb_name),
                     symlink_path,
                 )?;
@@ -103,7 +100,7 @@ impl Command for Download {
         println!(
             "Sucessfully downloaded and extracted {:?} into {:?}",
             download.cyan(),
-            &final_path.file_path_color()
+            final_path.file_path_color()
         );
 
         Ok(())

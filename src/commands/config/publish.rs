@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::Args;
 use color_eyre::eyre::Context;
 use owo_colors::OwoColorize;
@@ -12,8 +13,12 @@ pub struct KeyCommand {
 }
 
 impl Command for KeyCommand {
-    fn execute(self) -> color_eyre::Result<()> {
-        if self.delete && get_publish_keyring().and_then(|e| e.get_password().ok()).is_some() {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
+        if self.delete
+            && get_publish_keyring()
+                .and_then(|e| e.get_password().ok())
+                .is_some()
+        {
             if let Some(entry) = get_publish_keyring() {
                 entry
                     .delete_credential()

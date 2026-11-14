@@ -5,12 +5,15 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "README.md"
-      - "**.json"
-      - "**.yml"
-      - "LICENSE"
-      - "!.github/workflows/pull-request.yml"
+    # paths-ignore does not support "!" re-includes, so use paths instead.
+    # Later patterns override earlier ones.
+    paths:
+      - "**"
+      - "!README.md"
+      - "!LICENSE"
+      - "!**.json"
+      - "!**.yml"
+      - ".github/workflows/**"
 jobs:
   build:
     uses: ./.github/workflows/cargo-build.yml

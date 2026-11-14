@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::{Args, Subcommand};
 
 use super::Command;
@@ -28,12 +29,12 @@ pub enum PackageOperation {
 }
 
 impl Command for PackageCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         match self.op {
-            PackageOperation::Create(c) => c.execute(),
-            PackageOperation::Edit(e) => e.execute(),
-            PackageOperation::EditExtra(ee) => ee.execute(),
-            PackageOperation::Format(f) => f.execute(),
+            PackageOperation::Create(c) => c.execute(ctx),
+            PackageOperation::Edit(e) => e.execute(ctx),
+            PackageOperation::EditExtra(ee) => ee.execute(ctx),
+            PackageOperation::Format(f) => f.execute(ctx),
         }
     }
 }
