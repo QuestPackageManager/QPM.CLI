@@ -3,11 +3,9 @@ mod support;
 
 use std::{fs, io::Cursor};
 
-use qpm_cli::{
-    repository::{
-        Artifact, Repository,
-        file::{FileRepository, FileRepositoryRegistry},
-    },
+use qpm_cli::repository::{
+    Artifact, Repository,
+    file::{FileRepository, FileRepositoryRegistry},
 };
 use qpm_package::models::package::PackageConfig;
 use semver::Version;

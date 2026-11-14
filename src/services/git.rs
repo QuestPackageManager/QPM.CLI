@@ -4,11 +4,11 @@ use std::{
     process::{Command, Stdio},
 };
 
+use crate::terminal::colors::QPMColor;
 use color_eyre::{
     Section,
     eyre::{Context, Result, bail},
 };
-use owo_colors::OwoColorize;
 
 pub fn check_git() -> color_eyre::Result<()> {
     let mut git = std::process::Command::new("git");
@@ -24,17 +24,17 @@ pub fn check_git() -> color_eyre::Result<()> {
             #[cfg(windows)]
             bail!(
                 "Please make sure git ({}) is installed and on path, then try again!",
-                "https://git-scm.com/download/win".bright_yellow()
+                "https://git-scm.com/download/win".url_color()
             );
             #[cfg(target_os = "linux")]
             bail!(
                 "Please make sure git ({}) is installed and on path, then try again!",
-                "https://git-scm.com/download/linux".bright_yellow()
+                "https://git-scm.com/download/linux".url_color()
             );
             #[cfg(target_os = "macos")]
             bail!(
                 "Please make sure git ({}) is installed and on path, then try again!",
-                "https://git-scm.com/download/mac".bright_yellow()
+                "https://git-scm.com/download/mac".url_color()
             );
         }
     }

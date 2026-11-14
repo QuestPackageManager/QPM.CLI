@@ -1,10 +1,10 @@
 use crate::context::QpmContext;
 use std::path::{Path, PathBuf};
 
+use crate::terminal::colors::QPMColor;
 use clap::{Args, Subcommand};
 use color_eyre::{Result, eyre::bail};
 use itertools::Itertools;
-use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 use semver::VersionReq;
 use walkdir::WalkDir;
@@ -107,7 +107,13 @@ impl Command for Ndk {
                     .rev()
                     .skip(skip)
                     .take(5)
-                    .for_each(|(v, p)| println!("{} -> {}", v.blue(), p.display_name.purple()))
+                    .for_each(|(v, p)| {
+                        println!(
+                            "{} -> {}",
+                            v.version_id_color(),
+                            p.display_name.value_color()
+                        )
+                    })
             }
             NdkOperation::List => {
                 let dir = installed_ndk_dirs(ctx.ndk_download_path()?);
@@ -134,7 +140,7 @@ impl Command for Ndk {
                 let ndk_path = dir.join(version);
 
                 if !ndk_path.exists() {
-                    bail!("Path {} not found!", ndk_path.display().red());
+                    bail!("Path {} not found!", ndk_path.display().file_path_color());
                 }
 
                 println!("{}", ndk_path.display());

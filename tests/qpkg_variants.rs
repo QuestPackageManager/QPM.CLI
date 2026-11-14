@@ -59,10 +59,17 @@ fn package_and_install(root: &Path, cache: &Path, config: &PackageConfig) {
     files.sort();
     let mut expected: Vec<String> = binaries_of(config);
     expected.sort();
-    assert_eq!(files, expected, "the qpkg should hold exactly the out_binaries");
+    assert_eq!(
+        files, expected,
+        "the qpkg should hold exactly the out_binaries"
+    );
 
-    run_qpm(&user, &dir, &["install", "--path", qpkg_path.to_str().unwrap()])
-        .expect("installing the qpkg should succeed");
+    run_qpm(
+        &user,
+        &dir,
+        &["install", "--path", qpkg_path.to_str().unwrap()],
+    )
+    .expect("installing the qpkg should succeed");
 
     let cached = PackageVersionPath::new(config.id.clone(), config.version.clone());
     assert!(

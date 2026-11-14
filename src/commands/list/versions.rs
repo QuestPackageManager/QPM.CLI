@@ -1,6 +1,6 @@
 use crate::context::QpmContext;
+use crate::terminal::colors::QPMColor;
 use clap::Args;
-use owo_colors::OwoColorize;
 use qpm_package::models::package::DependencyId;
 
 use crate::{commands::Command, repository::Repository};
@@ -23,8 +23,8 @@ impl Command for PackageCommand {
                 if self.latest {
                     println!(
                         "The latest version for package {} is {}",
-                        self.package.bright_red(),
-                        package_versions.first().unwrap().to_string().bright_green()
+                        self.package.dependency_id_color(),
+                        package_versions.first().unwrap().version_id_color()
                     );
 
                     return Ok(());
@@ -32,17 +32,17 @@ impl Command for PackageCommand {
 
                 println!(
                     "Package {} has {} versions on qpackages.com:",
-                    self.package.bright_red(),
-                    package_versions.len().bright_yellow()
+                    self.package.dependency_id_color(),
+                    package_versions.len().value_color()
                 );
                 for package_version in package_versions.iter().rev() {
-                    println!(" - {}", package_version.to_string().bright_green());
+                    println!(" - {}", package_version.version_id_color());
                 }
             }
             _ => {
                 println!(
                     "Package {} either did not exist or has no versions on qpackages.com",
-                    self.package.bright_red()
+                    self.package.dependency_id_color()
                 );
             }
         }

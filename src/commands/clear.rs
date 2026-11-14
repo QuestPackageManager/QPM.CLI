@@ -1,9 +1,9 @@
 use crate::context::QpmContext;
 use std::{fs, path::Path};
 
+use crate::terminal::colors::QPMColor;
 use clap::Args;
 use color_eyre::Result;
-use owo_colors::OwoColorize;
 use qpm_package::models::{package::PackageConfig, shared_package::QPM_SHARED_JSON};
 use walkdir::WalkDir;
 
@@ -51,16 +51,16 @@ fn remove_dependencies_dir() -> Result<()> {
             .any(|path| path.exists() && path.canonicalize().unwrap() == extern_path_canonical)
     {
         panic!(
-            "Current path {:?} would be deleted since extern path {:?} is an ancestor or empty",
-            current_path.canonicalize().bright_yellow(),
-            extern_path.bright_red()
+            "Current path {} would be deleted since extern path {} is an ancestor or empty",
+            current_path.display().file_path_color(),
+            extern_path.display().file_path_color()
         );
     }
 
     for entry in WalkDir::new(extern_path_canonical).min_depth(1) {
         let path = entry?.into_path();
         #[cfg(debug_assertions)]
-        println!("Path: {}", path.display().bright_yellow());
+        println!("Path: {}", path.display().file_path_color());
         if path.is_symlink() {
             if path.is_dir() {
                 #[cfg(debug_assertions)]
@@ -68,7 +68,7 @@ fn remove_dependencies_dir() -> Result<()> {
                 if let Err(e) = crate::utils::symlink::remove_symlink_dir(&path) {
                     println!(
                         "Failed to remove symlink for directory {}: {}",
-                        path.display().bright_yellow(),
+                        path.display().file_path_color(),
                         e
                     );
                 }
@@ -78,7 +78,7 @@ fn remove_dependencies_dir() -> Result<()> {
                 if let Err(e) = crate::utils::symlink::remove_symlink_file(&path) {
                     println!(
                         "Failed to remove symlink for file {}: {}",
-                        path.display().bright_yellow(),
+                        path.display().file_path_color(),
                         e
                     );
                 }
@@ -90,7 +90,7 @@ fn remove_dependencies_dir() -> Result<()> {
                 {
                     println!(
                         "Failed to remove broken symlink for {}:\nAttempt 1 (dir):{}\nAttempt 2 (file):{}",
-                        path.display().bright_yellow(),
+                        path.display().file_path_color(),
                         ed,
                         ef
                     );

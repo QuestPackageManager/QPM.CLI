@@ -1,6 +1,6 @@
+use crate::terminal::colors::QPMColor;
 use clap::Args;
 use color_eyre::Result;
-use owo_colors::OwoColorize;
 
 use crate::models::config::UserConfig;
 
@@ -14,13 +14,13 @@ impl NDKPath {
     pub fn execute(self, config: &mut UserConfig) -> Result<()> {
         match self.ndk_path {
             Some(path) => {
-                println!("Set ndk path to {}!", path.bright_yellow());
+                println!("Set ndk path to {}!", path.file_path_color());
                 config.ndk_download_path = Some(path.into());
             }
             None => match &config.ndk_download_path {
                 Some(path) => println!(
                     "Current configured ndk path is: {}",
-                    path.to_str().unwrap().bright_yellow()
+                    path.to_str().unwrap().file_path_color()
                 ),
                 None => println!("No ndk path was configured!"),
             },

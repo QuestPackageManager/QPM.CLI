@@ -3,7 +3,6 @@ use std::io::BufReader;
 
 use clap::{Args, Subcommand};
 use color_eyre::Result;
-use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
 use crate::{services::network::download_to_tempfile, terminal::colors::QPMColor};
@@ -98,9 +97,9 @@ impl Command for Download {
         }
 
         println!(
-            "Sucessfully downloaded and extracted {:?} into {:?}",
-            download.cyan(),
-            final_path.file_path_color()
+            "Successfully downloaded and extracted {} into {}",
+            format!("{download:?}").download_file_name_color(),
+            final_path.display().file_path_color()
         );
 
         Ok(())

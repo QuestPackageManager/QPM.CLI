@@ -1,8 +1,8 @@
 use crate::context::QpmContext;
 use std::path::Path;
 
+use crate::terminal::colors::QPMColor;
 use clap::Args;
-use owo_colors::OwoColorize;
 use qpm_package::models::package::{self, DependencyId, PackageConfig, WorkspaceConfig};
 use semver::Version;
 
@@ -25,7 +25,7 @@ impl Command for PackageOperationCreateArgs {
         if PackageConfig::exists(".") {
             println!(
                 "{}",
-                "Package already existed, not creating a new package!".bright_red()
+                "Package already existed, not creating a new package!".error_color()
             );
             println!(
                 "Did you try to make a package in the same directory as another, or did you not use a clean folder?"

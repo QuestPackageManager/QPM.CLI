@@ -1,9 +1,9 @@
+use crate::terminal::colors::QPMColor;
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 use color_eyre::{
     Result, Section,
     eyre::{Context, ContextCompat},
-    owo_colors::OwoColorize,
 };
 use itertools::Itertools;
 use qpm_package::models::{
@@ -110,7 +110,7 @@ impl PackageConfigExtensions for SharedPackageConfig {
         let path = dir.as_ref().join(QPM_SHARED_JSON);
         let file = File::open(&path)
             .with_context(|| format!("{path:?} not found"))
-            .suggestion(format!("Try running {}", "qpm2 restore".blue()))?;
+            .suggestion(format!("Try running {}", "qpm2 restore".command_color()))?;
 
         json::json_from_reader_fast(BufReader::new(file))
             .with_context(|| format!("Unable to read SharedPackageConfig at {path:?}"))

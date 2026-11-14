@@ -4,9 +4,9 @@ use std::{
     io::{BufReader, BufWriter, Read, Write},
 };
 
+use crate::terminal::colors::QPMColor;
 use color_eyre::{Help, Result, eyre::bail};
 use itertools::Itertools;
-use owo_colors::OwoColorize;
 use zip::ZipArchive;
 
 use crate::services::{github, network::download_to_tempfile};
@@ -112,8 +112,8 @@ pub fn apply_update(agent: &ureq::Agent, download_url: &str) -> Result<()> {
 
     let suggestion = format!(
         "Try renaming manually.\nmv \"{}\" \"{}\" {}",
-        tmp_path.to_str().unwrap().red(),
-        path.to_str().unwrap().blue(),
+        tmp_path.display().file_path_color(),
+        path.display().file_path_color(),
         if cfg!(windows) { "-Force" } else { "" }
     );
 

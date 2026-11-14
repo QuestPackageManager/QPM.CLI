@@ -12,9 +12,7 @@ use qpm_cli::{
     repository::file::FileRepository,
 };
 use qpm_package::models::{
-    extra::PackageCompileOptions,
-    package::PackageConfig,
-    shared_package::SharedPackageConfig,
+    extra::PackageCompileOptions, package::PackageConfig, shared_package::SharedPackageConfig,
 };
 use semver::Version;
 use support::{depend_on, id, locked, package, qpkg_bytes};

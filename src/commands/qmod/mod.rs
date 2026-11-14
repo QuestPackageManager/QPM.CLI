@@ -1,6 +1,7 @@
 use crate::context::QpmContext;
+use crate::terminal::colors::QPMColor;
 use clap::{Args, Subcommand};
-use color_eyre::{Result, owo_colors::OwoColorize};
+use color_eyre::Result;
 
 use super::Command;
 
@@ -42,8 +43,8 @@ impl Command for QmodCommand {
             QmodOperation::Build(b) => {
                 println!(
                     "{} is deprecated, switch to {}",
-                    "qpm2 qmod build".yellow(),
-                    "qpm2 qmod manifest".green()
+                    "qpm2 qmod build".command_color(),
+                    "qpm2 qmod manifest".command_color()
                 );
                 manifest::execute_qmod_manifest_operation(ctx, b)
             }

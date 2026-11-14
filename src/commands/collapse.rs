@@ -1,7 +1,6 @@
 use crate::context::QpmContext;
 use clap::Args;
 use itertools::Itertools;
-use owo_colors::OwoColorize;
 use qpm_package::models::package::PackageConfig;
 
 use crate::{
@@ -48,13 +47,13 @@ fn list_dependencies(
             "{} --> {} ({} restored dependencies)",
             resolved_dep.id.dependency_id_color(),
             resolved_dep.version.version_id_color(),
-            sum.to_string().yellow()
+            sum.value_color()
         );
 
         if print_env {
             println!("Environment variables:");
             for (key, value) in resolved_dep.workspace.env.iter().flatten() {
-                println!(" - {}: {}", key.cyan(), value.green());
+                println!(" - {}: {}", key.value_color(), value.value_color());
             }
         }
 

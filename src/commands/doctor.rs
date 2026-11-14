@@ -1,12 +1,12 @@
 use crate::context::QpmContext;
 use std::{env, fs::File};
 
+use crate::terminal::colors::QPMColor;
 use clap::Args;
 use color_eyre::{
     Help, Result,
     eyre::{anyhow, bail},
 };
-use owo_colors::OwoColorize;
 
 use super::Command;
 
@@ -56,7 +56,7 @@ impl Command for DoctorCommand {
         if !ninja {
             eprintln!(
                 "Ninja is not installed in path! Use {} to download ninja",
-                "qpm2 download ninja".yellow()
+                "qpm2 download ninja".command_color()
             )
         } else {
             println!("Ninja found!");
@@ -71,7 +71,7 @@ impl Command for DoctorCommand {
         if !adb {
             eprintln!(
                 "ADB not installed in path. Use {} to download ADB",
-                "qpm2 download adb".yellow()
+                "qpm2 download adb".command_color()
             )
         } else {
             println!("ADB found!");
@@ -96,7 +96,7 @@ impl Command for DoctorCommand {
         };
 
         if cmake && adb && qpm && ninja {
-            println!("{}", "Everything looks good!".green());
+            println!("{}", "Everything looks good!".success_color());
         } else {
             bail!("Some functionality is missing");
         }

@@ -49,7 +49,10 @@ fn package_is_served_from_cache_after_first_lookup() {
 
     let second = repo.get_package(&id("a"), &Version::new(1, 0, 0)).unwrap();
     assert_eq!(first, second);
-    assert_ne!(second.unwrap().config.shared_directory, std::path::Path::new("changed"));
+    assert_ne!(
+        second.unwrap().config.shared_directory,
+        std::path::Path::new("changed")
+    );
 }
 
 #[test]

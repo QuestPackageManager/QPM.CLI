@@ -3,7 +3,6 @@ use color_eyre::{
     eyre::{Context, OptionExt, bail, ensure},
 };
 use itertools::Itertools;
-use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, QPM_JSON},
     qpkg::QpkgManifest,
@@ -140,8 +139,8 @@ impl FileRepository {
     ) -> Result<()> {
         println!(
             "Adding cache for local dependency {} {}",
-            package.id.bright_red(),
-            package.version.bright_green()
+            package.id.dependency_id_color(),
+            package.version.version_id_color()
         );
         let cache_root = &self.root;
         let cache_path = PackageIdPath::new(package.id.clone()).version(package.version.clone());
@@ -162,7 +161,7 @@ impl FileRepository {
             if !binary_src.exists() {
                 bail!(
                     "Binary {} does not exist, cannot copy to cache!",
-                    binary_src.display().bright_yellow()
+                    binary_src.display().file_path_color()
                 );
             }
 
@@ -204,8 +203,8 @@ impl FileRepository {
                 bail!(
                     "Downloaded package ({}) version ({}) does not match expected version ({})!",
                     package.id.dependency_id_color(),
-                    downloaded_package.version.red(),
-                    package.version.green(),
+                    downloaded_package.version.version_id_color(),
+                    package.version.version_id_color(),
                 );
             }
         }
@@ -409,7 +408,7 @@ impl FileRepository {
         {
             bail!(
                 "Checksum mismatch for {}: expected {}, got {}",
-                url.blue(),
+                url.url_color(),
                 checksum,
                 hash_hex
             );
@@ -468,8 +467,8 @@ impl FileRepository {
                 if !src.exists() {
                     bail!(
                         "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
-                        src.display().bright_yellow(),
-                        "qpm2 cache clear".bright_yellow()
+                        src.display().file_path_color(),
+                        "qpm2 cache clear".command_color()
                     );
                 }
 
@@ -486,14 +485,14 @@ impl FileRepository {
                 #[cfg(windows)]
                 eprintln!(
                     "Failed to create symlink: {}\nfalling back to copy, did the link already exist, or did you not enable windows dev mode?\nTo disable this warning (and default to copy), use the command {}",
-                    e.bright_red(),
-                    "qpm2 config symlink disable".bright_yellow()
+                    e.error_color(),
+                    "qpm2 config symlink disable".command_color()
                 );
                 #[cfg(not(windows))]
                 eprintln!(
                     "Failed to create symlink: {}\nfalling back to copy, did the link already exist?\nTo disable this warning (and default to copy), use the command {}",
-                    e.bright_red(),
-                    "qpm2 config symlink disable".bright_yellow()
+                    e.error_color(),
+                    "qpm2 config symlink disable".command_color()
                 );
             }
 
@@ -502,8 +501,8 @@ impl FileRepository {
                 if !src.exists() {
                     bail!(
                         "The file or folder\n\t'{}'\ndid not exist! what happened to the cache? you should probably run {} to make sure everything is in order...",
-                        src.display().bright_yellow(),
-                        "qpm2 cache clear".bright_yellow()
+                        src.display().file_path_color(),
+                        "qpm2 cache clear".command_color()
                     );
                 } else if src.is_dir() {
                     std::fs::create_dir_all(&dest)
@@ -559,7 +558,7 @@ impl FileRepository {
             if !bin.exists() {
                 bail!(
                     "Missing binary {} for dependency {}:{}",
-                    bin.display().bright_yellow(),
+                    bin.display().file_path_color(),
                     package.id.dependency_id_color(),
                     package.version.dependency_version_color()
                 );
@@ -568,7 +567,7 @@ impl FileRepository {
             if !seen.insert(bin.clone()) {
                 bail!(
                     "Duplicate binary {} for dependency {}:{}",
-                    bin.display().bright_yellow(),
+                    bin.display().file_path_color(),
                     package.id.dependency_id_color(),
                     package.version.dependency_version_color()
                 );
@@ -658,7 +657,7 @@ impl FileRepository {
                 if !binary.exists() {
                     bail!(
                         "Missing binary {} for dependency {}:{}",
-                        binary.display().bright_yellow(),
+                        binary.display().file_path_color(),
                         direct_dep.config.id.dependency_id_color(),
                         direct_dep.config.version.dependency_version_color()
                     );
@@ -694,8 +693,8 @@ impl FileRepository {
             if !seen.insert(dest) {
                 bail!(
                     "Collision detected for {} and {}",
-                    src.display().bright_yellow(),
-                    dest.display().bright_yellow()
+                    src.display().file_path_color(),
+                    dest.display().file_path_color()
                 );
             }
         }

@@ -1,6 +1,6 @@
+use crate::terminal::colors::QPMColor;
 use clap::Args;
 use color_eyre::Result;
-use owo_colors::OwoColorize;
 
 use crate::models::config::UserConfig;
 
@@ -13,13 +13,13 @@ impl Timeout {
     pub fn execute(&self, config: &mut UserConfig) -> Result<()> {
         match self.timeout {
             Some(timeout) => {
-                println!("Set timeout to {}!", timeout.bright_yellow());
+                println!("Set timeout to {}!", timeout.value_color());
                 config.timeout = Some(timeout);
             }
             None => match config.timeout {
                 Some(timeout) => println!(
                     "Current configured timeout is set to: {}",
-                    timeout.bright_yellow()
+                    timeout.value_color()
                 ),
                 None => println!("Timeout is not configured!"),
             },

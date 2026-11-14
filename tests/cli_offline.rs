@@ -23,7 +23,12 @@ fn cache_clear_package_makes_it_unresolvable() {
     let dep = package("cleared", Version::new(1, 0, 0), Some(&["libcleared.so"]));
     let qpkg = root.path().join("cleared.qpkg");
     fs::write(&qpkg, qpkg_bytes(&dep)).unwrap();
-    run_qpm(&user, root.path(), &["install", "--path", qpkg.to_str().unwrap()]).unwrap();
+    run_qpm(
+        &user,
+        root.path(),
+        &["install", "--path", qpkg.to_str().unwrap()],
+    )
+    .unwrap();
 
     let mut consumer = package("consumer", Version::new(1, 0, 0), None);
     depend_on(&mut consumer, "cleared", "^1.0.0");
@@ -48,7 +53,10 @@ fn cache_clear_package_makes_it_unresolvable() {
 fn scripts_unknown_name_errors() {
     let root = tempdir().unwrap();
     let cache = tempdir().unwrap();
-    let dir = workspace(root.path(), &package("scripted", Version::new(1, 0, 0), None));
+    let dir = workspace(
+        root.path(),
+        &package("scripted", Version::new(1, 0, 0), None),
+    );
 
     let err = run_qpm(&user_config(cache.path()), &dir, &["scripts", "missing"])
         .expect_err("an undefined script should fail");

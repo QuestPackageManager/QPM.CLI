@@ -80,7 +80,7 @@ cursed-semver-parser = { git = "https://github.com/raftario/cursed-semver-parser
     "serde",
 ] }
 pubgrub = "0.4"
-owo-colors = "4"
+owo-colors = { version = "4", features = ["supports-colors"] }
 dirs = "7.0.0"
 keyring = {version = "4", features = ["v1"]}
 

@@ -7,7 +7,6 @@ use std::{
 
 use clap::Subcommand;
 use color_eyre::{Result, eyre::Context};
-use owo_colors::OwoColorize;
 use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 use walkdir::WalkDir;
@@ -94,7 +93,7 @@ fn clear(ctx: &QpmContext, clear_params: ClearCommand) -> Result<()> {
 }
 
 fn path(path: &Path) {
-    println!("Config path is: {}", path.display().bright_yellow());
+    println!("Config path is: {}", path.display().file_path_color());
 }
 
 fn list(path: &Path) {
@@ -103,12 +102,15 @@ fn list(path: &Path) {
         if unwrapped.depth() == 1 {
             println!(
                 "package {}:",
-                unwrapped.file_name().to_string_lossy().bright_red()
+                unwrapped
+                    .file_name()
+                    .to_string_lossy()
+                    .dependency_id_color()
             );
         } else {
             println!(
                 " - {}",
-                unwrapped.file_name().to_string_lossy().bright_green()
+                unwrapped.file_name().to_string_lossy().version_id_color()
             );
         }
     }
@@ -131,7 +133,7 @@ fn legacy_fix(cache_root: &Path) -> Result<()> {
                     Ok(o) => o,
                     Err(e) => panic!(
                         "Opening file {} to read failed: {}",
-                        entry_path.display().bright_yellow(),
+                        entry_path.display().file_path_color(),
                         e
                     ),
                 };
@@ -143,7 +145,7 @@ fn legacy_fix(cache_root: &Path) -> Result<()> {
                         #[cfg(debug_assertions)]
                         println!(
                             "reading file {} to string failed: {}",
-                            entry_path.display().bright_yellow(),
+                            entry_path.display().file_path_color(),
                             e
                         );
                         continue;

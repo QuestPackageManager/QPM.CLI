@@ -1,8 +1,8 @@
 use crate::context::QpmContext;
+use crate::terminal::colors::QPMColor;
 use clap::Args;
 use color_eyre::Result;
 use itertools::Itertools;
-use owo_colors::OwoColorize;
 
 use crate::{commands::Command, repository::Repository};
 
@@ -20,7 +20,7 @@ impl Command for PackageListCommand {
         if !ids.is_empty() {
             println!(
                 "Found {} packages on qpackages.com",
-                ids.len().bright_yellow()
+                ids.len().value_color()
             );
 
             ids.chunks(5).for_each(|_id| println!("{_id:?}\n"));

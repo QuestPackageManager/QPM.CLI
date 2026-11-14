@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use clap::Args;
 use itertools::Itertools;
 
-use owo_colors::OwoColorize;
 use qpm_package::extensions::workspace::WorkspaceConfigExtensions;
 use qpm_package::models::shared_package::SharedPackageConfig;
 use qpm_qmod::models::mod_json::ModJson;
@@ -201,7 +200,7 @@ pub(crate) fn execute_qmod_zip_operation(
         .compression_method(zip::CompressionMethod::Deflated)
         .compression_level(Some(9));
     for file in combined_files {
-        println!("Adding file {}", file.to_string_lossy().green());
+        println!("Adding file {}", file.display().file_path_color());
 
         // 50kb
         let contents = fs::read(&file)?;
@@ -222,7 +221,10 @@ pub(crate) fn execute_qmod_zip_operation(
     // Dropping the `ZipWriter` will have the same effect, but may silently fail
     zip.finish()?;
 
-    println!("Wrote zip file to {}", out_target_qmod.display().blue());
+    println!(
+        "Wrote zip file to {}",
+        out_target_qmod.display().file_path_color()
+    );
 
     Ok(())
 }

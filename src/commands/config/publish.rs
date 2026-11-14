@@ -1,7 +1,7 @@
 use crate::context::QpmContext;
+use crate::terminal::colors::QPMColor;
 use clap::Args;
 use color_eyre::eyre::Context;
-use owo_colors::OwoColorize;
 
 use crate::{commands::Command, models::config::get_publish_keyring};
 
@@ -47,11 +47,11 @@ impl Command for KeyCommand {
             // read token, possibly unused so prepend with _ to prevent warnings
             if let Some(key) = get_publish_keyring().and_then(|e| e.get_password().ok()) {
                 #[cfg(debug_assertions)]
-                println!("Configured publish key: {}", key.bright_yellow());
+                println!("Configured publish key: {}", key.value_color());
                 #[cfg(not(debug_assertions))]
                 println!(
                     "In release builds you {} view the configured publish key!",
-                    "cannot".bright_red()
+                    "cannot".error_color()
                 );
             } else {
                 println!("No publish key was configured, or getting the publish key failed!");

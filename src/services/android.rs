@@ -1,7 +1,6 @@
 use std::{collections::HashMap, env, fs, io::BufReader, path::Path, path::PathBuf};
 
 use color_eyre::Result;
-use owo_colors::OwoColorize;
 use semver::{BuildMetadata, Prerelease, Version};
 
 use zip::ZipArchive;
@@ -22,7 +21,9 @@ pub fn get_android_manifest(agent: &ureq::Agent) -> Result<AndroidRepositoryMani
         .into_body()
         .into_reader();
 
-    Ok(quick_xml::de::from_reader(std::io::BufReader::new(response))?)
+    Ok(quick_xml::de::from_reader(std::io::BufReader::new(
+        response,
+    ))?)
 }
 
 pub fn get_ndk_packages(manifest: &AndroidRepositoryManifest) -> Vec<&RemotePackage> {
@@ -34,11 +35,8 @@ pub fn get_ndk_packages(manifest: &AndroidRepositoryManifest) -> Vec<&RemotePack
 }
 
 pub fn get_ndk_version(ndk: &RemotePackage) -> Version {
-    let build = BuildMetadata::new(&format!(
-        "preview-{}",
-        ndk.revision.preview.unwrap_or(0).to_string()
-    ))
-    .unwrap();
+    let build =
+        BuildMetadata::new(&format!("preview-{}", ndk.revision.preview.unwrap_or(0))).unwrap();
 
     Version {
         major: ndk.revision.major.unwrap_or(0),
@@ -113,8 +111,8 @@ pub fn download_ndk_version(
 
     println!(
         "Downloading {} from {}, this may take some time",
-        get_ndk_version(ndk).blue(),
-        archive_url.yellow()
+        get_ndk_version(ndk).version_id_color(),
+        archive_url.url_color()
     );
 
     let _name = &archive.complete.url;
@@ -132,7 +130,7 @@ pub fn download_ndk_version(
 
     println!(
         "Downloaded {} to {}",
-        get_ndk_version(ndk).green(),
+        get_ndk_version(ndk).version_id_color(),
         extract_path.to_str().unwrap().file_path_color()
     );
 
@@ -330,10 +328,18 @@ mod tests {
         assert_eq!(pkg.path, "ndk;27.3.13750724");
         assert_eq!(pkg.display_name, "NDK (Side by side) 27.3.13750724");
         assert_eq!(
-            (pkg.revision.major, pkg.revision.minor, pkg.revision.micro, pkg.revision.preview),
+            (
+                pkg.revision.major,
+                pkg.revision.minor,
+                pkg.revision.micro,
+                pkg.revision.preview
+            ),
             (Some(27), Some(3), Some(13750724), None)
         );
-        assert_eq!(pkg.uses_license.as_ref().unwrap().license, "android-sdk-license");
+        assert_eq!(
+            pkg.uses_license.as_ref().unwrap().license,
+            "android-sdk-license"
+        );
         assert_eq!(pkg.channel.as_ref().unwrap().channel, "channel-0");
 
         let [archive] = pkg.archives.archive.as_slice() else {
@@ -342,7 +348,10 @@ mod tests {
         assert_eq!(archive.host_os.as_deref(), Some("linux"));
         assert_eq!(archive.host_arch, None);
         assert_eq!(archive.complete.size, Some(663956036));
-        assert_eq!(archive.complete.checksum, "22105e410cf29afcf163760cc95522b9fb981121");
+        assert_eq!(
+            archive.complete.checksum,
+            "22105e410cf29afcf163760cc95522b9fb981121"
+        );
         assert_eq!(archive.complete.url, "android-ndk-r27d-linux.zip");
     }
 }

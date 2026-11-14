@@ -171,7 +171,10 @@ mod graphs {
         ]);
         let root = pkg("root", "1.0.0", &[("a", "^1")]);
 
-        assert_eq!(resolved(root, &repo), HashMap::from([("a".into(), v("1.2.0"))]));
+        assert_eq!(
+            resolved(root, &repo),
+            HashMap::from([("a".into(), v("1.2.0"))])
+        );
     }
 
     #[test]

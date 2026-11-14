@@ -8,7 +8,7 @@ mod symlink;
 mod timeout;
 mod token;
 
-use owo_colors::OwoColorize;
+use crate::terminal::colors::QPMColor;
 
 use crate::models::config::UserConfig;
 
@@ -59,7 +59,7 @@ impl Command for ConfigCommand {
             ConfigOperation::Token(t) => t.execute(ctx)?,
             ConfigOperation::Location => println!(
                 "Global Config is located at {}",
-                UserConfig::global_config_path().display().bright_yellow()
+                UserConfig::global_config_path().display().file_path_color()
             ),
             ConfigOperation::NDKPath(p) => p.execute(&mut config)?,
             ConfigOperation::Publish(k) => k.execute(ctx)?,

@@ -35,7 +35,8 @@ impl QpkgManifestExtensions for QpkgManifest {
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
         let path = dir.as_ref().join(QPKG_JSON);
 
-        let serialized = serde_json::to_string_pretty(self).context("Failed to serialize QPKG manifest")?;
+        let serialized =
+            serde_json::to_string_pretty(self).context("Failed to serialize QPKG manifest")?;
         std::fs::write(path, serialized).context("Failed to write QPKG manifest to file")?;
         Ok(())
     }

@@ -1,43 +1,51 @@
-use owo_colors::{FgColorDisplay, OwoColorize};
+//! The CLI's color scheme. Color output through these methods rather than calling
+//! `owo_colors` colors (`.red()`, `.bright_yellow()`, ...) directly, so the same kind of
+//! value always gets the same color, and colors turn off when the stream isn't a terminal
+//! or `NO_COLOR` is set (`CLICOLOR_FORCE` forces them on).
 
-/// Defines a color scheme for Spiggy
-pub trait QPMColor: OwoColorize {
-    #[inline(always)]
-    fn download_file_name_color(&self) -> FgColorDisplay<'_, owo_colors::colors::Cyan, Self> {
-        self.cyan()
-    }
+use std::fmt::Display;
 
-    #[inline(always)]
-    fn file_path_color(&self) -> FgColorDisplay<'_, owo_colors::colors::Yellow, Self> {
-        self.yellow()
-    }
+use owo_colors::{OwoColorize, Stream};
 
-    #[inline(always)]
-    fn dependency_id_color(&self) -> FgColorDisplay<'_, owo_colors::colors::Blue, Self> {
-        self.blue()
-    }
-
-    #[inline(always)]
-    fn version_id_color(&self) -> FgColorDisplay<'_, owo_colors::colors::Blue, Self> {
-        self.blue()
-    }
-
-    #[inline(always)]
-    fn dependency_version_color(&self) -> FgColorDisplay<'_, owo_colors::colors::Magenta, Self> {
-        self.purple()
-    }
-
-    #[inline(always)]
-    fn alternate_dependency_version_color(
-        &self,
-    ) -> FgColorDisplay<'_, owo_colors::colors::Yellow, Self> {
-        self.yellow()
-    }
-
-    #[inline(always)]
-    fn triplet_id_color(&self) -> FgColorDisplay<'_, owo_colors::colors::Green, Self> {
-        self.green()
-    }
+macro_rules! scheme {
+    ($($(#[$doc:meta])* $name:ident => $stream:ident, |$s:ident| $style:expr;)*) => {
+        pub trait QPMColor: OwoColorize + Display {
+            $(
+                $(#[$doc])*
+                #[inline(always)]
+                fn $name(&self) -> impl Display + '_ {
+                    self.if_supports_color(Stream::$stream, |$s| $style)
+                }
+            )*
+        }
+    };
 }
 
-impl<D: OwoColorize> QPMColor for D {}
+scheme! {
+    /// A file being downloaded
+    download_file_name_color => Stdout, |s| s.cyan();
+    /// A file or directory path
+    file_path_color => Stdout, |s| s.yellow();
+    /// A package id
+    dependency_id_color => Stdout, |s| s.blue();
+    /// A concrete package version
+    version_id_color => Stdout, |s| s.blue();
+    /// A version range a dependency asks for
+    dependency_version_color => Stdout, |s| s.purple();
+    /// A second version range, shown next to `dependency_version_color`
+    alternate_dependency_version_color => Stdout, |s| s.yellow();
+    /// A target triplet
+    triplet_id_color => Stdout, |s| s.green();
+    /// A command or flag the user can run
+    command_color => Stdout, |s| s.bold();
+    /// A URL
+    url_color => Stdout, |s| s.cyan();
+    /// A config value or count
+    value_color => Stdout, |s| s.bright_yellow();
+    /// Something that went wrong. Goes to stderr when used in errors.
+    error_color => Stderr, |s| s.bright_red();
+    /// Something that went right
+    success_color => Stdout, |s| s.green();
+}
+
+impl<D: OwoColorize + Display> QPMColor for D {}

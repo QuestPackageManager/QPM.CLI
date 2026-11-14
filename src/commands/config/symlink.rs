@@ -1,6 +1,6 @@
+use crate::terminal::colors::QPMColor;
 use clap::{Args, Subcommand};
 use color_eyre::Result;
-use owo_colors::OwoColorize;
 
 use crate::models::config::UserConfig;
 
@@ -35,7 +35,7 @@ impl Symlink {
                 Some(symlink) => {
                     println!(
                         "Current configured symlink usage is set to: {}",
-                        symlink.bright_yellow()
+                        symlink.value_color()
                     );
                 }
                 None => println!("Symlink usage is not configured!"),
@@ -47,6 +47,6 @@ impl Symlink {
 }
 
 fn set_symlink_usage(config: &mut UserConfig, value: bool) {
-    println!("Set symlink usage to {}", value.bright_yellow());
+    println!("Set symlink usage to {}", value.value_color());
     config.symlink = Some(value);
 }

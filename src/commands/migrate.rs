@@ -1,9 +1,9 @@
 use crate::context::QpmContext;
 use std::{fs::File, io::BufReader, path::PathBuf};
 
+use crate::terminal::colors::QPMColor;
 use clap::Args;
 use color_eyre::eyre::{Context, bail};
-use owo_colors::OwoColorize;
 use qpm_package::models::{
     extra::PackageCompileOptions,
     package::{
@@ -40,7 +40,7 @@ impl Command for MigrateCommand {
         if !self.force && PackageConfig::exists(".") {
             bail!(
                 "qpm2.json already exists, refusing to overwrite it. Use {} to overwrite it anyway.",
-                "--force".yellow()
+                "--force".command_color()
             );
         }
 
@@ -55,8 +55,8 @@ impl Command for MigrateCommand {
 
         println!(
             "Migrated {} to {}",
-            input.display().to_string().yellow(),
-            "qpm2.json".green()
+            input.display().file_path_color(),
+            "qpm2.json".file_path_color()
         );
 
         Ok(())

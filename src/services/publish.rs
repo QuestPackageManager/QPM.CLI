@@ -1,7 +1,6 @@
 use std::io::BufReader;
 
 use color_eyre::eyre::{Context, ContextCompat, Result, bail};
-use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::PackageConfig, qpackages::QPackagesPackage, shared_package::SharedPackageConfig,
 };
@@ -116,8 +115,8 @@ fn check_dependencies(
             bail!(
                 "Restored dependency {} version ({}) does not satisfy stated range ({})",
                 dep_id.dependency_id_color(),
-                el.restored_version.red(),
-                dependency.version_range.green()
+                el.restored_version.version_id_color(),
+                dependency.version_range.dependency_version_color()
             );
         }
     }

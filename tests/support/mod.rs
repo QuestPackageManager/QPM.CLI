@@ -167,4 +167,3 @@ pub fn file_names(dir: &Path) -> Vec<String> {
     names.sort();
     names
 }
-

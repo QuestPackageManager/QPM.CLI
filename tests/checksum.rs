@@ -77,7 +77,9 @@ fn install_qpkg_records_the_archive_sha256() {
     let bytes = qpkg_bytes(&sample());
     let mut repo = FileRepository::read(cache.path().to_path_buf()).unwrap();
 
-    let artifact = repo.install_qpkg(Cursor::new(bytes.clone()), false, None).unwrap();
+    let artifact = repo
+        .install_qpkg(Cursor::new(bytes.clone()), false, None)
+        .unwrap();
 
     assert_eq!(artifact.qpkg_checksum, Some(sha256_hex(&bytes)));
     // and it's persisted in the index
@@ -140,7 +142,13 @@ fn download_with_wrong_checksum_fails_and_installs_nothing() {
     let mut repo = FileRepository::read(cache.path().to_path_buf()).unwrap();
 
     let err = repo
-        .install_qpkg_from_url(&test_agent(), &url, Some(&sha256_hex(b"other")), false, None)
+        .install_qpkg_from_url(
+            &test_agent(),
+            &url,
+            Some(&sha256_hex(b"other")),
+            false,
+            None,
+        )
         .expect_err("a mismatched checksum must fail");
 
     assert!(format!("{err:?}").contains("Checksum mismatch"), "{err:?}");
@@ -227,7 +235,12 @@ fn restore_fails_when_the_lock_file_checksum_was_changed() {
 
     let qpkg = root.path().join("summed.qpkg");
     std::fs::write(&qpkg, qpkg_bytes(&sample())).unwrap();
-    run_qpm(&user, root.path(), &["install", "--path", qpkg.to_str().unwrap()]).unwrap();
+    run_qpm(
+        &user,
+        root.path(),
+        &["install", "--path", qpkg.to_str().unwrap()],
+    )
+    .unwrap();
 
     let mut consumer = package("consumer", Version::new(1, 0, 0), None);
     depend_on(&mut consumer, "summed", "^1.0.0");
