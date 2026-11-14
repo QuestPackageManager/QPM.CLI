@@ -1,0 +1,65 @@
+{
+  // proof of concept for qpm2
+  "config": {},
+
+  // triplets restore rules
+  // this should only be used for restoring the current package
+  // and not during the dependency restore process
+  "lockedTriplet": {
+    // default should not appear here. All triplets should be listed
+    // TODO: Include checksums here? 
+    // TODO: Include qpkg urls here?
+
+
+    "android/arm64/shared": {
+      "restoredDependencies": {
+        // inherited from default
+        "beatsaber-hook": {
+          "restoredVersion": "6.2.9",
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/shared"
+        },
+        "flamingo": {
+          "restoredVersion": "6.2.9",
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/static"
+        },
+        "chroma": {
+          "restoredVersion": "6.2.9",
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/headerOnly"
+        },
+        // specific to this triplet
+        "custom-json-data": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/shared"
+        }
+      }
+    },
+    "android/arm64/static": {
+      "restoredDependencies": {
+        // inherited from default
+        "beatsaber-hook": {
+          "restoredVersion": "6.2.9",
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/shared"
+        },
+        "flamingo": {
+          "restoredVersion": "6.2.9",
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/static"
+        },
+        "chroma": {
+          "restoredVersion": "6.2.9",
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/headerOnly"
+        },
+        // specific to this triplet
+        "curl": {
+          "versionRange": "^6.1.9",
+          "triplet": "android/arm64/shared"
+        }
+      }
+    }
+  }
+}

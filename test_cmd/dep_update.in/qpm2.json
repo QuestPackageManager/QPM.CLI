@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/QuestPackageManager/QPM.Package/refs/heads/main/qpm.schema.json",
+  "configVersion": "2.0.0",
+  "id": "package1",
+  "version": "0.1.0",
+  "additionalData": {
+    "description": "",
+    "author": "",
+    "license": ""
+  },
+  "workspace": {
+    "scripts": {},
+    "toolchainOut": "toolchain.json"
+  },
+  "dependencies": {
+    "libil2cpp": {
+      "versionRange": "*"
+    }
+  },
+  "devDependencies": {},
+  "dependenciesDirectory": "extern",
+  "sharedDirectory": "shared"
+}

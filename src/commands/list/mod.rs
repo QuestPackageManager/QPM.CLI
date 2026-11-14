@@ -1,3 +1,4 @@
+use crate::context::QpmContext;
 use clap::{Args, Subcommand};
 
 use self::packages::PackageListCommand;
@@ -26,10 +27,10 @@ pub struct ListCommand {
 }
 
 impl Command for ListCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         match self.op {
-            ListOption::Packages(p) => p.execute(),
-            ListOption::Versions(p) => p.execute(),
+            ListOption::Packages(p) => p.execute(ctx),
+            ListOption::Versions(p) => p.execute(ctx),
         }
     }
 }

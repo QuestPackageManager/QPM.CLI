@@ -1,50 +1,42 @@
+use crate::context::QpmContext;
 use clap::Args;
 use owo_colors::OwoColorize;
+use qpm_package::models::package::DependencyId;
 
-use crate::{
-    commands::Command,
-    repository::{self, Repository},
-};
+use crate::{commands::Command, repository::Repository};
 
 #[derive(Args, Debug, Clone)]
 pub struct PackageCommand {
     pub package: String,
     #[clap(short, long)]
     pub latest: bool,
-
-    #[clap(long, default_value = "false")]
-    offline: bool,
 }
 
 impl Command for PackageCommand {
-    fn execute(self) -> color_eyre::Result<()> {
-        let versions =
-            repository::useful_default_new(self.offline)?.get_package_versions(&self.package)?;
-        if self.latest {
-            println!(
-                "The latest version for package {} is {}",
-                self.package.bright_red(),
-                versions
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .version
-                    .to_string()
-                    .bright_green()
-            );
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
+        let versions = ctx
+            .repositories()?
+            .get_package_versions(&DependencyId(self.package.clone()))?;
 
-            return Ok(());
-        }
-
-        match &versions {
+        match versions {
             Some(package_versions) => {
+                if self.latest {
+                    println!(
+                        "The latest version for package {} is {}",
+                        self.package.bright_red(),
+                        package_versions.first().unwrap().to_string().bright_green()
+                    );
+
+                    return Ok(());
+                }
+
                 println!(
                     "Package {} has {} versions on qpackages.com:",
                     self.package.bright_red(),
-                    versions.as_ref().unwrap().len().bright_yellow()
+                    package_versions.len().bright_yellow()
                 );
                 for package_version in package_versions.iter().rev() {
-                    println!(" - {}", package_version.version.to_string().bright_green());
+                    println!(" - {}", package_version.to_string().bright_green());
                 }
             }
             _ => {

@@ -1,0 +1,153 @@
+#[path = "support/mod.rs"]
+mod support;
+
+use std::{fs, io::Cursor};
+
+use qpm_cli::{
+    repository::{
+        Artifact, Repository,
+        file::{FileRepository, FileRepositoryRegistry},
+    },
+};
+use qpm_package::models::package::PackageConfig;
+use semver::Version;
+use support::{package, qpkg_bytes, test_agent};
+use tempfile::tempdir;
+
+fn sample_qpkg_config() -> PackageConfig {
+    package("libfoo", Version::new(1, 0, 0), Some(&["libfoo.so"]))
+}
+
+/// A real, valid `.qpkg` zip in memory, matching what `qpm2 qpkg` would actually produce
+fn build_qpkg(config: PackageConfig) -> Cursor<Vec<u8>> {
+    Cursor::new(qpkg_bytes(&config))
+}
+
+/// Full lifecycle against a real on-disk cache (no mocked business logic): build a real
+/// `.qpkg` archive, install it into a fresh `FileRepository`, confirm the registry and cache
+/// directory reflect the install, then re-read the repository from disk (a fresh instance, as
+/// a later `qpm2` invocation would) and confirm `download_to_cache` recognizes the package as
+/// already present without needing to fetch anything.
+#[test]
+fn install_qpkg_then_read_back_from_a_fresh_file_repository() {
+    let config = sample_qpkg_config();
+    let qpkg = build_qpkg(config.clone());
+
+    let cache_dir = tempdir().unwrap();
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
+
+    let artifact = file_repo
+        .install_qpkg(qpkg, false, None)
+        .expect("installing a well-formed qpkg should succeed");
+
+    assert_eq!(artifact.config.id, config.id);
+    assert_eq!(artifact.config.version, config.version);
+    assert!(artifact.qpkg_checksum.is_some());
+
+    // The in-memory registry should reflect the install immediately.
+    let in_memory = file_repo
+        .get_artifact(&config.id, &config.version)
+        .expect("artifact should be registered in the repository right after install");
+    assert_eq!(in_memory.config.id, config.id);
+
+    // The header and binary should have actually landed on disk where the rest of the
+    // toolchain (collect_files_of_package / restore) expects them.
+    let files = file_repo
+        .collect_files_of_package(&artifact.config)
+        .expect("cached files should be discoverable right after install");
+    assert!(files.headers.exists());
+    assert_eq!(files.binaries.len(), 1);
+    assert!(files.binaries[0].exists());
+    assert_eq!(fs::read(&files.binaries[0]).unwrap(), b"binary content");
+
+    // Simulate a later, separate `qpm2` invocation: read the repository fresh from disk
+    // rather than reusing the in-memory instance that performed the install.
+    let mut reread_repo = FileRepository::read(cache_dir.path().to_path_buf())
+        .expect("re-reading the repository from disk should succeed");
+
+    let reread_artifact = reread_repo
+        .get_artifact(&config.id, &config.version)
+        .expect("the installed artifact should persist across a fresh read of the registry");
+    assert_eq!(reread_artifact.config.id, config.id);
+    assert_eq!(reread_artifact.config.version, config.version);
+
+    let already_cached = reread_repo
+        .download_to_cache(&test_agent(), &reread_artifact.clone())
+        .expect("download_to_cache should succeed for an already-installed package");
+    assert!(
+        already_cached,
+        "a freshly installed, freshly re-read qpkg should be recognized as already cached, \
+         not require re-downloading"
+    );
+}
+
+/// Installing the same package id/version twice without `overwrite_existing` should fail
+/// instead of silently clobbering the existing cache entry.
+#[test]
+fn install_qpkg_refuses_to_overwrite_by_default() {
+    let config = sample_qpkg_config();
+
+    let cache_dir = tempdir().unwrap();
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
+
+    file_repo
+        .install_qpkg(build_qpkg(config.clone()), false, None)
+        .expect("first install should succeed");
+
+    let second_install = file_repo.install_qpkg(build_qpkg(config), false, None);
+
+    assert!(
+        second_install.is_err(),
+        "installing the same id/version twice without overwrite_existing should fail"
+    );
+}
+
+/// With `overwrite_existing: true`, re-installing the same id/version should succeed and
+/// replace the cached contents.
+#[test]
+fn install_qpkg_overwrites_when_requested() {
+    let config = sample_qpkg_config();
+
+    let cache_dir = tempdir().unwrap();
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
+
+    file_repo
+        .install_qpkg(build_qpkg(config.clone()), false, None)
+        .expect("first install should succeed");
+
+    let second_install = file_repo
+        .install_qpkg(build_qpkg(config.clone()), true, None)
+        .expect("overwrite install should succeed");
+
+    assert_eq!(second_install.config.id, config.id);
+}
+
+/// An uncached package with no `qpkg_url` (here or in the registry) has nowhere to be
+/// downloaded from, so the cache reports it as unavailable instead of erroring.
+#[test]
+fn download_to_cache_without_url_reports_unavailable() {
+    let cache_dir = tempdir().unwrap();
+    let mut file_repo = FileRepository::new(
+        cache_dir.path().to_path_buf(),
+        FileRepositoryRegistry::default(),
+    );
+
+    let artifact = Artifact {
+        config: sample_qpkg_config(),
+        ..Default::default()
+    };
+
+    let downloaded = file_repo
+        .download_to_cache(&test_agent(), &artifact)
+        .expect("a cache miss without a URL is not an error");
+    assert!(!downloaded);
+}

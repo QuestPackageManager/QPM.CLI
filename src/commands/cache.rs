@@ -1,20 +1,18 @@
+use crate::context::QpmContext;
 use std::{
     fs::{self, File},
     io::{Read, Write},
+    path::Path,
 };
 
 use clap::Subcommand;
 use color_eyre::{Result, eyre::Context};
 use owo_colors::OwoColorize;
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::package::{DependencyId, PackageConfig};
 use semver::Version;
 use walkdir::WalkDir;
 
-use crate::{
-    models::{config::get_combine_config, package::PackageConfigExtensions},
-    repository::local::FileRepository,
-    terminal::colors::QPMColor,
-};
+use crate::{models::package::PackageConfigExtensions, terminal::colors::QPMColor};
 
 use super::Command;
 
@@ -46,21 +44,22 @@ pub struct ClearCommand {
 }
 
 impl Command for CacheCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         match self.op {
-            CacheOperation::Clear(c) => clear(c)?,
-            CacheOperation::List => list(),
-            CacheOperation::Path => path(),
-            CacheOperation::LegacyFix => legacy_fix()?,
+            CacheOperation::Clear(c) => clear(ctx, c)?,
+            CacheOperation::List => list(ctx.cache_root()?),
+            CacheOperation::Path => path(ctx.cache_root()?),
+            CacheOperation::LegacyFix => legacy_fix(ctx.cache_root()?)?,
         };
         Ok(())
     }
 }
 
-fn clear(clear_params: ClearCommand) -> Result<()> {
-    match (clear_params.package, clear_params.version) {
+fn clear(ctx: &QpmContext, clear_params: ClearCommand) -> Result<()> {
+    let dep_id = clear_params.package.map(DependencyId);
+    match (dep_id, clear_params.version) {
         (Some(package), None) => {
-            let mut file_repo = FileRepository::read()?;
+            let mut file_repo = ctx.file_repository()?;
             file_repo.remove_package_versions(&package)?;
             println!(
                 "Sucessfully removed all versions of {}",
@@ -70,7 +69,7 @@ fn clear(clear_params: ClearCommand) -> Result<()> {
             Ok(())
         }
         (Some(package), Some(version_str)) => {
-            let mut file_repo = FileRepository::read()?;
+            let mut file_repo = ctx.file_repository()?;
             let version = Version::parse(&version_str).context("version parse")?;
             file_repo.remove_package(&package, &version)?;
             println!(
@@ -83,27 +82,22 @@ fn clear(clear_params: ClearCommand) -> Result<()> {
         }
         // clear all
         _ => {
-            let config = get_combine_config();
-            let path = config.cache.as_ref().unwrap();
-            fs::remove_dir_all(path)?;
-            FileRepository::clear()?;
+            // the registry lives inside the cache root, so this clears it too
+            let path = ctx.cache_root()?;
+            if path.exists() {
+                fs::remove_dir_all(path)
+                    .with_context(|| format!("Failed to remove cache {path:?}"))?;
+            }
             Ok(())
         }
     }
 }
 
-fn path() {
-    let config = get_combine_config();
-    println!(
-        "Config path is: {}",
-        config.cache.as_ref().unwrap().display().bright_yellow()
-    );
+fn path(path: &Path) {
+    println!("Config path is: {}", path.display().bright_yellow());
 }
 
-fn list() {
-    let config = get_combine_config();
-    let path = config.cache.as_ref().unwrap();
-
+fn list(path: &Path) {
     for dir in WalkDir::new(path).max_depth(2).min_depth(1) {
         let unwrapped = dir.unwrap();
         if unwrapped.depth() == 1 {
@@ -120,18 +114,15 @@ fn list() {
     }
 }
 
-fn legacy_fix() -> Result<()> {
-    for entry in WalkDir::new(get_combine_config().cache.as_ref().unwrap())
-        .min_depth(2)
-        .max_depth(2)
-    {
+fn legacy_fix(cache_root: &Path) -> Result<()> {
+    for entry in WalkDir::new(cache_root).min_depth(2).max_depth(2) {
         let path = entry.unwrap().into_path().join("src");
         println!("{}", path.display());
         let qpm_path = &path;
         if !qpm_path.exists() {
             continue;
         }
-        let shared_path = path.join(PackageConfig::read(qpm_path)?.shared_dir);
+        let shared_path = path.join(PackageConfig::read(qpm_path)?.shared_directory);
 
         for entry in WalkDir::new(shared_path) {
             let entry_path = entry.unwrap().into_path();

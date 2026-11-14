@@ -51,3 +51,42 @@ impl From<Toggle> for bool {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Toggle;
+
+    fn parse(s: &str) -> Toggle {
+        s.parse().unwrap()
+    }
+
+    #[test]
+    fn every_enable_alias_parses_to_enable() {
+        for s in ["enable", "e", "true", "t", "1", "ENABLE", "True"] {
+            assert!(matches!(parse(s), Toggle::Enable), "{s:?}");
+        }
+    }
+
+    #[test]
+    fn every_disable_alias_parses_to_disable() {
+        for s in ["disable", "d", "false", "f", "0", "DISABLE", "False"] {
+            assert!(matches!(parse(s), Toggle::Disable), "{s:?}");
+        }
+    }
+
+    #[test]
+    fn anything_else_is_invalid() {
+        for s in ["", "yes", "no", "2", "enabled", " true"] {
+            assert!(matches!(parse(s), Toggle::Invalid), "{s:?}");
+        }
+    }
+
+    #[test]
+    fn bool_conversions() {
+        assert!(matches!(Toggle::from(true), Toggle::Enable));
+        assert!(matches!(Toggle::from(false), Toggle::Disable));
+        assert!(bool::from(Toggle::Enable));
+        assert!(!bool::from(Toggle::Disable));
+        assert!(!bool::from(Toggle::Invalid));
+    }
+}

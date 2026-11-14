@@ -48,10 +48,13 @@ jobs:
             (cd "$dir" && zip -r "../${base}.zip" .)
           done
 
-      - name: Bleeding Artifact Upload
-        uses: softprops/action-gh-release@v1
+      - name: Release Artifact Upload
+        uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.zip
+          # The raw .msix is uploaded too so winget can match `installer\.msix$`
+          files: |
+            artifacts/**/*.zip
+            artifacts/installer-*/*.msix
 
   winget:
     runs-on: ubuntu-latest
@@ -75,6 +78,6 @@ jobs:
         if: env.winget_token_present == 'true'
         with:
           identifier: QuestPackageManager.QuestPackageManager
-          installers-regex: 'installer\.exe$'
+          installers-regex: 'installer\.msix$'
           fork-user: ${{ secrets.WINGET_FORK_USER }}
           token: ${{ secrets.WINGET_TOKEN }}

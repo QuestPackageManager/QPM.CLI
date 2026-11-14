@@ -1,7 +1,9 @@
+use crate::context::QpmContext;
 use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 use color_eyre::Result;
 
+pub mod build;
 pub mod cache;
 pub mod clear;
 pub mod collapse;
@@ -12,10 +14,13 @@ pub mod download;
 pub mod genschema;
 pub mod install;
 pub mod list;
+#[cfg(feature = "migrate")]
+pub mod migrate;
 pub mod ndk;
 pub mod package;
 pub mod publish;
 pub mod qmod;
+pub mod qpkg;
 pub mod restore;
 pub mod scripts;
 pub mod version;
@@ -24,7 +29,7 @@ pub mod version;
 pub mod templatr;
 
 pub trait Command {
-    fn execute(self) -> Result<()>;
+    fn execute(self, ctx: &QpmContext) -> Result<()>;
 }
 
 #[derive(Parser)]
@@ -37,6 +42,10 @@ pub struct Opt {
 
     #[command(subcommand)]
     pub command: Option<MainCommand>,
+
+    /// Don't use the network: only already-cached packages are available
+    #[arg(long, global = true, default_value = "false")]
+    pub offline: bool,
 }
 
 #[derive(Subcommand)]
@@ -68,6 +77,10 @@ pub enum MainCommand {
     Download(download::Download),
     Ndk(ndk::Ndk),
 
+    /// Migrate a legacy qpm.json (QPM v1) into a qpm2.json (QPM v2) package config
+    #[cfg(feature = "migrate")]
+    Migrate(migrate::MigrateCommand),
+
     #[command(about = "Shorthand for qpm dependency add")]
     Add(dependency::DependencyOperationAddArgs),
 
@@ -88,32 +101,43 @@ pub enum MainCommand {
 
     #[command(hide = true)]
     GenSchema(genschema::GenSchemaCommand),
+
+    /// QPKG control
+    #[command(name = "qpkg", about = "QPKG control")]
+    QPkg(qpkg::QPkgCommand),
+
+    Build(build::BuildCommand),
 }
 
 impl Command for MainCommand {
-    fn execute(self) -> Result<()> {
+    fn execute(self, ctx: &QpmContext) -> Result<()> {
         match self {
-            MainCommand::Restore(r) => r.execute(),
-            MainCommand::Cache(c) => c.execute(),
-            MainCommand::Clear(c) => c.execute(),
-            MainCommand::Collapse(c) => c.execute(),
-            MainCommand::Config(c) => c.execute(),
-            MainCommand::Dependency(c) => c.execute(),
-            MainCommand::Package(c) => c.execute(),
-            MainCommand::List(c) => c.execute(),
-            MainCommand::Publish(c) => c.execute(),
-            MainCommand::Qmod(c) => c.execute(),
-            MainCommand::Install(c) => c.execute(),
-            MainCommand::Doctor(c) => c.execute(),
-            MainCommand::Download(c) => c.execute(),
-            MainCommand::Ndk(n) => n.execute(),
-            MainCommand::Add(add) => add.execute(),
-            MainCommand::Scripts(s) => s.execute(),
-            MainCommand::Version(v) => v.execute(),
-            MainCommand::GenSchema(g) => g.execute(),
+            MainCommand::Restore(r) => r.execute(ctx),
+            MainCommand::Cache(c) => c.execute(ctx),
+            MainCommand::Clear(c) => c.execute(ctx),
+            MainCommand::Collapse(c) => c.execute(ctx),
+            MainCommand::Config(c) => c.execute(ctx),
+            MainCommand::Dependency(c) => c.execute(ctx),
+            MainCommand::Package(c) => c.execute(ctx),
+            MainCommand::List(c) => c.execute(ctx),
+            MainCommand::Publish(c) => c.execute(ctx),
+            MainCommand::Qmod(c) => c.execute(ctx),
+            MainCommand::Install(c) => c.execute(ctx),
+            MainCommand::Doctor(c) => c.execute(ctx),
+            MainCommand::Download(c) => c.execute(ctx),
+            MainCommand::Ndk(n) => n.execute(ctx),
+
+            #[cfg(feature = "migrate")]
+            MainCommand::Migrate(c) => c.execute(ctx),
+            MainCommand::Add(add) => add.execute(ctx),
+            MainCommand::Scripts(s) => s.execute(ctx),
+            MainCommand::Version(v) => v.execute(ctx),
+            MainCommand::GenSchema(g) => g.execute(ctx),
+            MainCommand::QPkg(q) => q.execute(ctx),
+            MainCommand::Build(build_command) => build_command.execute(ctx),
 
             #[cfg(feature = "templatr")]
-            MainCommand::Templatr(c) => c.execute(),
+            MainCommand::Templatr(c) => c.execute(ctx),
 
             #[cfg(feature = "quest_emu")]
             MainCommand::Emu { yes, main_command } => quest_emu::commands::Command::execute(

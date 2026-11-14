@@ -1,11 +1,10 @@
 use color_eyre::{Result, eyre::bail};
 use itertools::Itertools;
 
-use qpm_package::models::{
-    backend::PackageVersion, dependency::SharedPackageConfig, package::PackageConfig,
-};
+use qpm_package::models::package::{DependencyId, PackageConfig};
+use semver::Version;
 
-use super::Repository;
+use super::{Artifact, Repository, Versions};
 
 pub struct MultiDependencyRepository {
     repositories: Vec<Box<dyn Repository>>,
@@ -24,99 +23,90 @@ impl MultiDependencyRepository {
 ///
 impl Repository for MultiDependencyRepository {
     // get versions of all repositories
-    fn get_package_versions(&self, id: &str) -> Result<Option<Vec<PackageVersion>>> {
-        // double flat map???? rust weird
-        // TODO: Propagate error
-        let result: Vec<PackageVersion> = self
+    fn get_package_versions(&self, id: &DependencyId) -> Result<Option<Versions>> {
+        let mut per_repo = self
             .repositories
             .iter()
-            .filter_map(|r| r.get_package_versions(id).expect("Failed to get versions"))
-            .flatten()
+            .filter_map(|r| r.get_package_versions(id).transpose())
+            .collect::<Result<Vec<_>>>()?;
+
+        // common case: only one repository knows the package, share its list as-is
+        if per_repo.len() <= 1 {
+            return Ok(per_repo.pop().filter(|v| !v.is_empty()));
+        }
+
+        let result: Vec<Version> = per_repo
+            .iter()
+            .flat_map(|versions| versions.iter())
             .unique()
-            .sorted_by(|a, b| a.version.cmp(&b.version))
-            .rev() // highest first
+            .sorted_by(|a, b| b.cmp(a)) // highest first
+            .cloned()
             .collect();
 
         if result.is_empty() {
             return Ok(None);
         }
 
-        Ok(Some(result))
-
-        // let mut result: Vec<PackageVersion> = vec![];
-        // for repo_result in self.repositories.iter().map(|r| r.get_package_versions(id)) {
-        //     if let Some(r) = repo_result? {
-        //         result.extend_from_slice(&r)
-        //     }
-        // }
-
-        // let compute_result = result.into_iter().unique().collect_vec();
-
-        // if compute_result.is_empty() {
-        //     return Ok(None);
-        // }
-
-        // Ok(Some(compute_result))
+        Ok(Some(result.into()))
     }
 
     // get package from the first repository that has it
     fn get_package(
         &self,
-        id: &str,
+        id: &DependencyId,
         version: &semver::Version,
-    ) -> Result<Option<SharedPackageConfig>> {
-        let opt = self
-            .repositories
-            .iter()
-            .map(|r| r.get_package(id, version).expect("Unable to get package"))
-            .find(|r| r.is_some());
-
-        match opt {
-            Some(o) => Ok(o),
-            _ => Ok(None),
+    ) -> Result<Option<Artifact>> {
+        for repo in &self.repositories {
+            if let Some(artifact) = repo.get_package(id, version)? {
+                return Ok(Some(artifact));
+            }
         }
+        Ok(None)
     }
 
-    fn get_package_names(&self) -> Result<Vec<String>> {
-        Ok(self
+    fn get_package_names(&self) -> Result<Vec<DependencyId>> {
+        let names = self
             .repositories
             .iter()
-            .flat_map(|r| r.get_package_names().expect("Unable to get package names"))
+            .map(|r| r.get_package_names())
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
             .unique()
-            .collect::<Vec<String>>())
+            .collect();
+
+        Ok(names)
     }
 
-    fn download_to_cache(&mut self, config: &PackageConfig) -> Result<bool> {
-        match self
-            .repositories
-            .iter_mut()
-            .filter(|r| {
-                r.get_package(&config.info.id, &config.info.version)
-                    .expect("Unable to get package")
-                    .is_some()
-            })
-            .find_map(|r| {
-                r.download_to_cache(config)
-                    .expect("Unable to download to cache")
-                    .then_some(true)
-            }) {
-            Some(v) => Ok(v),
-            None => bail!(
-                "No repository found that has package {}:{}",
-                config.info.id,
-                config.info.version
-            ),
+    /// Asks each repository in order; the first that can provide the package downloads it
+    fn download_to_cache(&mut self, agent: &ureq::Agent, artifact: &Artifact) -> Result<bool> {
+        for repo in &mut self.repositories {
+            if repo.download_to_cache(agent, artifact)? {
+                return Ok(true);
+            }
         }
+
+        let config = &artifact.config;
+        bail!(
+            "No repository found that has package {}:{}",
+            config.id,
+            config.version
+        );
     }
 
-    fn add_to_db_cache(&mut self, config: SharedPackageConfig, permanent: bool) -> Result<()> {
+    fn add_to_db_cache(
+        &mut self,
+        config: PackageConfig,
+        qpkg_checksum: Option<String>,
+        permanent: bool,
+    ) -> Result<()> {
         if permanent {
             #[cfg(debug_assertions)]
             println!("Warning, adding to cache permanently to multiple repos!",);
         }
-        self.repositories
-            .iter_mut()
-            .try_for_each(|r| r.add_to_db_cache(config.clone(), permanent))?;
+        self.repositories.iter_mut().try_for_each(|r| {
+            r.add_to_db_cache(config.clone(), qpkg_checksum.clone(), permanent)
+        })?;
         Ok(())
     }
 

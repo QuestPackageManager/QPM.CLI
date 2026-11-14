@@ -1,13 +1,26 @@
-use assert_cmd::Command;
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
-use color_eyre::eyre::Context;
-use color_eyre::eyre::ensure;
+use bstr::ByteSlice;
+use color_eyre::eyre::{Context, ensure};
 use fs_extra::dir::{self, CopyOptions};
-use gix::bstr::ByteSlice;
 use predicates::prelude::*;
+use qpm_cli::models::config::UserConfig;
 use std::fs;
 use std::path::Path;
+
+use crate::support;
+
+/// The fixture's own `qpm.settings.json` over the defaults, never the user's global settings.
+/// Fixtures point the cache at `./qpm_junk`, inside the temp dir.
+fn fixture_config(dir: &Path) -> color_eyre::Result<UserConfig> {
+    let path = dir.join(UserConfig::config_file_name());
+    if !path.exists() {
+        return Ok(UserConfig::default());
+    }
+    let workspace: UserConfig = serde_json::from_slice(&fs::read(&path)?)
+        .with_context(|| format!("Failed to read fixture settings {path:?}"))?;
+    Ok(workspace.over(UserConfig::default()))
+}
 
 /// Single test function that uses assert_fs and fs_extra to test a command
 pub fn test_command(
@@ -15,6 +28,9 @@ pub fn test_command(
     input_dir: &Path,
     expected_dir: &Path,
 ) -> color_eyre::Result<TempDir> {
+    // held for the whole test: fixture copying and comparison also use relative paths
+    let _guard = support::lock_cwd();
+
     // Create a temporary directory using assert_fs
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
@@ -28,14 +44,9 @@ pub fn test_command(
     dir::copy(input_dir, temp.path(), &copy_options)
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
 
-    // Run the command using assert_cmd
-    Command::cargo_bin("qpm")
-        .wrap_err("Failed to find qpm binary")?
-        .args(args)
-        .current_dir(temp.path())
-        .env("QPM_DISABLE_GLOBAL_CONFIG", "1") // Set test environment variable to disable global config
-        .assert()
-        .success();
+    // Run the command in-process against the temp directory
+    support::run_qpm_unlocked(&fixture_config(temp.path())?, temp.path(), args)
+        .wrap_err_with(|| format!("Command {args:?} failed"))?;
 
     // Check if we should update expected output
     if std::env::var_os("QPM_TEST_UPDATE").is_some_and(|v| v == "1") {
@@ -69,6 +80,9 @@ pub fn test_command_check_files(
     input_dir: &Path,
     files_to_check: &[&str],
 ) -> color_eyre::Result<TempDir> {
+    // held for the whole test: fixture copying and comparison also use relative paths
+    let _guard = support::lock_cwd();
+
     // Create a temporary directory
     let temp = TempDir::new().wrap_err("Failed to create temporary directory")?;
 
@@ -82,14 +96,9 @@ pub fn test_command_check_files(
     dir::copy(input_dir, temp.path(), &copy_options)
         .wrap_err_with(|| format!("Failed to copy from {:?} to {:?}", input_dir, temp.path()))?;
 
-    // Run the command
-    Command::cargo_bin("qpm")
-        .wrap_err("Failed to find qpm binary")?
-        .args(args)
-        .current_dir(temp.path())
-        .env("QPM_DISABLE_GLOBAL_CONFIG", "1") // Set test environment variable to disable global config
-        .assert()
-        .success();
+    // Run the command in-process against the temp directory
+    support::run_qpm_unlocked(&fixture_config(temp.path())?, temp.path(), args)
+        .wrap_err_with(|| format!("Command {args:?} failed"))?;
 
     // Check that the specified files exist using assert_fs predicates
     for file in files_to_check {

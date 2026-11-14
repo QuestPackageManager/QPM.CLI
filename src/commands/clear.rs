@@ -1,9 +1,10 @@
+use crate::context::QpmContext;
 use std::{fs, path::Path};
 
 use clap::Args;
 use color_eyre::Result;
 use owo_colors::OwoColorize;
-use qpm_package::models::package::PackageConfig;
+use qpm_package::models::{package::PackageConfig, shared_package::QPM_SHARED_JSON};
 use walkdir::WalkDir;
 
 use crate::models::package::PackageConfigExtensions;
@@ -14,12 +15,9 @@ use super::Command;
 pub struct ClearCommand {}
 
 impl Command for ClearCommand {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         remove_dependencies_dir()?;
-        remove("qpm.shared.json")?;
-        remove("extern.cmake")?;
-        remove("qpm_defines.cmake")?;
-        remove("mod.json")?;
+        remove(QPM_SHARED_JSON)?;
         Ok(())
     }
 }
@@ -35,7 +33,7 @@ fn remove(p: &str) -> Result<()> {
 
 fn remove_dependencies_dir() -> Result<()> {
     let package = PackageConfig::read(".")?;
-    let extern_path = Path::new(&package.dependencies_dir);
+    let extern_path = Path::new(&package.dependencies_directory);
 
     if !extern_path.exists() {
         return Ok(());
@@ -67,7 +65,7 @@ fn remove_dependencies_dir() -> Result<()> {
             if path.is_dir() {
                 #[cfg(debug_assertions)]
                 println!("Was symlink dir!");
-                if let Err(e) = symlink::remove_symlink_dir(&path) {
+                if let Err(e) = crate::utils::symlink::remove_symlink_dir(&path) {
                     println!(
                         "Failed to remove symlink for directory {}: {}",
                         path.display().bright_yellow(),
@@ -77,7 +75,7 @@ fn remove_dependencies_dir() -> Result<()> {
             } else if path.is_file() {
                 #[cfg(debug_assertions)]
                 println!("Was symlink file!");
-                if let Err(e) = symlink::remove_symlink_file(&path) {
+                if let Err(e) = crate::utils::symlink::remove_symlink_file(&path) {
                     println!(
                         "Failed to remove symlink for file {}: {}",
                         path.display().bright_yellow(),
@@ -101,6 +99,6 @@ fn remove_dependencies_dir() -> Result<()> {
         }
     }
 
-    fs::remove_dir_all(&package.dependencies_dir)?;
+    fs::remove_dir_all(&package.dependencies_directory)?;
     Ok(())
 }

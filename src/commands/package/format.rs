@@ -1,28 +1,28 @@
+use crate::context::QpmContext;
 use std::fs;
 
 use clap::Args;
 use color_eyre::Result;
-use qpm_package::models::{dependency::SharedPackageConfig, package::PackageConfig};
+use qpm_package::models::{package::PackageConfig, shared_package::SharedPackageConfig};
 
 use crate::{commands::Command, models::package::PackageConfigExtensions};
 
 #[derive(Args, Debug, Clone)]
-
 pub struct FormatArgs {}
 
 impl Command for FormatArgs {
-    fn execute(self) -> color_eyre::Result<()> {
+    fn execute(self, _ctx: &QpmContext) -> color_eyre::Result<()> {
         reserialize_package(false)?;
         Ok(())
     }
 }
 
 pub fn reserialize_package(sort: bool) -> Result<()> {
-    let mut package = PackageConfig::read(".")?;
+    let package = PackageConfig::read(".")?;
 
     if sort {
         // Sort the dependencies by id
-        package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
+        // package.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
     }
 
     // Write the package back to the file
@@ -31,14 +31,14 @@ pub fn reserialize_package(sort: bool) -> Result<()> {
     // Check if the qpm.shared.json file exists
     if fs::exists("qpm.shared.json").unwrap_or(false) {
         // Read the shared package
-        let mut shared_package = SharedPackageConfig::read(".")?;
+        let shared_package = SharedPackageConfig::read(".")?;
 
         if sort {
             // Sort the dependencies by id
-            shared_package
-                .config
-                .dependencies
-                .sort_by(|a, b| a.id.cmp(&b.id));
+            // shared_package
+            //     .config
+            //     .dependencies
+            //     .sort_by(|a, b| a.id.cmp(&b.id));
         }
 
         // Write the shared package back to the file
