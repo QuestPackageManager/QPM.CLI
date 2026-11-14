@@ -42,6 +42,10 @@ pub struct Opt {
 
     #[command(subcommand)]
     pub command: Option<MainCommand>,
+
+    /// Don't use the network: only already-cached packages are available
+    #[arg(long, global = true, default_value = "false")]
+    pub offline: bool,
 }
 
 #[derive(Subcommand)]

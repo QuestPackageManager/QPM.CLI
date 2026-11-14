@@ -15,9 +15,6 @@ use super::Command;
 
 #[derive(Args)]
 pub struct CollapseCommand {
-    #[clap(long, default_value = "false")]
-    offline: bool,
-
     #[clap(long, short)]
     pub env: bool,
 }
@@ -25,7 +22,7 @@ pub struct CollapseCommand {
 impl Command for CollapseCommand {
     fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
-        let repo = ctx.repositories(self.offline)?;
+        let repo = ctx.repositories()?;
 
         list_dependencies(package, &repo, self.env)?;
 

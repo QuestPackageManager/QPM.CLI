@@ -64,23 +64,16 @@ pub trait Repository {
 }
 
 /// Builds the standard repository stack rooted at `cache_root`: the local cache first, then
-/// qpackages. Offline, only the local cache is used, and it won't download missing packages.
+/// qpackages. Offline (`agent` is `None`), only the local cache is used.
 /// CLI code usually goes through `QpmContext::repositories` instead.
 pub fn default_repository_stack(
-    offline: bool,
     cache_root: PathBuf,
-    agent: &ureq::Agent,
+    agent: Option<&ureq::Agent>,
 ) -> Result<MemcachedRepository<MultiDependencyRepository>> {
-    let file_repository = FileRepository::read(cache_root)?;
-
-    let repos: Vec<Box<dyn Repository>> = if offline {
-        vec![Box::new(file_repository)]
-    } else {
-        vec![
-            Box::new(file_repository),
-            Box::new(QPMRepository::new(agent.clone())),
-        ]
-    };
+    let mut repos: Vec<Box<dyn Repository>> = vec![Box::new(FileRepository::read(cache_root)?)];
+    if let Some(agent) = agent {
+        repos.push(Box::new(QPMRepository::new(agent.clone())));
+    }
 
     Ok(MemcachedRepository::new(MultiDependencyRepository::new(
         repos,

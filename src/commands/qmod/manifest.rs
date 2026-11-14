@@ -29,9 +29,6 @@ pub struct ManifestQmodOperationArgs {
     ///
     #[clap(long = "include_libs")]
     pub include_libs: Option<Vec<String>>,
-
-    #[clap(long, default_value = "false")]
-    pub(crate) offline: bool,
 }
 
 // This will parse the `qmod.template.json` and process it, then finally export a `qmod.json` for packaging and deploying.
@@ -103,7 +100,7 @@ pub(crate) fn generate_qmod_manifest(
     };
     let mut existing_json = ModJson::read_and_preprocess(preprocess_data, mod_template)?;
 
-    let repo = ctx.repositories(build_parameters.offline)?;
+    let repo = ctx.repositories()?;
     let template_mod_json: ModJson = shared_package.to_mod_json(&repo)?;
 
     // Merge the existing json with the template mod json

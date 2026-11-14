@@ -176,9 +176,8 @@ fn resolve_redownload_cache() -> Result<()> {
         file_repo.write()?;
 
         let repo = repository::default_repository_stack(
-            false,
             cache_root.to_path_buf(),
-            &build_agent(DEFAULT_TIMEOUT_MS),
+            Some(&build_agent(DEFAULT_TIMEOUT_MS)),
         )?;
 
         Ok(repo)

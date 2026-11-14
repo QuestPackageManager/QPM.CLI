@@ -7,15 +7,12 @@ use owo_colors::OwoColorize;
 use crate::{commands::Command, repository::Repository};
 
 #[derive(Args, Debug, Clone)]
-pub struct PackageListCommand {
-    #[clap(long, default_value = "false")]
-    offline: bool,
-}
+pub struct PackageListCommand {}
 
 impl Command for PackageListCommand {
     fn execute(self, ctx: &QpmContext) -> Result<()> {
         let ids = ctx
-            .repositories(self.offline)?
+            .repositories()?
             .get_package_names()?
             .into_iter()
             .sorted_by(|a, b| a.0.cmp(&b.0))

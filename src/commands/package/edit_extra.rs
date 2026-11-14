@@ -14,9 +14,6 @@ pub struct EditExtraArgs {
     /// Provide a qmod id to set the extra for
     #[clap(long = "qmodId")]
     pub qmod_id: Option<String>,
-
-    #[clap(long, default_value = "false")]
-    offline: bool,
 }
 
 impl Command for EditExtraArgs {

@@ -24,9 +24,6 @@ use super::Command;
 pub struct RestoreCommand {
     #[clap(default_value = "false", long, short)]
     update: bool,
-
-    #[clap(long, default_value = "false")]
-    offline: bool,
 }
 
 #[cfg(feature = "gitoxide")]
@@ -57,7 +54,7 @@ impl Command for RestoreCommand {
             .then(|| SharedPackageConfig::read("."))
             .transpose()?;
 
-        let mut repo = ctx.repositories(self.offline)?;
+        let mut repo = ctx.repositories()?;
 
         // only update if:
         // manually
@@ -107,13 +104,7 @@ impl Command for RestoreCommand {
         let shared_package = restorer.shared_package();
 
         let file_repo = ctx.file_repository()?;
-        restorer.restore(
-            (!self.offline).then(|| ctx.agent()),
-            ".",
-            &mut repo,
-            &file_repo,
-            ctx.symlink(),
-        )?;
+        restorer.restore(ctx.agent(), ".", &mut repo, &file_repo, ctx.symlink())?;
         shared_package.write(".")?;
 
         println!(

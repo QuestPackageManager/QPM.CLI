@@ -61,7 +61,7 @@ impl Command for Download {
         let exe = std::env::current_exe()?;
         let final_path = exe.parent().unwrap();
 
-        let buffer = BufReader::new(download_to_tempfile(ctx.agent(), url, true)?);
+        let buffer = BufReader::new(download_to_tempfile(ctx.online_agent()?, url, true)?);
 
         // Extract to tmp folde
         let mut archive = ZipArchive::new(buffer)?;

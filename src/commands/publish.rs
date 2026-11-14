@@ -36,10 +36,10 @@ impl Command for PublishCommand {
     fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
         let shared_package = SharedPackageConfig::read(".")?;
-        let qpackages = QPMRepository::new(ctx.agent().clone());
+        let qpackages = QPMRepository::new(ctx.online_agent()?.clone());
 
         let publisher = PackagePublisher::validate(
-            ctx.agent(),
+            ctx.online_agent()?,
             package,
             &shared_package,
             self.qpkg_url.clone(),

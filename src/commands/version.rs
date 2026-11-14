@@ -42,7 +42,7 @@ impl Command for VersionCommand {
                     current.commit.version_id_color()
                 );
 
-                let result = qpm_version::check_version(ctx.agent(), &input_branch)?;
+                let result = qpm_version::check_version(ctx.online_agent()?, &input_branch)?;
 
                 println!(
                     "The latest branch {input_branch} commit is {}",
@@ -79,17 +79,19 @@ impl Command for VersionCommand {
                     current.commit.version_id_color()
                 );
 
-                let download_url =
-                    match qpm_version::resolve_update_url(ctx.agent(), u.branch.as_deref())? {
-                        UpdateTarget::AlreadyLatest => {
-                            println!("Already running commit");
-                            return Ok(());
-                        }
-                        UpdateTarget::DownloadUrl(url) => url,
-                    };
+                let download_url = match qpm_version::resolve_update_url(
+                    ctx.online_agent()?,
+                    u.branch.as_deref(),
+                )? {
+                    UpdateTarget::AlreadyLatest => {
+                        println!("Already running commit");
+                        return Ok(());
+                    }
+                    UpdateTarget::DownloadUrl(url) => url,
+                };
 
                 println!("Downloading {download_url}");
-                qpm_version::apply_update(ctx.agent(), &download_url)?;
+                qpm_version::apply_update(ctx.online_agent()?, &download_url)?;
                 println!("Finished updating")
             }
         }

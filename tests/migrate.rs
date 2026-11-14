@@ -52,7 +52,7 @@ fn migrate_then_read() -> color_eyre::Result<()> {
         input: None,
         force: false,
     }
-    .execute(&QpmContext::new(UserConfig::default()));
+    .execute(&QpmContext::new(UserConfig::default(), true));
     env::set_current_dir(previous_dir)?;
     migrate_result?;
 

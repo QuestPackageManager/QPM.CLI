@@ -11,9 +11,6 @@ pub struct EditArgs {
     ///Edit the version property of the package
     #[clap(long)]
     pub version: Option<Version>,
-
-    #[clap(long, default_value = "false")]
-    offline: bool,
 }
 
 impl Command for EditArgs {

@@ -11,10 +11,6 @@ use super::Command;
 
 #[derive(Args, Debug, Clone)]
 pub struct InstallCommand {
-    /// Offline mode repository access
-    #[clap(long, default_value = "false")]
-    offline: bool,
-
     /// Path to the qpkg file to install
     #[clap(short = 'p', long = "path")]
     qpkg_path: Option<PathBuf>,
@@ -71,7 +67,7 @@ impl InstallCommand {
             println!("Installing qpkg from URL: {qpkg_url}");
 
             file_repo
-                .install_qpkg_from_url(ctx.agent(), qpkg_url, None, true, version)
+                .install_qpkg_from_url(ctx.online_agent()?, qpkg_url, None, true, version)
                 .context("Installing qpkg from URL failed")?
         } else {
             bail!("Either --path or --url must be provided to install a qpkg");

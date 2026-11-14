@@ -81,15 +81,19 @@ impl Command for Ndk {
     fn execute(self, ctx: &QpmContext) -> Result<()> {
         match self.op {
             NdkOperation::Download(d) => {
-                let manifest = get_android_manifest(ctx.agent())?;
+                let manifest = get_android_manifest(ctx.online_agent()?)?;
 
                 let (_version, ndk) = ndk_service::fuzzy_match_ndk(&manifest, &d.version)?;
-                let path =
-                    download_ndk_version(ctx.agent(), ndk, !self.quiet, ctx.ndk_download_path()?)?;
+                let path = download_ndk_version(
+                    ctx.online_agent()?,
+                    ndk,
+                    !self.quiet,
+                    ctx.ndk_download_path()?,
+                )?;
                 println!("{}", path.display());
             }
             NdkOperation::Available(a) => {
-                let manifest = get_android_manifest(ctx.agent())?;
+                let manifest = get_android_manifest(ctx.online_agent()?)?;
                 let amount_per_page = 5;
 
                 let page_offset = a.page;
@@ -121,7 +125,7 @@ impl Command for Ndk {
                     })
             }
             NdkOperation::Path(p) => {
-                let manifest = get_android_manifest(ctx.agent())?;
+                let manifest = get_android_manifest(ctx.online_agent()?)?;
 
                 let (version, _ndk) = ndk_service::fuzzy_match_ndk(&manifest, &p.version)?;
 

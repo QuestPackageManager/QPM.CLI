@@ -10,15 +10,12 @@ pub struct PackageCommand {
     pub package: String,
     #[clap(short, long)]
     pub latest: bool,
-
-    #[clap(long, default_value = "false")]
-    offline: bool,
 }
 
 impl Command for PackageCommand {
     fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let versions = ctx
-            .repositories(self.offline)?
+            .repositories()?
             .get_package_versions(&DependencyId(self.package.clone()))?;
 
         match versions {

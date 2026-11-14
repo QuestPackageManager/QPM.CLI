@@ -12,6 +12,7 @@ use std::{
     collections::HashMap,
     fs::File,
     path::{Path, PathBuf},
+    sync::Mutex,
 };
 
 use clap::Parser;
@@ -47,14 +48,20 @@ fn write_qpkg(config: PackageConfig, path: &Path) {
     QpkgFile::create(file, config, headers, binaries).expect("creating the qpkg should succeed");
 }
 
-/// Runs a qpm2 command line in-process with `ctx`, from `cwd`
-fn run_qpm(ctx: &QpmContext, cwd: &Path, args: &[&str]) -> color_eyre::Result<()> {
+/// Commands run relative to the process-wide current directory, so tests in this binary
+/// (which run in parallel threads) must take turns.
+static CWD_LOCK: Mutex<()> = Mutex::new(());
+
+/// Runs a qpm2 command line in-process with `config`, from `cwd`, the way `main` does
+fn run_qpm(config: &UserConfig, cwd: &Path, args: &[&str]) -> color_eyre::Result<()> {
+    let _guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let previous = std::env::current_dir()?;
     std::env::set_current_dir(cwd)?;
 
     let result = (|| {
         let opt = Opt::try_parse_from(std::iter::once("qpm2").chain(args.iter().copied()))?;
-        opt.command.expect("a subcommand").execute(ctx)
+        let ctx = QpmContext::new(config.clone(), opt.offline);
+        opt.command.expect("a subcommand").execute(&ctx)
     })();
 
     std::env::set_current_dir(previous)?;
@@ -65,18 +72,18 @@ fn run_qpm(ctx: &QpmContext, cwd: &Path, args: &[&str]) -> color_eyre::Result<()
 fn locally_installed_qpkg_is_restorable_offline() {
     let cache = tempdir().unwrap();
     let workspace = tempdir().unwrap();
-    let ctx = QpmContext::new(UserConfig {
+    let config = UserConfig {
         cache: Some(cache.path().to_path_buf()),
         // copy, so the test doesn't depend on symlink support
         symlink: Some(false),
         ..UserConfig::default()
-    });
+    };
 
     // qpm2 install --path localpkg.qpkg
     let qpkg_path: PathBuf = workspace.path().join("localpkg.qpkg");
     write_qpkg(local_package(), &qpkg_path);
     run_qpm(
-        &ctx,
+        &config,
         workspace.path(),
         &["install", "--path", qpkg_path.to_str().unwrap()],
     )
@@ -100,7 +107,7 @@ fn locally_installed_qpkg_is_restorable_offline() {
     project.write(workspace.path()).unwrap();
 
     // qpm2 restore --offline
-    run_qpm(&ctx, workspace.path(), &["restore", "--offline"])
+    run_qpm(&config, workspace.path(), &["restore", "--offline"])
         .expect("offline restore should resolve the locally installed package");
 
     let shared = SharedPackageConfig::read(workspace.path()).unwrap();
@@ -109,4 +116,32 @@ fn locally_installed_qpkg_is_restorable_offline() {
         .get(&DependencyId("localpkg".to_string()))
         .expect("localpkg should be in the lock file");
     assert_eq!(restored.restored_version, Version::new(0, 1, 0));
+}
+
+/// With `--offline` there's no HTTP client, so commands that can only work online fail
+/// up front with a clear message instead of attempting a request.
+#[test]
+fn network_only_command_refuses_offline() {
+    let cache = tempdir().unwrap();
+    let workspace = tempdir().unwrap();
+    let config = UserConfig {
+        cache: Some(cache.path().to_path_buf()),
+        ..UserConfig::default()
+    };
+
+    let err = run_qpm(
+        &config,
+        workspace.path(),
+        &[
+            "--offline",
+            "install",
+            "--url",
+            "https://example.invalid/pkg.qpkg",
+        ],
+    )
+    .expect_err("installing from a URL offline should fail");
+    assert!(
+        format!("{err:?}").contains("--offline"),
+        "error should explain that --offline prevents it: {err:?}"
+    );
 }

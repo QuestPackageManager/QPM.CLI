@@ -43,10 +43,6 @@ pub struct QPkgCommand {
     #[clap(long, default_value = "false")]
     pub qmod: bool,
 
-    /// Offline mode repository access
-    #[clap(long, default_value = "false")]
-    pub offline: bool,
-
     /// Verbose output
     #[clap(short, long, default_value = "false")]
     pub verbose: bool,
@@ -72,7 +68,6 @@ impl Command for QPkgCommand {
         if !self.no_build {
             let command = BuildCommand {
                 args: None,
-                offline: self.offline,
                 out_dir: Some(build_dir.clone()),
                 qmod: self.qmod,
                 build_script: None,

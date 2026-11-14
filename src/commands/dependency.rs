@@ -35,9 +35,6 @@ pub enum DependencyOperation {
 
 #[derive(Args, Debug, Clone)]
 pub struct DependencyOperationAddArgs {
-    #[clap(long, default_value = "false")]
-    offline: bool,
-
     /// Id of the dependency as listed on qpackages
     pub id: String,
 
@@ -93,7 +90,7 @@ impl Command for DependencyOperationAddArgs {
     fn execute(self, ctx: &QpmContext) -> Result<()> {
         let id = DependencyId(self.id);
 
-        let repo = ctx.repositories(self.offline)?;
+        let repo = ctx.repositories()?;
 
         let versions = repo
             .get_package_versions(&id)
@@ -179,7 +176,7 @@ fn download_dependency(
 ) -> Result<()> {
     let id = DependencyId(dependency_args.id);
 
-    let mut repository = ctx.repositories(false)?;
+    let mut repository = ctx.repositories()?;
     let version = match dependency_args.version {
         Some(v) => v,
         _ => {
@@ -217,7 +214,7 @@ fn download_dependency(
                 version.to_string().dependency_version_color()
             );
             repository
-                .download_to_cache(ctx.agent(), &dep)
+                .download_to_cache(ctx.online_agent()?, &dep)
                 .with_context(|| {
                     format!(
                         "Requesting {}:{}",
@@ -237,7 +234,7 @@ fn download_dependency(
         version.to_string().dependency_version_color()
     );
     repository
-        .download_to_cache(ctx.agent(), &artifact)
+        .download_to_cache(ctx.online_agent()?, &artifact)
         .with_context(|| {
             format!(
                 "Requesting {}:{}",

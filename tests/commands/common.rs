@@ -34,7 +34,7 @@ fn run_qpm(args: &[&str], dir: &Path) -> color_eyre::Result<()> {
 
         if let Some(command) = opt.command {
             // Default config, never the user's qpm.settings.json
-            command.execute(&QpmContext::new(UserConfig::default()))?;
+            command.execute(&QpmContext::new(UserConfig::default(), opt.offline))?;
         }
 
         Ok(())

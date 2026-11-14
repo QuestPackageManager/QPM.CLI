@@ -55,9 +55,6 @@ pub struct ZipQmodOperationArgs {
     #[clap(long = "import")]
     pub import: Option<PathBuf>,
 
-    #[clap(long, default_value = "false")]
-    pub(crate) offline: bool,
-
     /// Run the clean script before building
     #[clap(long = "clean", default_value = "false")]
     pub(crate) clean: bool,
@@ -107,7 +104,6 @@ pub(crate) fn execute_qmod_zip_operation(
             ManifestQmodOperationArgs {
                 exclude_libs: build_parameters.exclude_libs.clone(),
                 include_libs: build_parameters.include_libs.clone(),
-                offline: build_parameters.offline,
             },
         )?,
     };

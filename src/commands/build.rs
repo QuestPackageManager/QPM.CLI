@@ -35,10 +35,6 @@ use super::Command;
 pub struct BuildCommand {
     pub args: Option<Vec<String>>,
 
-    /// Offline mode repository access
-    #[clap(short, long, default_value = "false")]
-    pub offline: bool,
-
     /// Where to output the build artifacts
     #[clap(short, long)]
     pub out_dir: Option<PathBuf>,
@@ -80,7 +76,7 @@ impl Command for BuildCommand {
 
         let args = self.args.unwrap_or_default();
 
-        let mut repo = ctx.repositories(self.offline)?;
+        let mut repo = ctx.repositories()?;
 
         // TODO: sanity check. This collapses the old "is this triplet already restored"
         // gate (comparing shared_package.restored_triplet against the requested triplet)
@@ -92,13 +88,7 @@ impl Command for BuildCommand {
             shared_package.config = package.clone();
             let restorer = PackageRestorer::locked_resolve(&shared_package, &repo)?;
             let file_repo = ctx.file_repository()?;
-            restorer.restore(
-                (!self.offline).then(|| ctx.agent()),
-                ".",
-                &mut repo,
-                &file_repo,
-                ctx.symlink(),
-            )?;
+            restorer.restore(ctx.agent(), ".", &mut repo, &file_repo, ctx.symlink())?;
             shared_package.write(".")?;
 
             if self.ndk_resolve {

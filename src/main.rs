@@ -65,7 +65,7 @@ fn main() -> Result<()> {
         suggest_completion_location(generator);
     }
     if let Some(command) = command_result.command {
-        let ctx = context::QpmContext::load()?;
+        let ctx = context::QpmContext::load(command_result.offline)?;
         command.execute(&ctx)?;
     }
 
