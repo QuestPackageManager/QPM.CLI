@@ -44,12 +44,6 @@ impl MockRepository {
             .insert(config.version.clone(), config);
     }
 
-    pub fn remove(&self, id: &DependencyId, version: &Version) {
-        if let Some(versions) = self.0.borrow_mut().packages.get_mut(id) {
-            versions.remove(version);
-        }
-    }
-
     /// Every package `download_to_cache` was called with, in call order.
     pub fn downloaded(&self) -> Vec<(DependencyId, Version)> {
         self.0.borrow().downloaded.clone()

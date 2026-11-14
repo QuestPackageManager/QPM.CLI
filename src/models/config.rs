@@ -107,14 +107,19 @@ impl UserConfig {
         let local = Self::read_workspace()?;
 
         Ok(match local {
-            Some(local) => Self {
-                cache: local.cache.or(global.cache),
-                timeout: local.timeout.or(global.timeout),
-                symlink: local.symlink.or(global.symlink),
-                ndk_download_path: local.ndk_download_path.or(global.ndk_download_path),
-            },
+            Some(local) => local.over(global),
             None => global,
         })
+    }
+
+    /// Settings from `self` where set, otherwise from `base` (e.g. workspace over global)
+    pub fn over(self, base: Self) -> Self {
+        Self {
+            cache: self.cache.or(base.cache),
+            timeout: self.timeout.or(base.timeout),
+            symlink: self.symlink.or(base.symlink),
+            ndk_download_path: self.ndk_download_path.or(base.ndk_download_path),
+        }
     }
 }
 

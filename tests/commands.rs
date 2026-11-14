@@ -1,16 +1,16 @@
-// This file contains tests for CLI commands
-//
-// Disabled: these run the qpm2 CLI in-process against fixtures in test_cmd/, but those
-// fixtures are still in the old QPM v1 format (qpm.json/info.id/array deps) rather than
-// the current qpm2.json flat format. Pre-existing, unrelated to the triplet removal -
-// leave disabled until the fixtures are regenerated.
+// Tests for CLI commands: each runs the qpm2 CLI in-process against a fixture in test_cmd/.
+// Regenerate expected outputs with QPM_TEST_UPDATE=1.
+#![cfg(all(feature = "cli", feature = "network_test"))]
 
-// #[path = "commands/common.rs"]
-// mod common;
+#[path = "commands/common.rs"]
+mod common;
 
-// /// This module contains the tests for the dependency command
-// #[path = "commands/dependency.rs"]
-// mod dependency;
+/// Tests for the dependency command
+#[path = "commands/dependency.rs"]
+mod dependency;
+
+// Still disabled: their fixtures are in the QPM v1 format (qpm.json) and they depend on
+// packages the qpm2 backend doesn't serve (beatsaber-hook) or on large downloads (NDK, adb).
 
 // /// This module contains the tests for the ndk command
 // #[path = "commands/ndk.rs"]

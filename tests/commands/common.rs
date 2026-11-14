@@ -1,7 +1,7 @@
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
-use clap::Parser;
 use bstr::ByteSlice;
+use clap::Parser;
 use color_eyre::eyre::{Context, ensure};
 use fs_extra::dir::{self, CopyOptions};
 use predicates::prelude::*;
@@ -33,8 +33,13 @@ fn run_qpm(args: &[&str], dir: &Path) -> color_eyre::Result<()> {
             .with_context(|| format!("Failed to parse args {args:?}"))?;
 
         if let Some(command) = opt.command {
-            // Default config, never the user's qpm.settings.json
-            command.execute(&QpmContext::new(UserConfig::default(), opt.offline))?;
+            // The fixture's own qpm.settings.json over the defaults, never the user's global
+            // settings. Fixtures point the cache at ./qpm_junk, inside the temp dir.
+            let config = match UserConfig::read_workspace()? {
+                Some(workspace) => workspace.over(UserConfig::default()),
+                None => UserConfig::default(),
+            };
+            command.execute(&QpmContext::new(config, opt.offline))?;
         }
 
         Ok(())
