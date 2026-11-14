@@ -245,3 +245,23 @@ fn qpkg_fails_when_an_out_binary_is_missing() {
     );
     assert!(!dir.join("broken.qpkg").exists());
 }
+
+/// A dev dependency is direct too: its binaries must be copied into extern/libs
+#[test]
+fn dev_dependency_binaries_are_copied() {
+    let root = tempdir().unwrap();
+    let cache = tempdir().unwrap();
+
+    let lib = package("devlib", Version::new(1, 0, 0), Some(&["libdevlib.a"]));
+    package_and_install(root.path(), cache.path(), &lib);
+
+    let mut consumer = package("consumer", Version::new(1, 0, 0), None);
+    depend_on(&mut consumer, "devlib", "^1.0.0");
+    consumer.dev_dependencies = std::mem::take(&mut consumer.dependencies);
+    let dir = workspace(root.path(), &consumer);
+
+    run_qpm(&user_config(cache.path()), &dir, &["restore", "--offline"])
+        .expect("offline restore should succeed");
+
+    assert_eq!(file_names(&dir.join("extern/libs")), vec!["libdevlib.a"]);
+}

@@ -648,11 +648,10 @@ impl FileRepository {
 
         let (direct_deps, indirect_deps): (Vec<_>, Vec<_>) =
             // partition by direct dependencies and indirect
+            // dev dependencies are direct too: the root resolves them, so link their binaries
             deps.into_iter().partition(|(unknown_dep, _)| {
-                package
-                    .dependencies
-                    .iter()
-                    .any(|direct_dep| *direct_dep.0 == unknown_dep.config.id)
+                package.dependencies.contains_key(&unknown_dep.config.id)
+                    || package.dev_dependencies.contains_key(&unknown_dep.config.id)
             });
 
         // direct dependencies copy the binaries to the extern_binaries folder
