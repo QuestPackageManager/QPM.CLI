@@ -74,9 +74,9 @@ impl<T: Read + Seek> QpkgFile<T> {
         let mut archive = self.as_zip_reader()?;
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
-            let name = file.name();
+            let name = file.name()?;
             if name.starts_with(&shared_dir_str) && !name.ends_with('/') {
-                headers.push(PathBuf::from(name));
+                headers.push(PathBuf::from(name.as_ref()));
             }
         }
 

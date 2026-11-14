@@ -133,7 +133,7 @@ pub fn download_ndk_version(
 
     // Extract to tmp folde
     let mut archive = ZipArchive::new(buffer)?;
-    let extract_path = ndk_download_path.join(archive.by_index(0)?.name());
+    let extract_path = ndk_download_path.join(archive.by_index(0)?.name()?.as_ref());
 
     archive.extract(ndk_download_path)?;
 
