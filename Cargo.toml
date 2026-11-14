@@ -41,9 +41,9 @@ color-eyre = { version = "0.6", default-features = false }
 
 [dependencies]
 #qpm
-qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "qpm2" }
+qpm_package = { git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "main", version = "2" }
 qpm_package_v1 = { package = "qpm_package", git = "https://github.com/QuestPackageManager/QPM.Package.git", branch = "v1", optional = true }
-qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git" }
+qpm_qmod = { git = "https://github.com/QuestPackageManager/QPM.Qmod.git", branch = "main" }
 qpm_arg_tokenizer = { git = "https://github.com/QuestPackageManager/QPM.arg_tokenizer.git" }
 templatr = { git = "https://github.com/QuestPackageManager/templatr.git", optional = true, default-features = false, features = ["git_cli", "serde", "cli"]}
 quest_emu = { git = "https://github.com/QuestPackageManager/quest_emu_setup.git", optional = true }
