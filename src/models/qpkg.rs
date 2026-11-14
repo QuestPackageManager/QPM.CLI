@@ -1,11 +1,11 @@
 use std::{fs::File, io::BufReader, path::Path};
 
 use color_eyre::eyre::{Context, Result};
-use qpm_package::models::qpkg::{QPKG_JSON, QPkg};
+use qpm_package::models::qpkg::{QPKG_JSON, QpkgManifest};
 
 use crate::utils::json;
 
-pub trait QPkgExtensions: Sized {
+pub trait QpkgManifestExtensions: Sized {
     fn exists<P: AsRef<Path>>(dir: P) -> bool;
 
     fn read<P: AsRef<Path>>(dir: P) -> Result<Self>
@@ -14,7 +14,7 @@ pub trait QPkgExtensions: Sized {
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()>;
 }
 
-impl QPkgExtensions for QPkg {
+impl QpkgManifestExtensions for QpkgManifest {
     fn exists<P: AsRef<Path>>(dir: P) -> bool {
         let path = dir.as_ref().join(QPKG_JSON);
         path.exists()
@@ -35,8 +35,8 @@ impl QPkgExtensions for QPkg {
     fn write<P: AsRef<Path>>(&self, dir: P) -> Result<()> {
         let path = dir.as_ref().join(QPKG_JSON);
 
-        let serialized = serde_json::to_string_pretty(self).context("Failed to serialize QPkg")?;
-        std::fs::write(path, serialized).context("Failed to write QPkg to file")?;
+        let serialized = serde_json::to_string_pretty(self).context("Failed to serialize QPKG manifest")?;
+        std::fs::write(path, serialized).context("Failed to write QPKG manifest to file")?;
         Ok(())
     }
 }

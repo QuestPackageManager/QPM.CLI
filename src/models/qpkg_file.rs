@@ -1,7 +1,7 @@
 use crate::utils::json;
 use color_eyre::eyre::{Context, Result, bail};
 use qpm_package::models::package::PackageConfig;
-use qpm_package::models::qpkg::{QPKG_JSON, QPkg};
+use qpm_package::models::qpkg::{QPKG_JSON, QpkgManifest};
 use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use zip::ZipArchive;
@@ -9,17 +9,17 @@ use zip::ZipArchive;
 /// Reads and manages QPKG ZIP files, providing access to manifest and contents
 pub struct QpkgFile<T> {
     buffer: T,
-    manifest: QPkg,
+    manifest: QpkgManifest,
 }
 
 impl<T> QpkgFile<T> {
     /// Get the package manifest from this QPKG
-    pub fn manifest(&self) -> &QPkg {
+    pub fn manifest(&self) -> &QpkgManifest {
         &self.manifest
     }
 
     /// Get mutable reference to the manifest
-    pub fn manifest_mut(&mut self) -> &mut QPkg {
+    pub fn manifest_mut(&mut self) -> &mut QpkgManifest {
         &mut self.manifest
     }
 
@@ -49,7 +49,7 @@ impl<T: Read + Seek> QpkgFile<T> {
             .by_name(QPKG_JSON)
             .with_context(|| format!("QPKG missing manifest file: {QPKG_JSON}"))?;
 
-        let manifest: QPkg = json::json_from_reader_fast(manifest_file)
+        let manifest: QpkgManifest = json::json_from_reader_fast(manifest_file)
             .with_context(|| format!("Failed to parse QPKG manifest: {QPKG_JSON}"))?;
 
         // Seek back to start for potential re-reading
@@ -186,13 +186,13 @@ impl<T: Read + Seek> QpkgFile<T> {
             }
         }
 
-        // Save complete internal QPkg JSON state to output
+        // Save complete internal QPKG manifest JSON state to output
         let qpkg_path = manifest_out.join(QPKG_JSON);
         let qpkg_json = serde_json::to_string_pretty(&self.manifest)
-            .context("Failed to serialize QPkg manifest")?;
+            .context("Failed to serialize QPKG manifest")?;
         fs::write(&qpkg_path, qpkg_json).with_context(|| {
             format!(
-                "Failed to write QPkg manifest file to {}",
+                "Failed to write QPKG manifest file to {}",
                 qpkg_path.display().file_path_color()
             )
         })?;
@@ -300,7 +300,7 @@ impl<T: Write + Seek> QpkgFile<T> {
         }
 
         // Create manifest from config and file list (matching original qpkg command)
-        let manifest = QPkg {
+        let manifest = QpkgManifest {
             config,
             shared_dir,
             files,

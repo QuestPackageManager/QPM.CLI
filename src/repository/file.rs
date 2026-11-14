@@ -6,7 +6,7 @@ use itertools::Itertools;
 use owo_colors::OwoColorize;
 use qpm_package::models::{
     package::{DependencyId, PackageConfig, QPM_JSON},
-    qpkg::QPkg,
+    qpkg::QpkgManifest,
     shared_package::QPM_SHARED_JSON,
 };
 use schemars::JsonSchema;
@@ -27,7 +27,7 @@ use crate::{
     models::{
         package::PackageConfigExtensions,
         package_files::PackageIdPath,
-        qpkg::QPkgExtensions,
+        qpkg::QpkgManifestExtensions,
         qpkg_file::QpkgFile,
         schemas::{SchemaLinks, WithSchema},
     },
@@ -311,7 +311,7 @@ impl FileRepository {
         let bin_dir = package_path.binaries_path(cache_root);
 
         // Check if already exists
-        if QPkg::exists(&base_path) {
+        if QpkgManifest::exists(&base_path) {
             match overwrite_existing {
                 false => {
                     bail!(
@@ -326,7 +326,7 @@ impl FileRepository {
                     );
                     fs::remove_dir_all(&base_path).with_context(|| {
                         format!(
-                            "Failed to remove existing QPkg at {}",
+                            "Failed to remove existing QPKG at {}",
                             base_path.display().file_path_color()
                         )
                     })?;
