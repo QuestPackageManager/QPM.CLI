@@ -275,12 +275,14 @@ impl<T: Write + Seek> QpkgFile<T> {
         let mut zip = zip::ZipWriter::new(buffer);
         let options = zip::write::FileOptions::<()>::default();
 
-        let shared_dir = config.shared_directory.clone();
+        // QPKG paths use ZIP separators on every host platform.
+        let shared_dir =
+            PathBuf::from(config.shared_directory.to_string_lossy().replace('\\', "/"));
 
         // Add header files using the config's shared directory path
         for (path, content) in headers {
             let full_path = shared_dir.join(path.as_ref());
-            zip.start_file(full_path.to_string_lossy().as_ref(), options)
+            zip.start_file(full_path.to_string_lossy().replace('\\', "/"), options)
                 .context("Failed to start header file in QPKG")?;
             zip.write_all(content)
                 .context("Failed to write header file to QPKG")?;
@@ -292,11 +294,11 @@ impl<T: Write + Seek> QpkgFile<T> {
         // Add binary files in bin directory
         for (path, content) in binaries {
             let bin_path = Path::new("bin").join(path.as_ref());
-            zip.start_file(bin_path.to_string_lossy().as_ref(), options)
+            zip.start_file(bin_path.to_string_lossy().replace('\\', "/"), options)
                 .context("Failed to start binary file in QPKG")?;
             zip.write_all(content)
                 .context("Failed to write binary file to QPKG")?;
-            files.push(bin_path);
+            files.push(PathBuf::from(bin_path.to_string_lossy().replace('\\', "/")));
         }
 
         // Create manifest from config and file list (matching original qpkg command)
