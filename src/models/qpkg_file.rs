@@ -280,7 +280,7 @@ impl<T: Write + Seek> QpkgFile<T> {
         // Add header files using the config's shared directory path
         for (path, content) in headers {
             let full_path = shared_dir.join(path.as_ref());
-            zip.start_file(full_path.to_string_lossy().as_ref(), options)
+            zip.start_file_from_path(&full_path, options)
                 .context("Failed to start header file in QPKG")?;
             zip.write_all(content)
                 .context("Failed to write header file to QPKG")?;
@@ -292,7 +292,7 @@ impl<T: Write + Seek> QpkgFile<T> {
         // Add binary files in bin directory
         for (path, content) in binaries {
             let bin_path = Path::new("bin").join(path.as_ref());
-            zip.start_file(bin_path.to_string_lossy().as_ref(), options)
+            zip.start_file_from_path(&bin_path, options)
                 .context("Failed to start binary file in QPKG")?;
             zip.write_all(content)
                 .context("Failed to write binary file to QPKG")?;
@@ -378,13 +378,9 @@ mod tests {
 
         // Verify binaries are tracked in files (headers are in shared_dir, not files)
         assert_eq!(qpkg_file.files().len(), 2);
-        let file_paths: Vec<_> = qpkg_file
-            .files()
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect();
-        assert!(file_paths.contains(&"bin/libmain.so".to_string()));
-        assert!(file_paths.contains(&"bin/libutil.so".to_string()));
+        let file_paths = qpkg_file.files();
+        assert!(file_paths.contains(&PathBuf::from("bin/libmain.so")));
+        assert!(file_paths.contains(&PathBuf::from("bin/libutil.so")));
 
         // Verify headers exist
         let headers_list = qpkg_file.list_headers().unwrap();
@@ -440,12 +436,8 @@ mod tests {
         let qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
 
         // Verify binaries are in manifest (headers tracked separately in shared_dir)
-        let file_paths: Vec<_> = qpkg_file
-            .files()
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect();
-        assert!(file_paths.contains(&"bin/libtest.so".to_string()));
+        let file_paths = qpkg_file.files();
+        assert!(file_paths.contains(&PathBuf::from("bin/libtest.so")));
     }
 
     /// Test QPKG file listing: verify all files in manifest
@@ -464,13 +456,9 @@ mod tests {
         let buffer = Cursor::new(Vec::new());
         let qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
 
-        let file_paths: Vec<_> = qpkg_file
-            .files()
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect();
-        assert!(file_paths.contains(&"bin/lib1.so".to_string()));
-        assert!(file_paths.contains(&"bin/lib2.so".to_string()));
+        let file_paths = qpkg_file.files();
+        assert!(file_paths.contains(&PathBuf::from("bin/lib1.so")));
+        assert!(file_paths.contains(&PathBuf::from("bin/lib2.so")));
     }
 
     /// Test QPKG with nested directory structure: verify paths are preserved
