@@ -107,6 +107,26 @@ interface QPM2Dep {
   qpkgUrl?: string;
 }
 
+function rebaseIncludePath(path: string, sharedDir: string): string {
+  // QPM2 extracts sharedDir directly into extern/includes/<id>.
+  const relativeParts = (value: string): string[] | undefined => {
+    value = value.replaceAll("\\", "/");
+    if (value.startsWith("/") || value.includes(":") || value.split("/").includes("..")) {
+      return undefined;
+    }
+    return value.split("/").filter((part) => part !== "" && part !== ".");
+  };
+  const parts = relativeParts(path);
+  const shared = relativeParts(sharedDir);
+  if (!parts || !shared || !shared.every((part, i) => parts[i] === part)) {
+    throw new Error(
+      `Cannot migrate compileOptions path ${JSON.stringify(path)} relative to sharedDir ${JSON.stringify(sharedDir)}; ` +
+      "expected a path inside sharedDir without absolute or '..' components. Review it manually.",
+    );
+  }
+  return parts.slice(shared.length).join("/");
+}
+
 function convertDep(dep: QPM1Dep): QPM2Dep {
   // Both default to true when omitted (see QPM.Package's PackageDependencyModifier).
   const includeQmod = dep.additionalData.includeQmod ?? true;
@@ -145,6 +165,7 @@ const qpm2Bin =
   qpm1.info.additionalData?.headersOnly ? null :
     (qpm1.info.additionalData?.overrideSoName ?? `lib${qpm1.info.id}.so`);
 const outBinaries = qpm2Bin ? [qpm2Bin] : [];
+const compileOptions = qpm1.info.additionalData?.compileOptions;
 
 const qpm2: QPM2 = {
   configVersion: "2.0.0",
@@ -177,7 +198,11 @@ const qpm2: QPM2 = {
   dependenciesDirectory: qpm1.dependenciesDir,
   sharedDirectory: qpm1.sharedDir,
 
-  compileOptions: qpm1.info.additionalData?.compileOptions,
+  compileOptions: compileOptions && {
+    ...compileOptions,
+    includePaths: compileOptions.includePaths?.map((path) => rebaseIncludePath(path, qpm1.sharedDir)),
+    systemIncludes: compileOptions.systemIncludes?.map((path) => rebaseIncludePath(path, qpm1.sharedDir)),
+  },
 };
 
 Deno.writeTextFile("./qpm2.json", JSON.stringify(qpm2, undefined, 2));

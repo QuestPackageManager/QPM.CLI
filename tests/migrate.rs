@@ -22,7 +22,7 @@ const LEGACY_QPM_JSON: &str = r#"{
       "cmake": true,
       "modLink": "https://example.com/mymod.qmod",
       "compileOptions": {
-        "includePaths": ["include"],
+        "includePaths": ["shared/include"],
         "cppFlags": ["-std=c++20"]
       }
     }

@@ -1,9 +1,13 @@
 use crate::context::QpmContext;
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::{
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 
 use crate::terminal::colors::QPMColor;
 use clap::Args;
-use color_eyre::eyre::{Context, bail};
+use color_eyre::eyre::{Context, ContextCompat, Result, bail};
 use qpm_package::models::{
     extra::PackageCompileOptions,
     package::{
@@ -50,7 +54,7 @@ impl Command for MigrateCommand {
         let qpm1: PackageConfigV1 = json::json_from_reader_fast(BufReader::new(file))
             .with_context(|| format!("Unable to parse legacy package config at {input:?}"))?;
 
-        let qpm2 = convert(qpm1);
+        let qpm2 = convert(qpm1)?;
         qpm2.write(".")?;
 
         println!(
@@ -63,7 +67,7 @@ impl Command for MigrateCommand {
     }
 }
 
-fn convert(qpm1: PackageConfigV1) -> PackageConfig {
+fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
     let mut dependencies = DependencyMap::new();
     let mut dev_dependencies = DependencyMap::new();
 
@@ -91,7 +95,14 @@ fn convert(qpm1: PackageConfigV1) -> PackageConfig {
         vec![PathBuf::from(bin)]
     };
 
-    PackageConfig {
+    let compile_options = qpm1
+        .info
+        .additional_data
+        .compile_options
+        .map(|opts| convert_compile_options(opts, &qpm1.shared_dir))
+        .transpose()?;
+
+    Ok(PackageConfig {
         config_version: package::package_target_version(),
         id: DependencyId(qpm1.info.id.clone()),
         version: qpm1.info.version,
@@ -126,12 +137,8 @@ fn convert(qpm1: PackageConfigV1) -> PackageConfig {
         dev_dependencies,
         dependencies_directory: qpm1.dependencies_dir,
         shared_directory: qpm1.shared_dir,
-        compile_options: qpm1
-            .info
-            .additional_data
-            .compile_options
-            .map(convert_compile_options),
-    }
+        compile_options,
+    })
 }
 
 fn convert_dependency(dep: &PackageDependencyV1) -> PackageDependency {
@@ -154,11 +161,57 @@ fn convert_dependency(dep: &PackageDependencyV1) -> PackageDependency {
     }
 }
 
-fn convert_compile_options(opts: CompileOptionsV1) -> PackageCompileOptions {
-    PackageCompileOptions {
-        include_paths: opts.include_paths,
-        system_includes: opts.system_includes,
+fn convert_compile_options(
+    opts: CompileOptionsV1,
+    shared_dir: &Path,
+) -> Result<PackageCompileOptions> {
+    let convert_paths = |paths: Option<Vec<String>>| {
+        paths
+            .map(|paths| {
+                paths
+                    .into_iter()
+                    .map(|path| rebase_include_path(&path, shared_dir))
+                    .collect::<Result<Vec<_>>>()
+            })
+            .transpose()
+    };
+
+    Ok(PackageCompileOptions {
+        include_paths: convert_paths(opts.include_paths)?,
+        system_includes: convert_paths(opts.system_includes)?,
         cpp_flags: opts.cpp_flags,
         c_flags: opts.c_flags,
-    }
+    })
+}
+
+fn rebase_include_path(path: &str, shared_dir: &Path) -> Result<String> {
+    // QPM2 extracts the contents of sharedDir directly into extern/includes/<id>.
+    // Normalize separators without using the host OS's path-prefix semantics.
+    let relative_parts = |value: &str| -> Option<Vec<String>> {
+        let value = value.replace('\\', "/");
+        if value.starts_with('/') || value.contains(':') || value.split('/').any(|p| p == "..") {
+            return None;
+        }
+        Some(
+            value
+                .split('/')
+                .filter(|p| !p.is_empty() && *p != ".")
+                .map(str::to_owned)
+                .collect(),
+        )
+    };
+
+    let converted = relative_parts(path)
+        .zip(relative_parts(&shared_dir.to_string_lossy()))
+        .and_then(|(path, shared)| {
+            path.strip_prefix(shared.as_slice())
+                .map(|parts| parts.join("/"))
+        });
+
+    converted.with_context(|| {
+        format!(
+            "Cannot migrate compileOptions path {path:?} relative to sharedDir {shared_dir:?}; \
+         expected a path inside sharedDir without absolute or '..' components. Review it manually."
+        )
+    })
 }
