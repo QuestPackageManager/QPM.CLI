@@ -25,7 +25,11 @@ impl<T> QpkgFile<T> {
 
     /// Get the list of files in this QPKG
     pub fn files(&self) -> &[std::path::PathBuf] {
-        &self.manifest.files
+        self.manifest
+            .binary
+            .as_ref()
+            .map(|p| std::slice::from_ref(p))
+            .unwrap_or(&[])
     }
 
     /// Get the shared directory path for headers
@@ -158,9 +162,9 @@ impl<T: Read + Seek> QpkgFile<T> {
         // Move binaries to binaries destination
         println!(
             "Installing package with {} files",
-            self.manifest.files.len().file_path_color()
+            self.files().len().file_path_color()
         );
-        for file in &self.manifest.files {
+        for file in self.files() {
             let tmp_src_file = tmp_path.join(file);
             if tmp_src_file.exists() {
                 let dst_file = binaries_out.join(file.file_name().unwrap_or_default());
@@ -175,7 +179,7 @@ impl<T: Read + Seek> QpkgFile<T> {
         }
 
         // Verify that expected final binaries are fully present in destination
-        for binary in self.manifest.config.workspace.out_binaries.iter().flatten() {
+        for binary in self.manifest.config.workspace.out_binary.iter() {
             let binary_path = binaries_out.join(binary.file_name().unwrap_or_default());
             if !binary_path.exists() {
                 bail!(
@@ -216,10 +220,10 @@ impl<T: Write + Seek> QpkgFile<T> {
         buffer: T,
         config: PackageConfig,
         headers_dir: &Path,
-        binaries_dir: &Path,
+        binary_path: &Path,
     ) -> Result<Self> {
         let mut headers = Vec::new();
-        let mut binaries = Vec::new();
+        let mut binary = None;
 
         // Collect headers from directory
         if headers_dir.exists() {
@@ -237,28 +241,23 @@ impl<T: Write + Seek> QpkgFile<T> {
         }
 
         // Collect binaries from directory
-        if let Some(package_binaries) = &config.workspace.out_binaries {
-            for entry in package_binaries {
-                let file_path = binaries_dir.join(entry);
-                let binary_name = file_path.file_name().unwrap_or_default();
-                let content = std::fs::read(&file_path).context(format!(
-                    "Failed to read binary file {}",
-                    binary_name.display()
-                ))?;
-                binaries.push((PathBuf::from(binary_name), content));
-            }
+        if let Some(entry) = &config.workspace.out_binary {
+            let file_path = binary_path.join(entry);
+            let binary_name = file_path.file_name().unwrap_or_default();
+            let content = std::fs::read(&file_path).context(format!(
+                "Failed to read binary file {}",
+                binary_name.display()
+            ))?;
+            binary = Some((PathBuf::from(binary_name), content));
         }
 
         let headers_refs: Vec<_> = headers
             .iter()
             .map(|(p, c)| (p.as_path(), c.as_slice()))
             .collect();
-        let binaries_refs: Vec<_> = binaries
-            .iter()
-            .map(|(p, c)| (p.as_path(), c.as_slice()))
-            .collect();
+        let binary_ref = binary.as_ref().map(|(p, c)| (p.as_path(), c.as_slice()));
 
-        Self::create(buffer, config, headers_refs, binaries_refs)
+        Self::create(buffer, config, headers_refs, binary_ref)
     }
 
     /// Create a new QPKG ZIP with package config, headers, and binaries
@@ -270,7 +269,7 @@ impl<T: Write + Seek> QpkgFile<T> {
         buffer: T,
         config: PackageConfig,
         headers: Vec<(impl AsRef<Path>, &[u8])>,
-        binaries: Vec<(impl AsRef<Path>, &[u8])>,
+        binary: Option<(impl AsRef<Path>, &[u8])>,
     ) -> Result<Self> {
         let mut zip = zip::ZipWriter::new(buffer);
         let options = zip::write::FileOptions::<()>::default();
@@ -287,23 +286,23 @@ impl<T: Write + Seek> QpkgFile<T> {
         }
 
         // Collect binary file paths for the manifest (only binaries tracked in files)
-        let mut files = Vec::new();
+        let mut bin_file = None;
 
         // Add binary files in bin directory
-        for (path, content) in binaries {
+        if let Some ((path, content)) = binary {
             let bin_path = Path::new("bin").join(path.as_ref());
             zip.start_file_from_path(&bin_path, options)
                 .context("Failed to start binary file in QPKG")?;
             zip.write_all(content)
                 .context("Failed to write binary file to QPKG")?;
-            files.push(bin_path);
+            bin_file = Some(bin_path);
         }
 
         // Create manifest from config and file list (matching original qpkg command)
         let manifest = QpkgManifest {
             config,
             shared_dir,
-            files,
+            binary: bin_file,
         };
 
         // Write manifest last
@@ -337,10 +336,10 @@ mod tests {
         };
 
         let headers = vec![("include/api.h", b"// Public API" as &[u8])];
-        let binaries = vec![("libtest.so", b"binary_data" as &[u8])];
+        let binary = Some(("libtest.so", b"binary_data" as &[u8]));
 
         let buffer = Cursor::new(Vec::new());
-        let mut qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
+        let mut qpkg_file = QpkgFile::create(buffer, config, headers, binary).unwrap();
 
         assert_eq!(qpkg_file.manifest().config.id.0, "test-pkg");
         assert_eq!(qpkg_file.manifest().config.version.to_string(), "1.0.0");
@@ -368,19 +367,15 @@ mod tests {
             ("include/api.h", b"// Main API" as &[u8]),
             ("include/internal/impl.h", b"// Internal" as &[u8]),
         ];
-        let binaries = vec![
-            ("libmain.so", b"main_binary" as &[u8]),
-            ("libutil.so", b"util_binary" as &[u8]),
-        ];
+        let binary = Some(("libmain.so", b"main_binary" as &[u8]));
 
         let buffer = Cursor::new(Vec::new());
-        let mut qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
+        let mut qpkg_file = QpkgFile::create(buffer, config, headers, binary).unwrap();
 
-        // Verify binaries are tracked in files (headers are in shared_dir, not files)
-        assert_eq!(qpkg_file.files().len(), 2);
+        // Verify the binary is tracked in files (headers are in shared_dir, not files)
+        assert_eq!(qpkg_file.files().len(), 1);
         let file_paths = qpkg_file.files();
         assert!(file_paths.contains(&PathBuf::from("bin/libmain.so")));
-        assert!(file_paths.contains(&PathBuf::from("bin/libutil.so")));
 
         // Verify headers exist
         let headers_list = qpkg_file.list_headers().unwrap();
@@ -408,11 +403,11 @@ mod tests {
             ..Default::default()
         };
 
-        let binaries = vec![("lib.so", b"binary" as &[u8])];
+        let binary = Some(("lib.so", b"binary" as &[u8]));
 
         let buffer = Cursor::new(Vec::new());
         let qpkg_file =
-            QpkgFile::create(buffer, config, Vec::<(&str, &[u8])>::new(), binaries).unwrap();
+            QpkgFile::create(buffer, config, Vec::<(&str, &[u8])>::new(), binary).unwrap();
 
         let restored = &qpkg_file.manifest().config;
         assert_eq!(restored.id.0, "roundtrip-lib");
@@ -430,12 +425,12 @@ mod tests {
         };
 
         let headers = vec![("include/api.h", b"header_content" as &[u8])];
-        let binaries = vec![("libtest.so", b"binary_payload" as &[u8])];
+        let binary = Some(("libtest.so", b"binary_payload" as &[u8]));
 
         let buffer = Cursor::new(Vec::new());
-        let qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
+        let qpkg_file = QpkgFile::create(buffer, config, headers, binary).unwrap();
 
-        // Verify binaries are in manifest (headers tracked separately in shared_dir)
+        // Verify the binary is in manifest (headers tracked separately in shared_dir)
         let file_paths = qpkg_file.files();
         assert!(file_paths.contains(&PathBuf::from("bin/libtest.so")));
     }
@@ -451,14 +446,13 @@ mod tests {
         };
 
         let headers = vec![("include/pub.h", b"pub" as &[u8])];
-        let binaries = vec![("lib1.so", b"b1" as &[u8]), ("lib2.so", b"b2" as &[u8])];
+        let binary = Some(("lib1.so", b"b1" as &[u8]));
 
         let buffer = Cursor::new(Vec::new());
-        let qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
+        let qpkg_file = QpkgFile::create(buffer, config, headers, binary).unwrap();
 
         let file_paths = qpkg_file.files();
         assert!(file_paths.contains(&PathBuf::from("bin/lib1.so")));
-        assert!(file_paths.contains(&PathBuf::from("bin/lib2.so")));
     }
 
     /// Test QPKG with nested directory structure: verify paths are preserved
@@ -475,12 +469,12 @@ mod tests {
             ("include/mylib/v2/api.h", b"v2_api" as &[u8]),
             ("include/mylib/v2/internal/impl.h", b"v2_impl" as &[u8]),
         ];
-        let binaries: Vec<(&str, &[u8])> = Vec::new();
+        let binary: Option<(&str, &[u8])> = None;
 
         let buffer = Cursor::new(Vec::new());
-        let qpkg_file = QpkgFile::create(buffer, config, headers, binaries).unwrap();
+        let qpkg_file = QpkgFile::create(buffer, config, headers, binary).unwrap();
 
-        // No binaries in this test, so files list should be empty
+        // No binary in this test, so files list should be empty
         assert_eq!(qpkg_file.files().len(), 0);
     }
 
@@ -499,7 +493,7 @@ mod tests {
             buffer,
             config,
             Vec::<(&str, &[u8])>::new(),
-            Vec::<(&str, &[u8])>::new(),
+            None::<(&str, &[u8])>,
         )
         .unwrap();
 
@@ -542,11 +536,11 @@ mod tests {
             ("include/api.h", b"// API" as &[u8]),
             ("include/types.h", b"// Types" as &[u8]),
         ];
-        let binaries = vec![("libcore.so", b"core_binary_data" as &[u8])];
+        let binary = Some(("libcore.so", b"core_binary_data" as &[u8]));
 
         // Create in buffer
         let buffer = Cursor::new(Vec::new());
-        let created = QpkgFile::create(buffer, config.clone(), headers, binaries).unwrap();
+        let created = QpkgFile::create(buffer, config.clone(), headers, binary).unwrap();
 
         // Extract the buffer and read it back
         let inner = created.into_inner();
@@ -595,11 +589,11 @@ mod tests {
             ("api.h", b"// API" as &[u8]),
             ("util/helper.h", b"// Helper" as &[u8]),
         ];
-        let binaries = vec![("libmain.so", b"main_binary" as &[u8])];
+        let binary = Some(("libmain.so", b"main_binary" as &[u8]));
 
         // Create QPKG
         let buffer = Cursor::new(Vec::new());
-        let created = QpkgFile::create(buffer, config.clone(), headers, binaries).unwrap();
+        let created = QpkgFile::create(buffer, config.clone(), headers, binary).unwrap();
 
         // Extract to directories
         let manifest_out = temp_root.join("manifest");
@@ -643,11 +637,11 @@ mod tests {
             ("include/core.h", b"core" as &[u8]),
             ("include/v2/api.h", b"v2_api" as &[u8]),
         ];
-        let binaries = vec![("lib1.so", b"bin1" as &[u8]), ("lib2.so", b"bin2" as &[u8])];
+        let binary = Some(("lib1.so", b"bin1" as &[u8]));
 
         // Create QPKG
         let buffer = Cursor::new(Vec::new());
-        let created = QpkgFile::create(buffer, config, headers, binaries).unwrap();
+        let created = QpkgFile::create(buffer, config, headers, binary).unwrap();
 
         // Get buffer and re-open
         let inner = created.into_inner();
@@ -666,9 +660,8 @@ mod tests {
             .map(|p| p.to_string_lossy().to_string())
             .collect();
 
-        assert_eq!(file_paths.len(), 2);
+        assert_eq!(file_paths.len(), 1);
         assert!(file_paths.contains(&"bin/lib1.so".to_string()));
-        assert!(file_paths.contains(&"bin/lib2.so".to_string()));
 
         // Verify headers exist
         let headers_list = opened.list_headers().unwrap();
@@ -703,23 +696,17 @@ mod tests {
             ..Default::default()
         };
 
-        // Set expected out_binaries
-        config.workspace.out_binaries = Some(vec![
-            PathBuf::from("libmain.so"),
-            PathBuf::from("libutil.so"),
-        ]);
+        // Set expected out_binary
+        config.workspace.out_binary = Some(PathBuf::from("libmain.so"));
 
         let headers = vec![("api.h", b"// Public API" as &[u8])];
-        let binaries = vec![
-            ("libmain.so", b"main" as &[u8]),
-            ("libutil.so", b"util" as &[u8]),
-        ];
+        let binary = Some(("libmain.so", b"main" as &[u8]));
 
         // Create QPKG
         let buffer = Cursor::new(Vec::new());
-        let created = QpkgFile::create(buffer, config.clone(), headers, binaries).unwrap();
+        let created = QpkgFile::create(buffer, config.clone(), headers, binary).unwrap();
 
-        // Extract should verify all out_binaries are present
+        // Extract should verify the out_binary is present
         let manifest_out = temp_root.join("manifest");
         let headers_out = temp_root.join("headers");
         let binaries_out = temp_root.join("binaries");
@@ -728,9 +715,8 @@ mod tests {
             .extract_to(&manifest_out, &headers_out, &binaries_out)
             .unwrap();
 
-        // Verify both expected binaries exist
+        // Verify the expected binary exists
         assert!(binaries_out.join("libmain.so").exists());
-        assert!(binaries_out.join("libutil.so").exists());
 
         // Verify config integrity
         assert_eq!(extracted_config, config);

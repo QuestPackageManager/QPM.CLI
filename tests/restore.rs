@@ -69,7 +69,7 @@ fn restore_copies_cached_headers_and_binaries_into_the_workspace() {
         dependencies_directory: "extern".into(),
         ..Default::default()
     };
-    dep_config.workspace.out_binaries = Some(vec!["libfoo.so".into()]);
+    dep_config.workspace.out_binary = Some("libfoo.so".into());
 
     let (artifact_id, artifact_versions) = seed_cache(cache_root, &dep_config);
 

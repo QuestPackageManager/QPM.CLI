@@ -28,7 +28,7 @@ pub struct PreProcessingData {
     pub version: String,
     pub mod_id: String,
 
-    pub binaries: Vec<String>,
+    pub binary: Option<String>,
 
     pub game_id: Option<String>,
     pub game_version: Option<String>,
@@ -55,14 +55,11 @@ impl PreProcessingData {
             env = env.replace(&format!("${{QPM_{key}}}"), &value);
         }
 
+        if let Some(binary) = self.binary {
+            env = env.replace("${binary}", &binary);
+        }
+
         env
-        // .replace(
-        //     "${binary}",
-        //     preprocess_data
-        //         .binary
-        //         .unwrap_or("${binary}".to_string())
-        //         .as_str(),
-        // )
     }
 }
 
@@ -171,7 +168,7 @@ mod tests {
         PreProcessingData {
             version: "1.2.3".into(),
             mod_id: "my-mod".into(),
-            binaries: vec![],
+            binary: None,
             game_id: game_id.map(Into::into),
             game_version: game_version.map(Into::into),
             additional_env: HashMap::from([("FOO".to_string(), "bar".to_string())]),

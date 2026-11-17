@@ -85,8 +85,8 @@ pub fn id(s: &str) -> DependencyId {
     DependencyId(s.to_string())
 }
 
-/// A package with the conventional `shared`/`extern` layout and the given binaries
-pub fn package(name: &str, version: Version, out_binaries: Option<&[&str]>) -> PackageConfig {
+/// A package with the conventional `shared`/`extern` layout and the given binary
+pub fn package(name: &str, version: Version, out_binary: Option<&str>) -> PackageConfig {
     let mut config = PackageConfig {
         id: id(name),
         version,
@@ -94,7 +94,7 @@ pub fn package(name: &str, version: Version, out_binaries: Option<&[&str]>) -> P
         dependencies_directory: "extern".into(),
         ..Default::default()
     };
-    config.workspace.out_binaries = out_binaries.map(|b| b.iter().map(PathBuf::from).collect());
+    config.workspace.out_binary = out_binary.map(PathBuf::from);
     config
 }
 
@@ -124,23 +124,20 @@ pub fn header_name(config: &PackageConfig) -> String {
     format!("{}.h", config.id.0)
 }
 
-/// A `.qpkg` for `config` in memory, with one header and a fake file for each `out_binaries`
+/// A `.qpkg` for `config` in memory, with one header and a fake file for its `out_binary`
 pub fn qpkg_bytes(config: &PackageConfig) -> Vec<u8> {
     let header = header_name(config);
     let headers: Vec<(&Path, &[u8])> = vec![(Path::new(&header), b"// header\n")];
-    let binaries: Vec<(PathBuf, Vec<u8>)> = config
+    let binary_data: Option<(PathBuf, Vec<u8>)> = config
         .workspace
-        .out_binaries
-        .iter()
-        .flatten()
-        .map(|b| (b.clone(), format!("binary {}", b.display()).into_bytes()))
-        .collect();
-    let binaries: Vec<(&Path, &[u8])> = binaries
-        .iter()
-        .map(|(p, c)| (p.as_path(), c.as_slice()))
-        .collect();
+        .out_binary
+        .as_ref()
+        .map(|b| (b.clone(), format!("binary {}", b.display()).into_bytes()));
+    let binary: Option<(&Path, &[u8])> = binary_data
+        .as_ref()
+        .map(|(p, c)| (p.as_path(), c.as_slice()));
 
-    QpkgFile::create(Cursor::new(Vec::new()), config.clone(), headers, binaries)
+    QpkgFile::create(Cursor::new(Vec::new()), config.clone(), headers, binary)
         .expect("building the qpkg should succeed")
         .into_inner()
         .into_inner()

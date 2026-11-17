@@ -73,13 +73,11 @@ pub(crate) fn generate_qmod_manifest(
     let game_version = env.get(QPM_ENV_GAME_VERSION);
     let game_id = env.get(QPM_ENV_GAME_ID);
 
-    let binaries = package
+    let binary = package
         .workspace
-        .out_binaries
-        .iter()
-        .flatten()
-        .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
-        .collect();
+        .out_binary
+        .as_ref()
+        .map(|p| p.file_name().unwrap().to_string_lossy().to_string());
 
     let mod_id = package
         .qmod
@@ -94,7 +92,7 @@ pub(crate) fn generate_qmod_manifest(
         game_id: game_id.cloned(),
         game_version: game_version.cloned(),
 
-        binaries,
+        binary,
 
         additional_env: env.clone(),
     };

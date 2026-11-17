@@ -18,8 +18,8 @@ use semver::Version;
 use support::{depend_on, file_names, header_name, id, package, run_qpm, user_config, workspace};
 use tempfile::tempdir;
 
-/// Producer workspace for `config`: its header in `shared/` and a fake file for each
-/// `out_binaries` entry in `extern/build/`, ready for `qpkg --no-build`.
+/// Producer workspace for `config`: its header in `shared/` and a fake file for its
+/// `out_binary` in `extern/build/`, ready for `qpkg --no-build`.
 fn producer(parent: &Path, config: &PackageConfig) -> std::path::PathBuf {
     let dir = workspace(parent, config);
     fs::create_dir_all(dir.join("shared")).unwrap();
@@ -27,7 +27,7 @@ fn producer(parent: &Path, config: &PackageConfig) -> std::path::PathBuf {
 
     let build = dir.join("extern/build");
     fs::create_dir_all(&build).unwrap();
-    for binary in config.workspace.out_binaries.iter().flatten() {
+    for binary in config.workspace.out_binary.iter() {
         fs::write(build.join(binary), format!("binary {}", binary.display())).unwrap();
     }
     dir
@@ -61,7 +61,7 @@ fn package_and_install(root: &Path, cache: &Path, config: &PackageConfig) {
     expected.sort();
     assert_eq!(
         files, expected,
-        "the qpkg should hold exactly the out_binaries"
+        "the qpkg should hold exactly the out_binary"
     );
 
     run_qpm(
@@ -86,9 +86,8 @@ fn package_and_install(root: &Path, cache: &Path, config: &PackageConfig) {
 fn binaries_of(config: &PackageConfig) -> Vec<String> {
     config
         .workspace
-        .out_binaries
+        .out_binary
         .iter()
-        .flatten()
         .map(|b| b.to_string_lossy().into_owned())
         .collect()
 }
@@ -158,14 +157,8 @@ fn assert_lifecycle(config: PackageConfig) {
 }
 
 #[test]
-fn header_only_without_out_binaries() {
+fn header_only_without_out_binary() {
     assert_lifecycle(package("headeronly", Version::new(1, 0, 0), None));
-}
-
-/// `Some([])` must behave exactly like `None`
-#[test]
-fn header_only_with_empty_out_binaries() {
-    assert_lifecycle(package("headeronly", Version::new(1, 0, 0), Some(&[])));
 }
 
 #[test]
@@ -173,7 +166,7 @@ fn shared_library() {
     assert_lifecycle(package(
         "sharedlib",
         Version::new(1, 0, 0),
-        Some(&["libsharedlib.so"]),
+        Some("libsharedlib.so"),
     ));
 }
 
@@ -182,16 +175,7 @@ fn static_library() {
     assert_lifecycle(package(
         "staticlib",
         Version::new(1, 0, 0),
-        Some(&["libstaticlib.a"]),
-    ));
-}
-
-#[test]
-fn shared_and_static_library() {
-    assert_lifecycle(package(
-        "mixedlib",
-        Version::new(1, 0, 0),
-        Some(&["libmixedlib.so", "libmixedlib_static.a"]),
+        Some("libstaticlib.a"),
     ));
 }
 
@@ -202,8 +186,8 @@ fn transitive_dependency_gets_headers_but_not_binaries() {
     let root = tempdir().unwrap();
     let cache = tempdir().unwrap();
 
-    let b = package("b", Version::new(1, 0, 0), Some(&["libb.a"]));
-    let mut a = package("a", Version::new(1, 0, 0), Some(&["liba.so"]));
+    let b = package("b", Version::new(1, 0, 0), Some("libb.a"));
+    let mut a = package("a", Version::new(1, 0, 0), Some("liba.so"));
     depend_on(&mut a, "b", "^1.0.0");
 
     package_and_install(root.path(), cache.path(), &b);
@@ -232,7 +216,7 @@ fn transitive_dependency_gets_headers_but_not_binaries() {
 fn qpkg_fails_when_an_out_binary_is_missing() {
     let root = tempdir().unwrap();
     let cache = tempdir().unwrap();
-    let config = package("broken", Version::new(1, 0, 0), Some(&["libbroken.so"]));
+    let config = package("broken", Version::new(1, 0, 0), Some("libbroken.so"));
 
     let dir = producer(root.path(), &config);
     fs::remove_file(dir.join("extern/build/libbroken.so")).unwrap();
@@ -252,7 +236,7 @@ fn dev_dependency_binaries_are_copied() {
     let root = tempdir().unwrap();
     let cache = tempdir().unwrap();
 
-    let lib = package("devlib", Version::new(1, 0, 0), Some(&["libdevlib.a"]));
+    let lib = package("devlib", Version::new(1, 0, 0), Some("libdevlib.a"));
     package_and_install(root.path(), cache.path(), &lib);
 
     let mut consumer = package("consumer", Version::new(1, 0, 0), None);

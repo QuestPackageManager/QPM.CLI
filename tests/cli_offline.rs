@@ -20,7 +20,7 @@ fn cache_clear_package_makes_it_unresolvable() {
     let cache = tempdir().unwrap();
     let user = user_config(cache.path());
 
-    let dep = package("cleared", Version::new(1, 0, 0), Some(&["libcleared.so"]));
+    let dep = package("cleared", Version::new(1, 0, 0), Some("libcleared.so"));
     let qpkg = root.path().join("cleared.qpkg");
     fs::write(&qpkg, qpkg_bytes(&dep)).unwrap();
     run_qpm(

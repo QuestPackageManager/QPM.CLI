@@ -13,7 +13,7 @@ use support::{package, qpkg_bytes, test_agent};
 use tempfile::tempdir;
 
 fn sample_qpkg_config() -> PackageConfig {
-    package("libfoo", Version::new(1, 0, 0), Some(&["libfoo.so"]))
+    package("libfoo", Version::new(1, 0, 0), Some("libfoo.so"))
 }
 
 /// A real, valid `.qpkg` zip in memory, matching what `qpm2 qpkg` would actually produce
