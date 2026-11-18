@@ -360,6 +360,12 @@ The toolchain file is automatically generated during `qpm restore` and contains:
 - Dependency paths and link flags
 - Compile options from all dependencies
 
+For CMake projects, [cmake/qpm-toolchain.cmake](./cmake/qpm-toolchain.cmake) is a reusable
+integration model. Include it after defining the target and call
+`qpm_apply_toolchain(<target>)`. It adds every package directory under `extern/includes` as a
+system include directory, along with configured include paths, compiler flags, and linked binaries
+from `toolchain.json`.
+
 ### CI/CD Integration
 
 For CI environments:

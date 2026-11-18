@@ -165,15 +165,20 @@ fn convert_compile_options(
     opts: CompileOptionsV1,
     shared_dir: &Path,
 ) -> Result<PackageCompileOptions> {
-    let convert_paths = |paths: Option<Vec<String>>| {
-        paths
-            .map(|paths| {
-                paths
-                    .into_iter()
-                    .map(|path| rebase_include_path(&path, shared_dir))
-                    .collect::<Result<Vec<_>>>()
-            })
-            .transpose()
+    let convert_paths = |paths: Option<Vec<String>>| -> Result<Option<Vec<String>>> {
+        let Some(paths) = paths else {
+            return Ok(None);
+        };
+        let paths = paths
+            .into_iter()
+            .map(|path| rebase_include_path(&path, shared_dir))
+            .collect::<Result<Vec<_>>>()?;
+        // The CMake model adds every package root, so a rebased "" path is redundant.
+        let paths = paths
+            .into_iter()
+            .filter(|path| !path.is_empty())
+            .collect::<Vec<_>>();
+        Ok(Some(paths))
     };
 
     Ok(PackageCompileOptions {
@@ -186,6 +191,7 @@ fn convert_compile_options(
 
 fn rebase_include_path(path: &str, shared_dir: &Path) -> Result<String> {
     // QPM2 extracts the contents of sharedDir directly into extern/includes/<id>.
+    // A path equal to sharedDir therefore rebases to "" (the package include root).
     // Normalize separators without using the host OS's path-prefix semantics.
     let relative_parts = |value: &str| -> Option<Vec<String>> {
         let value = value.replace('\\', "/");
