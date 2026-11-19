@@ -83,8 +83,8 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
     }
 
     let headers_only = qpm1.info.additional_data.headers_only.unwrap_or(false);
-    let out_binary = if headers_only {
-        None
+    let out_binaries = if headers_only {
+        vec![]
     } else {
         let bin = qpm1
             .info
@@ -92,7 +92,7 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
             .override_so_name
             .clone()
             .unwrap_or_else(|| format!("lib{}.so", qpm1.info.id));
-        Some(PathBuf::from(bin))
+        vec![PathBuf::from(bin)]
     };
 
     let compile_options = qpm1
@@ -116,7 +116,7 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
             scripts: qpm1.workspace.scripts,
             env: None,
             ndk: qpm1.workspace.ndk,
-            out_binary,
+            out_binaries: Some(out_binaries),
             toolchain_out: Some(
                 qpm1.info
                     .additional_data

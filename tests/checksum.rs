@@ -34,7 +34,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 fn sample() -> PackageConfig {
-    package("summed", Version::new(1, 0, 0), Some("libsummed.so"))
+    package("summed", Version::new(1, 0, 0), Some(&["libsummed.so"]))
 }
 
 /// Serves `body` to every request on a fresh localhost port; returns the URL

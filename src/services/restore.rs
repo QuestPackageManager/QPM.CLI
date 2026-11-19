@@ -90,10 +90,9 @@ impl<'a> PackageRestorer<'a> {
                     restored_binaries: resolved_dep
                         .config
                         .workspace
-                        .out_binary
+                        .out_binaries
                         .clone()
-                        .into_iter()
-                        .collect(),
+                        .unwrap_or_default(),
                     restored_env: resolved_dep
                         .config
                         .workspace

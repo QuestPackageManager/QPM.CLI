@@ -24,7 +24,7 @@ use tempfile::tempdir;
 
 /// A local-only package (not on qpackages), like the reporter's `capstone`
 fn local_package() -> PackageConfig {
-    package("localpkg", Version::new(0, 1, 0), Some("liblocalpkg.so"))
+    package("localpkg", Version::new(0, 1, 0), Some(&["liblocalpkg.so"]))
 }
 
 #[test]

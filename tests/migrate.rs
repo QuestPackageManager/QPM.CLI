@@ -65,7 +65,10 @@ fn migrate_then_read() -> color_eyre::Result<()> {
         package.additional_data.url.as_deref(),
         Some("https://github.com/example/mymod")
     );
-    assert_eq!(package.workspace.out_binary, Some("libmymod.so".into()));
+    assert_eq!(
+        package.workspace.out_binaries,
+        Some(vec!["libmymod.so".into()])
+    );
     assert_eq!(package.workspace.cmake, Some(true));
     assert_eq!(
         package.workspace.scripts.get("build"),

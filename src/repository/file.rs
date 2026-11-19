@@ -343,7 +343,7 @@ impl FileRepository {
 
         println!(
             "Installing package with {} files",
-            qpkg.binary.iter().count().file_path_color()
+            qpkg.files.len().file_path_color()
         );
 
         // Extract QPKG to cache
@@ -352,7 +352,7 @@ impl FileRepository {
             .context("Failed to extract QPKG")?;
 
         // Validate binaries exist
-        for binary in qpkg.config.workspace.out_binary.iter() {
+        for binary in qpkg.config.workspace.out_binaries.iter().flatten() {
             let binary_path = package_path.binary_path(cache_root, binary);
             if !binary_path.exists() {
                 bail!(
@@ -552,8 +552,7 @@ impl FileRepository {
             );
         }
 
-        let expected_binaries: Vec<PathBuf> =
-            package.workspace.out_binary.clone().into_iter().collect();
+        let expected_binaries = package.workspace.out_binaries.clone().unwrap_or_default();
         let binaries: Vec<PathBuf> = expected_binaries
             .iter()
             .map(|b| dep_cache_path.binary_path(cache_root, b))

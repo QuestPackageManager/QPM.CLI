@@ -35,7 +35,7 @@ fn toolchain_rebases_includes_and_lists_binaries() {
     let mut repo = FileRepository::read(cache.path().to_path_buf()).unwrap();
 
     let a = with_options(
-        package("a", Version::new(1, 0, 0), Some("liba.so")),
+        package("a", Version::new(1, 0, 0), Some(&["liba.so", "liba.a"])),
         "include",
         "-DA",
     );
@@ -79,7 +79,13 @@ fn toolchain_rebases_includes_and_lists_binaries() {
 
     let mut a_bins = toolchain.linked_binaries[&id("a")].clone();
     a_bins.sort();
-    assert_eq!(a_bins, vec![PathBuf::from("extern/libs/liba.so")]);
+    assert_eq!(
+        a_bins,
+        vec![
+            PathBuf::from("extern/libs/liba.a"),
+            PathBuf::from("extern/libs/liba.so")
+        ]
+    );
     assert!(toolchain.linked_binaries[&id("b")].is_empty());
 
     assert_eq!(toolchain.package_id, "root");
