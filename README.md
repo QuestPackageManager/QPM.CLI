@@ -123,15 +123,11 @@ A **`.qpkg`** is a ZIP archive containing pre-built binaries and headers for dis
 - All C++ header files (typically `shared/include/`)
 - Public API that dependents compile against
 - Used for: `#include <mylib/api.h>` in dependent code
-- Set `workspace.headerExport.prefix` to keep a prefix under `extern/includes/<id>/`.
-  Set `workspace.headerExport.paths` to export only selected files and directory trees,
-  with each path relative to `sharedDirectory`.
 
 **Binaries** - From `workspace.outBinaries`:
-- Entries are relative to the directory containing `qpm2.json`. Use
-  `qpm2 qpkg --input-bins <directory>` to override the base directory.
-- For binaries under `build/` in `dependenciesDirectory`, include that directory
-  in the entry (for example, `extern/build/libmymod.so`).
+- Entries are relative to the directory containing `qpm2.json`. If no relative entry
+  resolves there, QPM accepts a complete set of binaries under `<dependenciesDirectory>/build/`
+  for existing manifests. Use `qpm2 qpkg --input-bins <directory>` to override the base directory.
 - Pre-built `.so` files from your build output
 - Used for linking during dependent's compilation
 - Typically one binary per release/debug configuration

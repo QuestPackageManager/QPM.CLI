@@ -92,7 +92,7 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
             .override_so_name
             .clone()
             .unwrap_or_else(|| format!("lib{}.so", qpm1.info.id));
-        vec![qpm1.dependencies_dir.join("build").join(bin)]
+        vec![PathBuf::from(bin)]
     };
 
     let compile_options = qpm1
@@ -124,7 +124,6 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
                     .unwrap_or_else(|| PathBuf::from("toolchain.json")),
             ),
             cmake: qpm1.info.additional_data.cmake,
-            ..Default::default()
         },
         qmod: QmodConfig {
             output: qpm1.workspace.qmod_output,

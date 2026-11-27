@@ -14,22 +14,21 @@ use qpm_cli::models::{
     toolchain::ToolchainData,
 };
 use qpm_package::models::package::PackageConfig;
-use qpm_package::models::workspace::HeaderExportConfig;
 use semver::Version;
 use support::{depend_on, file_names, header_name, id, package, run_qpm, user_config, workspace};
 use tempfile::tempdir;
 
 /// Producer workspace for `config`: its header in `shared/` and a fake file for each
-/// `out_binaries` path relative to the manifest, ready for `qpkg --no-build`.
+/// `out_binaries` entry in `extern/build/`, ready for `qpkg --no-build`.
 fn producer(parent: &Path, config: &PackageConfig) -> std::path::PathBuf {
     let dir = workspace(parent, config);
     fs::create_dir_all(dir.join("shared")).unwrap();
     fs::write(dir.join("shared").join(header_name(config)), "// header\n").unwrap();
 
+    let build = dir.join("extern/build");
+    fs::create_dir_all(&build).unwrap();
     for binary in config.workspace.out_binaries.iter().flatten() {
-        let path = dir.join(binary);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(path, format!("binary {}", binary.display())).unwrap();
+        fs::write(build.join(binary), format!("binary {}", binary.display())).unwrap();
     }
     dir
 }
@@ -179,70 +178,48 @@ fn shared_library() {
 }
 
 #[test]
-fn checkout_binary_and_selected_headers_restore_with_a_prefix() {
+fn manifest_relative_binary_takes_precedence_over_legacy_directory() {
     let root = tempdir().unwrap();
     let cache = tempdir().unwrap();
-    let mut config = package(
-        "layout",
-        Version::new(1, 0, 0),
-        Some(&["build/arm64-v8a/liblayout.so"]),
-    );
-    config.workspace.header_export = Some(HeaderExportConfig {
-        prefix: Some("shared".into()),
-        paths: Some(vec!["api.hpp".into(), "vendor/source".into()]),
-    });
+    let binary = "build/arm64-v8a/liblayout.so";
+    let config = package("layout", Version::new(1, 0, 0), Some(&[binary]));
     let dir = workspace(root.path(), &config);
-    fs::create_dir_all(dir.join("shared/vendor/source")).unwrap();
-    fs::write(dir.join("shared/api.hpp"), "// public header").unwrap();
-    fs::write(
-        dir.join("shared/vendor/source/nested.hpp"),
-        "// vendor header",
-    )
-    .unwrap();
-    fs::write(dir.join("shared/vendor/.git"), "not a public file").unwrap();
-    fs::create_dir_all(dir.join("build/arm64-v8a")).unwrap();
-    fs::write(dir.join("build/arm64-v8a/liblayout.so"), b"checkout binary").unwrap();
+    let checkout = dir.join(binary);
+    let legacy = dir.join("extern/build").join(binary);
+    fs::create_dir_all(checkout.parent().unwrap()).unwrap();
+    fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+    fs::write(checkout, b"checkout binary").unwrap();
+    fs::write(legacy, b"legacy binary").unwrap();
 
     let user = user_config(cache.path());
-    run_qpm(&user, &dir, &["qpkg", "--no-build"]).unwrap();
-    let qpkg = dir.join("layout.qpkg");
-    run_qpm(&user, &dir, &["install", "--path", qpkg.to_str().unwrap()]).unwrap();
-    let consumer = restore_consumer(root.path(), cache.path(), &[&config]);
-    let include = consumer.join("extern/includes/layout");
-    assert!(include.join("shared/api.hpp").is_file());
-    assert!(include.join("shared/vendor/source/nested.hpp").is_file());
-    assert!(!include.join("api.hpp").exists());
-    assert!(!include.join("shared/vendor/.git").exists());
-    assert_eq!(
-        fs::read(consumer.join("extern/libs/liblayout.so")).unwrap(),
-        b"checkout binary"
-    );
-
-    fs::create_dir_all(dir.join("alternate/build/arm64-v8a")).unwrap();
-    fs::write(
-        dir.join("alternate/build/arm64-v8a/liblayout.so"),
-        b"override binary",
-    )
-    .unwrap();
-    run_qpm(
-        &user,
-        &dir,
-        &[
-            "qpkg",
-            "--no-build",
-            "--input-bins",
-            "alternate",
-            "override.qpkg",
-        ],
-    )
-    .unwrap();
-    let mut zip = zip::ZipArchive::new(File::open(dir.join("override.qpkg")).unwrap()).unwrap();
-    let mut bytes = Vec::new();
-    zip.by_name("bin/liblayout.so")
-        .unwrap()
-        .read_to_end(&mut bytes)
-        .unwrap();
-    assert_eq!(bytes, b"override binary");
+    let variants = [
+        (
+            &["qpkg", "--no-build", "default.qpkg"][..],
+            b"checkout binary".as_slice(),
+        ),
+        (
+            &[
+                "qpkg",
+                "--no-build",
+                "--input-bins",
+                "extern/build",
+                "override.qpkg",
+            ][..],
+            b"legacy binary".as_slice(),
+        ),
+    ];
+    for (args, expected) in variants {
+        run_qpm(&user, &dir, args).unwrap();
+        let mut archive =
+            zip::ZipArchive::new(File::open(dir.join(args.last().unwrap())).unwrap()).unwrap();
+        let mut bytes = Vec::new();
+        archive
+            .by_name("bin/liblayout.so")
+            .unwrap()
+            .read_to_end(&mut bytes)
+            .unwrap();
+        assert_eq!(bytes, expected);
+    }
 }
 
 #[test]
@@ -303,7 +280,7 @@ fn qpkg_fails_when_an_out_binary_is_missing() {
     let config = package("broken", Version::new(1, 0, 0), Some(&["libbroken.so"]));
 
     let dir = producer(root.path(), &config);
-    fs::remove_file(dir.join("libbroken.so")).unwrap();
+    fs::remove_file(dir.join("extern/build/libbroken.so")).unwrap();
 
     let err = run_qpm(&user_config(cache.path()), &dir, &["qpkg", "--no-build"])
         .expect_err("packaging without the binary should fail");
