@@ -125,9 +125,8 @@ A **`.qpkg`** is a ZIP archive containing pre-built binaries and headers for dis
 - Used for: `#include <mylib/api.h>` in dependent code
 
 **Binaries** - From `workspace.outBinaries`:
-- Entries are relative to the directory containing `qpm2.json`. If no relative entry
-  resolves there, QPM accepts a complete set of binaries under `<dependenciesDirectory>/build/`
-  for existing manifests. Use `qpm2 qpkg --input-bins <directory>` to override the base directory.
+- Entries are relative to the directory containing `qpm2.json`. Use
+  `qpm2 qpkg --input-bins <directory>` to override the base directory.
 - Pre-built `.so` files from your build output
 - Used for linking during dependent's compilation
 - Typically one binary per release/debug configuration

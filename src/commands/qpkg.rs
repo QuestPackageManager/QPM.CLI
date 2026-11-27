@@ -22,7 +22,6 @@ use qpm_package::models::package::PackageConfig;
 use crate::{
     commands::build::BuildCommand,
     models::{package::PackageConfigExtensions, qpkg_file::QpkgFile},
-    repository::file::FileRepository,
     terminal::colors::QPMColor,
 };
 
@@ -80,23 +79,7 @@ impl Command for QPkgCommand {
             .unwrap_or(Path::new(&package.id.0))
             .with_extension("qpkg");
 
-        let legacy_bin_dir = FileRepository::build_path(&package.dependencies_directory);
-        let binaries_dir = input_bin_dir.as_deref().unwrap_or_else(|| {
-            let binaries = package
-                .workspace
-                .out_binaries
-                .as_deref()
-                .unwrap_or_default();
-            if binaries.iter().any(|path| path.is_relative())
-                && binaries.iter().all(|path| {
-                    (path.is_absolute() || !path.exists()) && legacy_bin_dir.join(path).is_file()
-                })
-            {
-                legacy_bin_dir.as_path()
-            } else {
-                Path::new(".")
-            }
-        });
+        let binaries_dir = input_bin_dir.as_deref().unwrap_or(Path::new("."));
         if self.verbose {
             println!(
                 "Creating QPKG from {} and {}",

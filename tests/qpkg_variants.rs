@@ -19,16 +19,16 @@ use support::{depend_on, file_names, header_name, id, package, run_qpm, user_con
 use tempfile::tempdir;
 
 /// Producer workspace for `config`: its header in `shared/` and a fake file for each
-/// `out_binaries` entry in `extern/build/`, ready for `qpkg --no-build`.
+/// `out_binaries` path relative to the manifest, ready for `qpkg --no-build`.
 fn producer(parent: &Path, config: &PackageConfig) -> std::path::PathBuf {
     let dir = workspace(parent, config);
     fs::create_dir_all(dir.join("shared")).unwrap();
     fs::write(dir.join("shared").join(header_name(config)), "// header\n").unwrap();
 
-    let build = dir.join("extern/build");
-    fs::create_dir_all(&build).unwrap();
     for binary in config.workspace.out_binaries.iter().flatten() {
-        fs::write(build.join(binary), format!("binary {}", binary.display())).unwrap();
+        let path = dir.join(binary);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, format!("binary {}", binary.display())).unwrap();
     }
     dir
 }
@@ -178,18 +178,18 @@ fn shared_library() {
 }
 
 #[test]
-fn manifest_relative_binary_takes_precedence_over_legacy_directory() {
+fn qpkg_uses_the_manifest_directory_unless_input_bins_is_set() {
     let root = tempdir().unwrap();
     let cache = tempdir().unwrap();
     let binary = "build/arm64-v8a/liblayout.so";
     let config = package("layout", Version::new(1, 0, 0), Some(&[binary]));
     let dir = workspace(root.path(), &config);
     let checkout = dir.join(binary);
-    let legacy = dir.join("extern/build").join(binary);
+    let alternate = dir.join("alternate").join(binary);
     fs::create_dir_all(checkout.parent().unwrap()).unwrap();
-    fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+    fs::create_dir_all(alternate.parent().unwrap()).unwrap();
     fs::write(checkout, b"checkout binary").unwrap();
-    fs::write(legacy, b"legacy binary").unwrap();
+    fs::write(alternate, b"override binary").unwrap();
 
     let user = user_config(cache.path());
     let variants = [
@@ -202,10 +202,10 @@ fn manifest_relative_binary_takes_precedence_over_legacy_directory() {
                 "qpkg",
                 "--no-build",
                 "--input-bins",
-                "extern/build",
+                "alternate",
                 "override.qpkg",
             ][..],
-            b"legacy binary".as_slice(),
+            b"override binary".as_slice(),
         ),
     ];
     for (args, expected) in variants {
@@ -272,7 +272,7 @@ fn transitive_dependency_gets_headers_but_not_binaries() {
     assert!(shared.restored_dependencies.contains_key(&id("b")));
 }
 
-/// A listed binary that was never built must fail packaging, not produce a qpkg without it
+/// Packaging fails if the listed path is missing from the selected directory.
 #[test]
 fn qpkg_fails_when_an_out_binary_is_missing() {
     let root = tempdir().unwrap();
@@ -280,7 +280,9 @@ fn qpkg_fails_when_an_out_binary_is_missing() {
     let config = package("broken", Version::new(1, 0, 0), Some(&["libbroken.so"]));
 
     let dir = producer(root.path(), &config);
-    fs::remove_file(dir.join("extern/build/libbroken.so")).unwrap();
+    let other_dir = dir.join("extern/build");
+    fs::create_dir_all(&other_dir).unwrap();
+    fs::rename(dir.join("libbroken.so"), other_dir.join("libbroken.so")).unwrap();
 
     let err = run_qpm(&user_config(cache.path()), &dir, &["qpkg", "--no-build"])
         .expect_err("packaging without the binary should fail");
