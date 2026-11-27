@@ -21,7 +21,10 @@ use qpm_package::models::package::PackageConfig;
 
 use crate::{
     commands::build::BuildCommand,
-    models::{package::PackageConfigExtensions, qpkg_file::QpkgFile},
+    models::{
+        package::PackageConfigExtensions,
+        qpkg_file::{QpkgFile, ensure_package_relative_path},
+    },
     repository::file::FileRepository,
     terminal::colors::QPMColor,
 };
@@ -31,7 +34,7 @@ use super::Command;
 /// Creates a QPKG package: builds mod, zips headers + binaries + manifest
 #[derive(Args, Clone, Debug)]
 pub struct QPkgCommand {
-    /// Directory storing the built binaries, as {binary_name}
+    /// Directory for outBinaries. Overrides workspace.outBinariesDirectory.
     #[clap(short, long = "input-bins")]
     pub input_bin_dir: Option<String>,
 
@@ -60,10 +63,14 @@ impl Command for QPkgCommand {
     fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
-        let build_dir = self
-            .input_bin_dir
-            .map(PathBuf::from)
-            .unwrap_or_else(|| FileRepository::build_path(&package.dependencies_directory));
+        let build_dir = match (self.input_bin_dir, &package.workspace.out_binaries_directory) {
+            (Some(dir), _) => PathBuf::from(dir),
+            (None, Some(dir)) => {
+                ensure_package_relative_path(dir, "workspace.outBinariesDirectory")?;
+                dir.clone()
+            }
+            (None, None) => FileRepository::build_path(&package.dependencies_directory),
+        };
 
         if !self.no_build {
             let command = BuildCommand {

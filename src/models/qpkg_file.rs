@@ -1,10 +1,22 @@
 use crate::utils::json;
-use color_eyre::eyre::{Context, Result, bail};
+use color_eyre::eyre::{Context, Result, bail, ensure};
 use qpm_package::models::package::PackageConfig;
 use qpm_package::models::qpkg::{QPKG_JSON, QpkgManifest};
 use std::io::{Read, Seek, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use zip::ZipArchive;
+
+pub(crate) fn ensure_package_relative_path(path: &Path, field: &str) -> Result<()> {
+    ensure!(
+        !path.as_os_str().is_empty()
+            && path
+                .components()
+                .all(|component| matches!(component, Component::Normal(_) | Component::CurDir)),
+        "{field} must be a relative path without '..': {}",
+        path.display()
+    );
+    Ok(())
+}
 
 /// Reads and manages QPKG ZIP files, providing access to manifest and contents
 pub struct QpkgFile<T> {
@@ -221,6 +233,22 @@ impl<T: Write + Seek> QpkgFile<T> {
         let mut headers = Vec::new();
         let mut binaries = Vec::new();
 
+        let header_paths = config
+            .workspace
+            .header_export
+            .as_ref()
+            .and_then(|export| export.paths.as_deref());
+        if let Some(paths) = header_paths {
+            for path in paths {
+                ensure_package_relative_path(path, "workspace.headerExport.paths")?;
+                ensure!(
+                    headers_dir.join(path).exists(),
+                    "Header export path does not exist: {}",
+                    headers_dir.join(path).display()
+                );
+            }
+        }
+
         // Collect headers from directory
         if headers_dir.exists() {
             for entry in walkdir::WalkDir::new(headers_dir)
@@ -231,6 +259,13 @@ impl<T: Write + Seek> QpkgFile<T> {
             {
                 let file_path = entry.path();
                 let rel_path = file_path.strip_prefix(headers_dir)?;
+                if header_paths.is_some_and(|paths| {
+                    !paths
+                        .iter()
+                        .any(|path| rel_path.starts_with(path.strip_prefix(".").unwrap_or(path)))
+                }) {
+                    continue;
+                }
                 let content = std::fs::read(file_path).context("Failed to read header file")?;
                 headers.push((rel_path.to_path_buf(), content));
             }
@@ -276,10 +311,20 @@ impl<T: Write + Seek> QpkgFile<T> {
         let options = zip::write::FileOptions::<()>::default();
 
         let shared_dir = config.shared_directory.clone();
+        let mut header_dir = shared_dir.clone();
+        if let Some(prefix) = config
+            .workspace
+            .header_export
+            .as_ref()
+            .and_then(|export| export.prefix.as_deref())
+        {
+            ensure_package_relative_path(prefix, "workspace.headerExport.prefix")?;
+            header_dir.push(prefix);
+        }
 
-        // Add header files using the config's shared directory path
+        // Restore strips shared_dir, leaving the optional export prefix in place.
         for (path, content) in headers {
-            let full_path = shared_dir.join(path.as_ref());
+            let full_path = header_dir.join(path.as_ref());
             zip.start_file_from_path(&full_path, options)
                 .context("Failed to start header file in QPKG")?;
             zip.write_all(content)

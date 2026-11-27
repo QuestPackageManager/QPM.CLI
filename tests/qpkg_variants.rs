@@ -7,13 +7,14 @@
 #[path = "support/mod.rs"]
 mod support;
 
-use std::{fs, fs::File, path::Path};
+use std::{fs, fs::File, io::Read, path::Path};
 
 use qpm_cli::models::{
     package::PackageConfigExtensions, package_files::PackageVersionPath, qpkg_file::QpkgFile,
     toolchain::ToolchainData,
 };
 use qpm_package::models::package::PackageConfig;
+use qpm_package::models::workspace::HeaderExportConfig;
 use semver::Version;
 use support::{depend_on, file_names, header_name, id, package, run_qpm, user_config, workspace};
 use tempfile::tempdir;
@@ -175,6 +176,74 @@ fn shared_library() {
         Version::new(1, 0, 0),
         Some(&["libsharedlib.so"]),
     ));
+}
+
+#[test]
+fn checkout_binary_and_selected_headers_restore_with_a_prefix() {
+    let root = tempdir().unwrap();
+    let cache = tempdir().unwrap();
+    let mut config = package(
+        "layout",
+        Version::new(1, 0, 0),
+        Some(&["build/arm64-v8a/liblayout.so"]),
+    );
+    config.workspace.out_binaries_directory = Some(".".into());
+    config.workspace.header_export = Some(HeaderExportConfig {
+        prefix: Some("shared".into()),
+        paths: Some(vec!["api.hpp".into(), "vendor/source".into()]),
+    });
+    let dir = workspace(root.path(), &config);
+    fs::create_dir_all(dir.join("shared/vendor/source")).unwrap();
+    fs::write(dir.join("shared/api.hpp"), "// public header").unwrap();
+    fs::write(
+        dir.join("shared/vendor/source/nested.hpp"),
+        "// vendor header",
+    )
+    .unwrap();
+    fs::write(dir.join("shared/vendor/.git"), "not a public file").unwrap();
+    fs::create_dir_all(dir.join("build/arm64-v8a")).unwrap();
+    fs::write(dir.join("build/arm64-v8a/liblayout.so"), b"checkout binary").unwrap();
+
+    let user = user_config(cache.path());
+    run_qpm(&user, &dir, &["qpkg", "--no-build"]).unwrap();
+    let qpkg = dir.join("layout.qpkg");
+    run_qpm(&user, &dir, &["install", "--path", qpkg.to_str().unwrap()]).unwrap();
+    let consumer = restore_consumer(root.path(), cache.path(), &[&config]);
+    let include = consumer.join("extern/includes/layout");
+    assert!(include.join("shared/api.hpp").is_file());
+    assert!(include.join("shared/vendor/source/nested.hpp").is_file());
+    assert!(!include.join("api.hpp").exists());
+    assert!(!include.join("shared/vendor/.git").exists());
+    assert_eq!(
+        fs::read(consumer.join("extern/libs/liblayout.so")).unwrap(),
+        b"checkout binary"
+    );
+
+    fs::create_dir_all(dir.join("alternate/build/arm64-v8a")).unwrap();
+    fs::write(
+        dir.join("alternate/build/arm64-v8a/liblayout.so"),
+        b"override binary",
+    )
+    .unwrap();
+    run_qpm(
+        &user,
+        &dir,
+        &[
+            "qpkg",
+            "--no-build",
+            "--input-bins",
+            "alternate",
+            "override.qpkg",
+        ],
+    )
+    .unwrap();
+    let mut zip = zip::ZipArchive::new(File::open(dir.join("override.qpkg")).unwrap()).unwrap();
+    let mut bytes = Vec::new();
+    zip.by_name("bin/liblayout.so")
+        .unwrap()
+        .read_to_end(&mut bytes)
+        .unwrap();
+    assert_eq!(bytes, b"override binary");
 }
 
 #[test]

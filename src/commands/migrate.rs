@@ -124,6 +124,7 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
                     .unwrap_or_else(|| PathBuf::from("toolchain.json")),
             ),
             cmake: qpm1.info.additional_data.cmake,
+            ..Default::default()
         },
         qmod: QmodConfig {
             output: qpm1.workspace.qmod_output,
