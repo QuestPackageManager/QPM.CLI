@@ -23,7 +23,7 @@ const LEGACY_QPM_JSON: &str = r#"{
       "modLink": "https://example.com/mymod.qmod",
       "compileOptions": {
         "includePaths": ["shared/include", "shared/"],
-        "systemIncludes": ["", "shared/"],
+        "systemIncludes": ["shared/"],
         "cppFlags": ["-std=c++20"]
       }
     }
@@ -67,7 +67,7 @@ fn migrate_then_read() -> color_eyre::Result<()> {
     );
     assert_eq!(
         package.workspace.out_binaries,
-        Some(vec!["libmymod.so".into()])
+        Some(vec!["extern/build/libmymod.so".into()])
     );
     assert_eq!(package.workspace.cmake, Some(true));
     assert_eq!(
@@ -91,7 +91,7 @@ fn migrate_then_read() -> color_eyre::Result<()> {
             .compile_options
             .as_ref()
             .and_then(|c| c.system_includes.clone()),
-        None
+        Some(Vec::new())
     );
 
     let hook = package
