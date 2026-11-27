@@ -1,5 +1,7 @@
 #!/bin/deno
 
+import { isAbsolute, join } from "node:path";
+
 interface QPM1 {
   version?: string;
   sharedDir: string;
@@ -164,7 +166,13 @@ const devDependencies = qpm1.dependencies
 const qpm2Bin =
   qpm1.info.additionalData?.headersOnly ? null :
     (qpm1.info.additionalData?.overrideSoName ?? `lib${qpm1.info.id}.so`);
-const outBinaries = qpm2Bin ? [qpm2Bin] : [];
+const outBinaries = qpm2Bin
+  ? [
+      (isAbsolute(qpm2Bin)
+        ? qpm2Bin
+        : join(qpm1.dependenciesDir, "build", qpm2Bin)).replaceAll("\\", "/"),
+    ]
+  : [];
 const compileOptions = qpm1.info.additionalData?.compileOptions;
 
 const qpm2: QPM2 = {

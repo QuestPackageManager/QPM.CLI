@@ -20,16 +20,16 @@ use support::{depend_on, file_names, header_name, id, package, run_qpm, user_con
 use tempfile::tempdir;
 
 /// Producer workspace for `config`: its header in `shared/` and a fake file for each
-/// `out_binaries` entry in `extern/build/`, ready for `qpkg --no-build`.
+/// `out_binaries` path relative to the manifest, ready for `qpkg --no-build`.
 fn producer(parent: &Path, config: &PackageConfig) -> std::path::PathBuf {
     let dir = workspace(parent, config);
     fs::create_dir_all(dir.join("shared")).unwrap();
     fs::write(dir.join("shared").join(header_name(config)), "// header\n").unwrap();
 
-    let build = dir.join("extern/build");
-    fs::create_dir_all(&build).unwrap();
     for binary in config.workspace.out_binaries.iter().flatten() {
-        fs::write(build.join(binary), format!("binary {}", binary.display())).unwrap();
+        let path = dir.join(binary);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, format!("binary {}", binary.display())).unwrap();
     }
     dir
 }
@@ -187,7 +187,6 @@ fn checkout_binary_and_selected_headers_restore_with_a_prefix() {
         Version::new(1, 0, 0),
         Some(&["build/arm64-v8a/liblayout.so"]),
     );
-    config.workspace.out_binaries_directory = Some(".".into());
     config.workspace.header_export = Some(HeaderExportConfig {
         prefix: Some("shared".into()),
         paths: Some(vec!["api.hpp".into(), "vendor/source".into()]),
@@ -304,7 +303,7 @@ fn qpkg_fails_when_an_out_binary_is_missing() {
     let config = package("broken", Version::new(1, 0, 0), Some(&["libbroken.so"]));
 
     let dir = producer(root.path(), &config);
-    fs::remove_file(dir.join("extern/build/libbroken.so")).unwrap();
+    fs::remove_file(dir.join("libbroken.so")).unwrap();
 
     let err = run_qpm(&user_config(cache.path()), &dir, &["qpkg", "--no-build"])
         .expect_err("packaging without the binary should fail");

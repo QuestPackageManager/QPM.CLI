@@ -92,7 +92,7 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
             .override_so_name
             .clone()
             .unwrap_or_else(|| format!("lib{}.so", qpm1.info.id));
-        vec![PathBuf::from(bin)]
+        vec![qpm1.dependencies_dir.join("build").join(bin)]
     };
 
     let compile_options = qpm1
