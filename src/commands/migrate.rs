@@ -21,7 +21,9 @@ use qpm_package_v1::models::{
     package::PackageDependency as PackageDependencyV1,
 };
 
-use crate::{models::package::PackageConfigExtensions, utils::json};
+use crate::{
+    models::package::PackageConfigExtensions, repository::file::FileRepository, utils::json,
+};
 
 use super::Command;
 
@@ -92,7 +94,7 @@ fn convert(qpm1: PackageConfigV1) -> Result<PackageConfig> {
             .override_so_name
             .clone()
             .unwrap_or_else(|| format!("lib{}.so", qpm1.info.id));
-        vec![PathBuf::from(bin)]
+        vec![FileRepository::build_path(&qpm1.dependencies_dir).join(bin)]
     };
 
     let compile_options = qpm1

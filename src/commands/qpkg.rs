@@ -22,7 +22,6 @@ use qpm_package::models::package::PackageConfig;
 use crate::{
     commands::build::BuildCommand,
     models::{package::PackageConfigExtensions, qpkg_file::QpkgFile},
-    repository::file::FileRepository,
     terminal::colors::QPMColor,
 };
 
@@ -31,7 +30,7 @@ use super::Command;
 /// Creates a QPKG package: builds mod, zips headers + binaries + manifest
 #[derive(Args, Clone, Debug)]
 pub struct QPkgCommand {
-    /// Directory storing the built binaries, as {binary_name}
+    /// Base directory for outBinaries (defaults to the directory containing qpm2.json).
     #[clap(short, long = "input-bins")]
     pub input_bin_dir: Option<String>,
 
@@ -60,15 +59,12 @@ impl Command for QPkgCommand {
     fn execute(self, ctx: &QpmContext) -> color_eyre::Result<()> {
         let package = PackageConfig::read(".")?;
 
-        let build_dir = self
-            .input_bin_dir
-            .map(PathBuf::from)
-            .unwrap_or_else(|| FileRepository::build_path(&package.dependencies_directory));
+        let input_bin_dir = self.input_bin_dir.map(PathBuf::from);
 
         if !self.no_build {
             let command = BuildCommand {
                 args: None,
-                out_dir: Some(build_dir.clone()),
+                out_dir: input_bin_dir.clone(),
                 qmod: self.qmod,
                 build_script: None,
                 ndk_resolve: self.resolve_ndk,
@@ -83,11 +79,12 @@ impl Command for QPkgCommand {
             .unwrap_or(Path::new(&package.id.0))
             .with_extension("qpkg");
 
+        let binaries_dir = input_bin_dir.as_deref().unwrap_or(Path::new("."));
         if self.verbose {
             println!(
                 "Creating QPKG from {} and {}",
                 package.shared_directory.display(),
-                build_dir.display()
+                binaries_dir.display()
             );
         }
 
@@ -111,7 +108,7 @@ impl Command for QPkgCommand {
             buffer,
             package.clone(),
             &package.shared_directory,
-            &build_dir,
+            binaries_dir,
         )
         .context("Failed to create QPKG")?;
 
